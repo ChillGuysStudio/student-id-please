@@ -181,7 +181,25 @@ main (stable / production releases)
 
 ### Commit Conventions
 
-...
+Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/)** specification to maintain a clean and readable git log.
+
+**Commit Format:**
+`<type>(<scope>): <short summary in imperative mood>`
+
+* **`feat`**: Used when introducing a brand-new feature or service functionality.
+  * *Example:* `feat(game-service): implement websocket cycle timer`
+* **`fix`**: Used when patching a bug, error, or unwanted behavior in the codebase.
+  * *Example:* `fix(user-service): fix jwt token expiration validation`
+* **`docs`**: Used exclusively for documentation updates (README files, architecture diagrams, API specifications).
+  * *Example:* `docs(readme): add contribution and workflow rules`
+* **`style`**: Used for code style/formatting changes that do not affect logic (white-space, semi-colons, formatting).
+  * *Example:* `style(player-service): format files according to prettier rules`
+* **`refactor`**: Used for rewriting or restructuring code without changing existing behavior or adding features.
+  * *Example:* `refactor(resource-service): extract database connection logic into helper module`
+* **`test`**: Used when adding missing unit/integration tests or updating existing test suites.
+  * *Example:* `test(exam-service): add unit tests for grade calculation endpoints`
+* **`chore`**: Used for routine maintenance, build configuration, dependency updates, or git submodule management.
+  * *Example:* `chore(submodules): link private user-service repository`
 
 
 ### Pull Request Format
