@@ -132,6 +132,61 @@ For example:
 
 Different players can have access to different channels/information. The service transports messages but does not determine whether information is correct.
 
+
 ## Architecture Diagram
 
 <img src="docs/architecture.svg" alt="Architecture Diagram" width="1080"/>
+
+
+## Contribution & Workflow Guidelines
+
+### Base Rules
+
+...
+
+
+### Branching Model
+
+We follow a Gitflow-inspired branching model with `main`, `dev`, and short-lived feature/task branches:
+
+```text
+main (stable / production releases)
+ └── dev (integration of current lab)
+      ├── feat/lab-X/service-or-feature
+      ├── fix/lab-X/issue-description
+      ├── docs/lab-X/update-description
+      └── chore/lab-X/task-description
+```
+
+#### Naming Conventions
+
+- **`main`**: Production-ready state. Only receives merges from `dev` upon lab completion.
+
+- **`dev`**: Active integration branch for the current laboratory work.
+
+- **Feature Branches**: `feat/lab-X/service-or-feature`
+    - *Example:* `feat/lab-1/player-auth`
+
+- **Fix Branches**: `fix/lab-X/issue-description`
+    - *Example:* `fix/lab-0/submodule-link-error`
+
+- **Documentation Branches**: `docs/lab-X/update-description`
+    - *Example:* `docs/lab-0/communication-contracts`
+
+
+- **Chore Branches**: `chore/lab-X/task-description`
+    - *Example:* `chore/lab-0/update-submodules`
+
+
+
+### Commit Conventions
+
+...
+
+
+### Pull Request Format
+
+...
+
+
+
