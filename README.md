@@ -210,7 +210,31 @@ Versions are tagged exclusively on `main` upon completing lab checkpoints or hot
 
 ### Pull Request Format
 
-...
+#### PR Naming Convention
+PR titles must follow the Conventional Commits scope pattern:  
+`<type>(lab-X): <short imperative summary>`
 
+* **Example:** `docs(lab-0): define architecture diagram and workflow rules`
+* **Example:** `feat(lab-1): implement JWT authentication in player service`
+
+#### PR Description Template
+All PRs targeting `dev` or `main` must use the following structured format:
+
+```markdown
+## What?
+[Describe what changes are introduced in this PR]
+
+## Why?
+[Explain the goal or problem this PR addresses]
+
+## How?
+[Brief overview of the technical approach/implementation]
+
+## How to Test?
+[Provide step-by-step instructions on how reviewers can verify these changes]
+
+## Screenshots / Evidence (Optional)
+[Attach screenshots, API test output, or logs if applicable]
+```
 
 
