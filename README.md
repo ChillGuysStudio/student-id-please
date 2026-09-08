@@ -140,9 +140,23 @@ Different players can have access to different channels/information. The service
 
 ## Contribution & Workflow Guidelines
 
-### Base Rules
+### Example Lab Workflow
 
-...
+**1. Task Development**
+* Branch off `dev`: `git checkout -b <type>/lab-X/<description>`
+* Commit changes: `git commit -m "<type>(<scope>): <summary>"`
+* Push and open PR targeting `dev`
+
+**2. Peer Review & Integration**
+* Request at least 1 peer approval
+* Verify CI checks, submodule pointers, and lack of secrets
+* Merge into `dev` using **Squash and Merge**
+
+**3. Lab Completion & Release**
+* Open PR from `dev` to `main` when lab requirements are met
+* Perform final testing and submission verification
+* Merge into `main` using **Rebase and Merge**
+* Tag release on `main`: `git tag -a vX.0.0 -m "Lab X completion"` && `git push origin vX.0.0`
 
 
 ### Branching Model
@@ -244,4 +258,12 @@ All PRs targeting `dev` or `main` must use the following structured format:
 [Attach screenshots, API test output, or logs if applicable]
 ```
 
+#### PR Reviewing Process
 
+- **Minimum Approvals & Reviewers**: At least one
+- **Automated Checks**: All CI pipelines and tests must pass before merging
+- **Review Criteria**:
+  - Code quality, readability, and modularity
+  - Adherence to branch and commit naming standards
+  - Test coverage and endpoint functionality
+  - Security considerations and secret protection
