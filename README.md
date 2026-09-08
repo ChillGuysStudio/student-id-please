@@ -178,7 +178,6 @@ main (stable / production releases)
     - *Example:* `chore/lab-0/update-submodules`
 
 
-
 ### Commit Conventions
 
 Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/)** specification to maintain a clean and readable git log.
@@ -201,6 +200,13 @@ Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](htt
 * **`chore`**: Used for routine maintenance, build configuration, dependency updates, or git submodule management.
   * *Example:* `chore(submodules): link private user-service repository`
 
+
+### Versioning Strategy
+
+Versions are tagged exclusively on `main` upon completing lab checkpoints or hotfixes:
+
+* **Major Lab Releases (`vX.0.0`):** Created when merging `dev` into `main` after completing all lab requirements (e.g., `v0.0.0`, `v1.0.0`, `v2.0.0`).
+* **Hotfixes (`vX.0.Y`):** Created if fixes are required on `main` (e.g., `v1.0.1`).
 
 ### Pull Request Format
 
