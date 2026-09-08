@@ -178,6 +178,13 @@ main (stable / production releases)
     - *Example:* `chore/lab-0/update-submodules`
 
 
+### Merge Strategy
+
+- **Feature --> `dev`**: Use *Squash and Merge* to maintain a clean, linear history of completed tasks on the integration branch.
+
+- **`dev` --> `main`**: Use *Rebase and Merge* upon final lab evaluation to preserve full milestone history.
+
+
 ### Commit Conventions
 
 Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/)** specification to maintain a clean and readable git log.
