@@ -6,6 +6,8 @@ Each service is the only writer to the data it owns. Other services use APIs to 
 
 ### Player Service
 
+*Responsible for global player identity, user authentication, profile management, and persistent moderator progression.*
+
 The Player Service owns:
 
 - player accounts and authentication
@@ -16,6 +18,8 @@ The Player Service owns:
 It updates progression from completed-shift and disciplinary events. It does not own applicants, moderation-session roles, admission decisions, or session scores.
 
 ### Server Moderation Session Service
+
+*Manages active Discord moderation shifts, session rosters, assigned moderator roles, and aggregate shift scoring.*
 
 The Server Moderation Session Service owns:
 
@@ -31,6 +35,8 @@ It does not own player accounts or progression, applicant details, individual ad
 
 ### Applicant Service
 
+*Generates and maintains the profiles, claims, and background details of individuals attempting to join the Discord server.*
+
 The Applicant Service owns the applicant profile and the claims presented by the applicant. These claims can include the applicant's name, student ID, major, year, university status, courses, and role.
 
 An applicant can claim to be a FAF student, a student from another major, a teaching assistant, a university staff member, an alumnus, or an outsider. The claims may be false or may impersonate another person.
@@ -38,6 +44,8 @@ An applicant can claim to be a FAF student, a student from another major, a teac
 The service does not own submitted credentials, authoritative university records, credential-validation results, or admission decisions.
 
 ### Credential Service
+
+*Validates the structural authenticity and integrity of physical or digital verification documents presented by applicants.*
 
 The Credential Service owns:
 
@@ -51,6 +59,8 @@ The service does not own the applicant's claimed identity, authoritative univers
 
 ### Server Rules Service
 
+*Maintains active server access policies and evaluates applicant claims against current shift entry requirements.*
+
 The Server Rules Service owns versioned rules for accessing the Discord server. It evaluates applicant claims, credential results, university facts, and moderation history against the rule version active for the shift.
 
 Rules can restrict access by major, year, enrollment duration, university role, allowed channels, or an existing ban. The service returns the expected policy result and the rules that matched.
@@ -58,6 +68,8 @@ Rules can restrict access by major, year, enrollment duration, university role, 
 It does not own applicant data, credentials, university records, bans, moderator actions, or scoring. The Moderation Service owns the comparison between the expected policy result and the Moderator's decision.
 
 ### University Record Service
+
+*Stores authoritative university databases and enforces player permission limits for inspecting verification records.*
 
 The University Record Service owns authoritative university facts, including:
 
@@ -74,6 +86,8 @@ It does not own applicant claims, submitted credentials, credential-validation r
 
 ### Moderation Service
 
+*Executes admission decisions (Accept, Reject, Flag, Ban) and evaluates decision correctness against server rules.*
+
 The Moderation Service owns:
 
 - the Moderator's Accept, Reject, Flag, or Ban action for each applicant
@@ -86,6 +100,8 @@ The service obtains the required facts from the Applicant, Credential, Universit
 It does not own the source applicant data, credentials, university records, rule definitions, or aggregate shift score.
 
 ### Discord DMs Service
+
+*Facilitates real-time, WebSocket-based communication across role-restricted moderation channels during active shifts.*
 
 The Discord DMs Service owns moderation channels, channel membership, messages, and real-time message delivery over WebSockets. Session channels can include:
 
