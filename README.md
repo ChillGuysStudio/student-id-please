@@ -2,136 +2,105 @@
 
 ## Service Boundaries
 
+Each service is the only writer to the data it owns. Other services use APIs to request that data or consume events containing the data they need. Data copied into a local projection does not become a new source of truth.
+
 ### Player Service
 
-Responsible for the identity of the players themselves. Stores **accounts, authentication, profiles friends and XP/Levels** within the game.
+The Player Service owns:
 
-Players can form “moderation teams” and join server moderation sessions. The service tracks persistent progression
-through leveling based on moderator experience, completed shifts and disciplinary actions.
+- player accounts and authentication
+- player profiles and friendships
+- moderation teams and team membership
+- XP, levels, and persistent progression
 
-The service does not contain information about the people attempting to join the university server.
-
+It updates progression from completed-shift and disciplinary events. It does not own applicants, moderation-session roles, admission decisions, or session scores.
 
 ### Server Moderation Session Service
 
-Manages an active **Discord moderation session**.
+The Server Moderation Session Service owns:
 
-A session represents one moderation shift and contains a **Moderator** and several **Junior Moderator** players.
+- moderation-shift creation and lifecycle
+- the participant roster and the Moderator or Junior Moderator role assigned to each participant
+- the current applicant reference
+- the number of processed applications
+- the aggregate shift score and penalties
 
-It is responsible for:
-- creating and joining sessions
-- assigning roles
-- starting/ending shifts
-- current applicant
-- number of applications processed
-- session score and penalties
+It consumes individual outcomes from the Moderation Service and calculates the overall shift result. When a shift ends, it publishes the result for the Player Service to apply to player progression.
 
-At the end of a shift, the service determines the overall session result and publishes the results for player progression.
-
+It does not own player accounts or progression, applicant details, individual admission decisions, server rules, or chat messages.
 
 ### Applicant Service
 
-Owns the people attempting to access the server. Generates applicants with information such as **name student ID, major, year, university status, courses and role etc**.
+The Applicant Service owns the applicant profile and the claims presented by the applicant. These claims can include the applicant's name, student ID, major, year, university status, courses, and role.
 
-Applicants may be:
-- students of FAF
-- students from other majors
-- teaching assistants
-- university staff
-- alumni
-- outsiders
+An applicant can claim to be a FAF student, a student from another major, a teaching assistant, a university staff member, an alumnus, or an outsider. The claims may be false or may impersonate another person.
 
-Some applicants may intentionally provide false information or attempt to impersonate another person.
-
-If the Applicant Service is contacted first for a new applicant, it initializes the applicant's profile and propagates the relevant information to the Credential and University Record Services.
-
-Otherwise, it generates the profile based on the information provided by whichever service initialized the applicant.
-
+The service does not own submitted credentials, authoritative university records, credential-validation results, or admission decisions.
 
 ### Credential Service
 
-Owns the documents and credentials presented by applicants.
+The Credential Service owns:
 
-Examples include:
-- student ID
-- university email
-- enrollment confirmation
-- ELSE course registration etc
+- documents and credentials presented by an applicant
+- structural and authenticity checks
+- the validation result for each credential
 
-Credentials can be expired, forged, inconsistent or incomplete.
+Credentials can include a student ID, a university email, an enrollment confirmation, or an ELSE course registration. A credential can be expired, forged, inconsistent, or incomplete.
 
-The service validates the structure and authenticity of credentials but does not decide whether the applicant should be admitted to the Discord server.
-
-If the Credential Service is contacted first for a new applicant, it initializes the applicant's documents and propagates the relevant information to the Applicant and University Record Services. Otherwise, it generates the documents based on the information provided by whichever service initialized the applicant.
-
+The service does not own the applicant's claimed identity, authoritative university records, access rules, or admission decisions. A valid credential does not by itself grant access to the Discord server.
 
 ### Server Rules Service
 
-Owns the current rules for accessing the major's Discord server.
+The Server Rules Service owns versioned rules for accessing the Discord server. It evaluates applicant claims, credential results, university facts, and moderation history against the rule version active for the shift.
 
-Rules can change between shifts and can become increasingly complicated.
+Rules can restrict access by major, year, enrollment duration, university role, allowed channels, or an existing ban. The service returns the expected policy result and the rules that matched.
 
-Examples:
-- only FAF students may join
-- first-year students may access #general
-but not #dark-memes or #groapa
-- students must be enrolled in FAF for at
-least 2 years
-- professors may access the teacher
-channels
-- previously banned students cannot
-enter regardless of their credentials
-
-The service evaluates applicants against the current access rules.
-
+It does not own applicant data, credentials, university records, bans, moderator actions, or scoring. The Moderation Service owns the comparison between the expected policy result and the Moderator's decision.
 
 ### University Record Service
 
-Provides the hidden university information that moderators may need to verify an applicant.
+The University Record Service owns authoritative university facts, including:
 
-Examples include:
-- current enrollment list
-- the Outlook Group Lists of emails
-- current existing courses
-- current academic year
-- schedule for the semester
-- FCIM server message record etc
+- current enrollment
+- Outlook group email membership
+- existing courses
+- the current academic year
+- the semester schedule
+- FCIM server message records
 
-This information is deliberately distributed among the junior mod players. One player might have access to enrollment list while another can inspect the FCIM server.
+It also owns permissions that determine which university records each Junior Moderator may inspect. The service enforces these permissions whenever a player requests a record.
 
-Players must not be able to access records they were not assigned to see.
-
-If the University Record Service is contacted first for a new applicant, it initializes the records containing the applicant and propagates the relevant information to the Applicant and Credential Services. Otherwise, it generates the student records based on the information provided by whichever service initialized the applicant.
-
+It does not own applicant claims, submitted credentials, credential-validation results, or admission decisions.
 
 ### Moderation Service
 
-Owns the actual admission decision for each applicant.
+The Moderation Service owns:
 
-The Moderator can choose actions such as:
-- **Accept** — allow the applicant into the Discord server
-- **Reject** — deny access
-- **Flag** — send the applicant for further investigation
-- **Ban** — permanently prevent access
+- the Moderator's Accept, Reject, Flag, or Ban action for each applicant
+- decision history and active bans
+- the server-rule result used for the decision
+- the correctness, violated rules, outcome, and penalty for one decision
 
-The service gathers the relevant information and determines whether the
-decision was correct according to the current server rules. It records the applicant, decision, violated rules, penalties and outcome.
+The service obtains the required facts from the Applicant, Credential, University Record, and Server Rules services. It compares the Moderator's action with the result returned by the Server Rules Service, then publishes the decision outcome to the Server Moderation Session Service.
 
+It does not own the source applicant data, credentials, university records, rule definitions, or aggregate shift score.
 
 ### Discord DMs Service
 
-Provides the real-time communication between the moderator and the junior mods.
+The Discord DMs Service owns moderation channels, channel membership, messages, and real-time message delivery over WebSockets. Session channels can include:
 
-Players communicate through a Discord-like interface using WebSockets. The service manages channels associated with the current moderation session.
-
-For example:
 - `#enrollment-check`
 - `#faculty-check`
 - `#course-registration`
 - `#general-mod-chat`
 
-Different players can have access to different channels/information. The service transports messages but does not determine whether information is correct.
+The service uses session roles and university-record permissions when granting channel access. It does not own those roles or permissions. It transports messages but does not verify whether their contents are correct.
 
+### Applicant case initialization
+
+The Applicant, Credential, or University Record service may receive the first request for a new applicant case. The first service creates a shared applicant case ID and publishes a case-initialized event with the generation data. Each receiving service then creates only the records it owns.
+
+No service writes directly to another service's database. The shared case ID links the applicant profile, credentials, university records, moderation decision, and session entry without creating shared data ownership.
 
 ## Architecture Diagram
 
