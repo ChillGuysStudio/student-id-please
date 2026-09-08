@@ -140,25 +140,6 @@ Different players can have access to different channels/information. The service
 
 ## Contribution & Workflow Guidelines
 
-### Example Lab Workflow
-
-**1. Task Development**
-* Branch off `dev`: `git checkout -b <type>/lab-X/<description>`
-* Commit changes: `git commit -m "<type>(<scope>): <summary>"`
-* Push and open PR targeting `dev`
-
-**2. Peer Review & Integration**
-* Request at least 1 peer approval
-* Verify CI checks, submodule pointers, and lack of secrets
-* Merge into `dev` using **Squash and Merge**
-
-**3. Lab Completion & Release**
-* Open PR from `dev` to `main` when lab requirements are met
-* Perform final testing and submission verification
-* Merge into `main` using **Rebase and Merge**
-* Tag release on `main`: `git tag -a vX.0.0 -m "Lab X completion"` && `git push origin vX.0.0`
-
-
 ### Branching Model
 
 We follow a Gitflow-inspired branching model with `main`, `dev`, and short-lived feature/task branches:
@@ -192,13 +173,6 @@ main (stable / production releases)
     - *Example:* `chore/lab-0/update-submodules`
 
 
-### Merge Strategy
-
-- **Feature --> `dev`**: Use *Squash and Merge* to maintain a clean, linear history of completed tasks on the integration branch.
-
-- **`dev` --> `main`**: Use *Rebase and Merge* upon final lab evaluation to preserve full milestone history.
-
-
 ### Commit Conventions
 
 Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/)** specification to maintain a clean and readable git log.
@@ -222,6 +196,13 @@ Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](htt
   * *Example:* `chore(submodules): link private user-service repository`
 
 
+### Merge Strategy
+
+- **Feature --> `dev`**: Use *Squash and Merge* to maintain a clean, linear history of completed tasks on the integration branch.
+
+- **`dev` --> `main`**: Use *Rebase and Merge* upon final lab evaluation to preserve full milestone history.
+
+
 ### Versioning Strategy
 
 Versions are tagged exclusively on `main` upon completing lab checkpoints or hotfixes:
@@ -242,14 +223,11 @@ PR titles must follow the Conventional Commits scope pattern:
 All PRs targeting `dev` or `main` must use the following structured format:
 
 ```markdown
-## What?
-[Describe what changes are introduced in this PR]
-
 ## Why?
 [Explain the goal or problem this PR addresses]
 
-## How?
-[Brief overview of the technical approach/implementation]
+## Changes
+[Brief overview of the technical approach/implementation and changes included]
 
 ## How to Test?
 [Provide step-by-step instructions on how reviewers can verify these changes]
@@ -267,3 +245,22 @@ All PRs targeting `dev` or `main` must use the following structured format:
   - Adherence to branch and commit naming standards
   - Test coverage and endpoint functionality
   - Security considerations and secret protection
+
+
+### Example Lab Workflow
+
+**1. Task Development**
+* Branch off `dev`: `git checkout -b <type>/lab-X/<description>`
+* Commit changes: `git commit -m "<type>(<scope>): <summary>"`
+* Push and open PR targeting `dev`
+
+**2. Peer Review & Integration**
+* Request at least 1 peer approval
+* Verify CI checks, submodule pointers, and lack of secrets
+* Merge into `dev` using **Squash and Merge**
+
+**3. Lab Completion & Release**
+* Open PR from `dev` to `main` when lab requirements are met
+* Perform final testing and submission verification
+* Merge into `main` using **Rebase and Merge**
+* Tag release on `main`: `git tag -a vX.0.0 -m "Lab X completion"` && `git push origin vX.0.0`
