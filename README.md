@@ -114,9 +114,13 @@ The service uses session roles and university-record permissions when granting c
 
 ### Applicant case initialization
 
-The Applicant, Credential, or University Record service may receive the first request for a new applicant case. The first service creates a shared applicant case ID and publishes a case-initialized event with the generation data. Each receiving service then creates only the records it owns.
+The Applicant, Credential, or University Record service may receive the initial request for a new applicant case. Whichever service receives this first request generates the authoritative `case_id` and publishes a `CaseInitialized` event containing this `case_id` along with the generation payload to the event broker.
 
-No service writes directly to another service's database. The shared case ID links the applicant profile, credentials, university records, moderation decision, and session entry without creating shared data ownership.
+To maintain strict data consistency across services:
+- **ID Reuse:** Receiving services consume the event and reuse the provided `case_id` to create only the domain records they own.
+- **Idempotency:** Receiving services must handle duplicate or concurrent initialization events idempotently (e.g., enforcing a `UNIQUE(case_id)` constraint or performing upserts) to prevent duplicate records or mismatched IDs for the same applicant case.
+
+No service writes directly to another service's database. The shared `case_id` links the applicant profile, credentials, university records, moderation decision, and session entry across isolated databases without violating data ownership boundaries.
 
 ## Architecture Diagram
 
