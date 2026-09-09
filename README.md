@@ -249,3 +249,8 @@ All PRs targeting `dev` or `main` must use the following structured format:
 * Perform final testing and submission verification
 * Merge into `main` using **Rebase and Merge**
 * Tag release on `main`: `git tag -a vX.0.0 -m "Lab X completion"` && `git push origin vX.0.0`
+
+
+## Project Board
+
+**[Github Project Board](https://github.com/orgs/ChillGuysStudio/projects/2)** - Tracks lab tasks, issues, and progress across all team members.
