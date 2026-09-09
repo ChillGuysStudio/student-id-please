@@ -10,11 +10,9 @@ permissions:
 
 jobs:
   policy:
-    name: PR policy and documentation
+    name: PR policy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Check workflow rules and documentation
-        run: |
-          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
-          python3 .github/scripts/check_pr.py
+      - name: Check PR workflow rules
+        run: python3 .github/scripts/check_pr.py

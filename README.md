@@ -606,8 +606,8 @@ All PRs targeting `dev` or `main` must use the following structured format:
 - **Minimum Approvals & Reviewers**: At least one
 - **Automated Checks**: All CI pipelines and tests must pass before merging
 - **Enforcement**: `main` and `dev` require a PR, one peer approval on the latest changes, resolved review threads, and linear history. Force pushes and branch deletion are blocked. `dev` permits squash merges; `main` permits rebase merges. Repository administrators have no configured bypass.
-- **Workflow check**: The `PR policy and documentation` check validates PR titles, branch names/targets, required description sections, JSON examples, local documentation links and SVG syntax. PRs into `main` must come from this repository's `dev`; task PRs target `dev`. Both branches require this check.
-- **Test coverage policy**: Lab 0 has documentation and workflow checks, with no service-code coverage target. Later implementation PRs must include tests for changed behavior and the relevant contract scenarios above, including authorization and failure paths; agree numerical coverage targets in each service before implementation.
+- **Workflow check**: The `PR policy` check validates PR titles, branch names/targets and required description sections. PRs into `main` must come from this repository's `dev`; task PRs target `dev`. Both branches require this check.
+- **Test coverage policy**: Lab 0 has a PR workflow check, with no service-code coverage target. Later implementation PRs must include tests for changed behavior and the relevant contract scenarios above, including authorization and failure paths; agree numerical coverage targets in each service before implementation.
 - **Review Criteria**:
   - Code quality, readability, and modularity
   - Adherence to branch and commit naming standards
