@@ -7,3 +7,6 @@
 [submodule "server-rules-service"]
 	path = server-rules-service
 	url = https://github.com/MaxNoragami/server-rules-service
+[submodule "university-record-service"]
+	path = university-record-service
+	url = https://github.com/MaxNoragami/university-record-service
