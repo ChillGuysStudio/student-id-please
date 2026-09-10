@@ -1,5 +1,25 @@
 # Topic 3 - Student ID, please
 
+**Student ID, please** is a distributed, microservice-based game where players act as Discord moderators tasked with guarding a university server. In this system, players must evaluate applicants attempting to join the server by cross-referencing their presented claims and credentials against authoritative university records and dynamic, ever-changing server rules. The project leverages an event-driven architecture to simulate realistic, real-time moderation shifts, complete with live WebSocket chat channels, role-based access control (Information Asymmetry), and persistent player progression.
+
+## Table of Contents
+- [Team Overview](#team-overview)
+- [Service Boundaries](#service-boundaries)
+- [Architecture Diagram](#architecture-diagram)
+- [Technologies & Communication Patterns](#technologies--communication-patterns)
+- [Communication Contract](#communication-contract)
+- [Contribution & Workflow Guidelines](#contribution--workflow-guidelines)
+- [Project Board](#project-board)
+
+## Team Overview
+
+| Developer | Microservices Owned | Language / Stack | Repository Links |
+| :--- | :--- | :--- | :--- |
+| **Chicu Andrei** | Moderation Service<br>Discord DMs Service | Python / FastAPI | [moderation-service](https://github.com/andyp1xe1/pad-moderation-service)<br>[discord-dms-service](https://github.com/andyp1xe1/pad-discord-dms-service) |
+| **Vremere Adrian** | Applicant Service<br>Credential Service | Java / Spring Boot | [applicant-service](https://github.com/mcittkmims/applicant-service)<br>[credential-service](https://github.com/mcittkmims/credential-service) |
+| **Alexei Maxim** | Server Rules Service<br>University Record Service | Java / Spring Boot | [server-rules-service](https://github.com/MaxNoragami/server-rules-service)<br>[university-record-service](https://github.com/MaxNoragami/university-record-service) |
+| **Gebotari Alexandru** | Player Service<br>Session Service | Python / FastAPI | [player-service](https://github.com/Tirppy/student-id-player-service)<br>[session-service](https://github.com/Tirppy/student-id-session-service) |
+
 ## Service Boundaries
 
 Each service is the only writer to the data it owns. Other services use APIs to request that data or consume events containing the data they need. Data copied into a local projection does not become a new source of truth.
@@ -127,7 +147,7 @@ No service writes directly to another service's database. The shared `case_id` l
 <img src="docs/architecture.svg" alt="Architecture Diagram" width="1080"/>
 
 
-## Technologies and Communication Patterns
+## Technologies & Communication Patterns
 
 This is the proposed Lab 0 design for implementation in later labs. The language and framework mapping follows the architecture diagram. Endpoint paths, schemas, PostgreSQL storage, and delivery rules below are the team's reviewable contract proposal; they do not imply that services already run.
 
@@ -605,11 +625,11 @@ All PRs targeting `dev` or `main` must use the following structured format:
 
 #### PR Reviewing Process
 
-- **Minimum Approvals & Reviewers**: At least one
+- **Minimum Approvals & Reviewers**: At least one, for the CPR
 - **Automated Checks**: All CI pipelines and tests must pass before merging
-- **Enforcement**: `main` and `dev` require a PR, one peer approval on the latest changes, resolved review threads, and linear history. Force pushes and branch deletion are blocked. `dev` permits squash merges; `main` permits rebase merges. Repository administrators have no configured bypass.
+- **Enforcement**: `main` and `dev` require a PR, one peer approval on the latest changes, CPR only, resolved review threads, and linear history. Force pushes and branch deletion are blocked. `dev` permits squash merges; `main` permits rebase merges. Repository administrators have no configured bypass.
 - **Workflow check**: The `PR policy` check validates PR titles, branch names/targets and required description sections. PRs into `main` must come from this repository's `dev`; task PRs target `dev`. Both branches require this check.
-- **Test coverage policy**: Lab 0 has a PR workflow check, with no service-code coverage target. Later implementation PRs must include tests for changed behavior and the relevant contract scenarios above, including authorization and failure paths; agree numerical coverage targets in each service before implementation.
+- **Test coverage policy**: Lab 0 has a PR workflow check with no service-code coverage target. For later implementation PRs, a target of 69% code coverage is recommended. Unit and integration tests should focus exclusively on critical business logic, security and authorization boundaries, and core contract flows rather than aiming for exhaustive line coverage.
 - **Review Criteria**:
   - Code quality, readability, and modularity
   - Adherence to branch and commit naming standards
