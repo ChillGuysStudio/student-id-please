@@ -1,0 +1,6 @@
+[submodule "applicant-service"]
+	path = applicant-service
+	url = https://github.com/mcittkmims/applicant-service.git
+[submodule "credential-service"]
+	path = credential-service
+	url = https://github.com/mcittkmims/credential-service.git
