@@ -13,3 +13,6 @@
 [submodule "discord-dms-service"]
 	path = discord-dms-service
 	url = git@github.com:andyp1xe1/pad-discord-dms-service.git
+[submodule "moderation-service"]
+	path = moderation-service
+	url = git@github.com:andyp1xe1/pad-moderation-service.git
