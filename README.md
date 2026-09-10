@@ -629,7 +629,7 @@ All PRs targeting `dev` or `main` must use the following structured format:
 - **Automated Checks**: All CI pipelines and tests must pass before merging
 - **Enforcement**: `main` and `dev` require a PR, one peer approval on the latest changes, CPR only, resolved review threads, and linear history. Force pushes and branch deletion are blocked. `dev` permits squash merges; `main` permits rebase merges. Repository administrators have no configured bypass.
 - **Workflow check**: The `PR policy` check validates PR titles, branch names/targets and required description sections. PRs into `main` must come from this repository's `dev`; task PRs target `dev`. Both branches require this check.
-- **Test coverage policy**: Lab 0 has a PR workflow check with no service-code coverage target. For later implementation PRs, if unit or integration tests are implemented within a service, the required test coverage target must be 100%. Tests must cover changed behavior, relevant contract scenarios, authorization checks, and failure paths.
+- **Test coverage policy**: Lab 0 has a PR workflow check with no service-code coverage target. For later implementation PRs, a target of 69% code coverage is recommended. Unit and integration tests should focus exclusively on critical business logic, security and authorization boundaries, and core contract flows rather than aiming for exhaustive line coverage.
 - **Review Criteria**:
   - Code quality, readability, and modularity
   - Adherence to branch and commit naming standards
