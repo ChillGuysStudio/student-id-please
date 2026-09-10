@@ -563,13 +563,11 @@ Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](htt
 
 ### Merge Strategy
 
-- **Task branch --> `dev`**: Use *Squash and Merge* to maintain a clean, linear history of completed tasks on the integration branch. GitHub automatically enforces this as the only allowed merge method into `dev`.
+- **Feature --> `dev`**: Use *Squash and Merge* to maintain a clean, linear history of completed tasks on the integration branch.
 
-- **`dev` --> `main`**: Use *Rebase and Merge* upon final lab evaluation to preserve full milestone history. GitHub automatically enforces this as the only allowed merge method into `main`.
+- **`dev` --> `main`**: Use *Rebase and Merge* upon final lab evaluation to preserve full milestone history.
 
-- **Branch cleanup (automatic)**: GitHub deletes the remote task branch after its PR is merged into `dev`. Protected `main` and `dev` remain permanent branches. Closing a PR without merging does not trigger automatic deletion; local branch cleanup is manual.
-
-Contributors still open the PR, request review, and initiate the merge after approval and required checks pass. These settings enforce the merge method; they do not automatically merge PRs.
+- **Branch cleanup**: Task branches must be deleted after their PRs are merged into `dev`. Keep `main` and `dev` as permanent branches.
 
 
 ### Versioning Strategy
@@ -609,8 +607,8 @@ All PRs targeting `dev` or `main` must use the following structured format:
 
 - **Minimum Approvals & Reviewers**: At least one
 - **Automated Checks**: All CI pipelines and tests must pass before merging
-- **Branch protection (automatically enforced)**: `main` and `dev` require a PR, one peer approval on the latest changes, resolved review threads, and linear history. Force pushes and deletion of these two branches are blocked. Repository administrators have no configured bypass.
-- **PR policy check (automatic)**: The required `PR policy` check validates PR titles, branch names/targets and required description sections. PRs into `main` must come from this repository's `dev`; task PRs target `dev`. Contributors choose the target when opening the PR; the check rejects an invalid target.
+- **Enforcement**: `main` and `dev` require a PR, one peer approval on the latest changes, resolved review threads, and linear history. Force pushes and branch deletion are blocked. `dev` permits squash merges; `main` permits rebase merges. Repository administrators have no configured bypass.
+- **Workflow check**: The `PR policy` check validates PR titles, branch names/targets and required description sections. PRs into `main` must come from this repository's `dev`; task PRs target `dev`. Both branches require this check.
 - **Test coverage policy**: Lab 0 has a PR workflow check, with no service-code coverage target. Later implementation PRs must include tests for changed behavior and the relevant contract scenarios above, including authorization and failure paths; agree numerical coverage targets in each service before implementation.
 - **Review Criteria**:
   - Code quality, readability, and modularity
@@ -631,7 +629,6 @@ All PRs targeting `dev` or `main` must use the following structured format:
 * Request at least 1 peer approval
 * Verify CI checks, submodule pointers, and lack of secrets
 * Merge into `dev` using **Squash and Merge**
-* GitHub automatically deletes the merged remote task branch; remove your local copy when no longer needed.
 
 **3. Lab Completion & Release**
 * Open PR from `dev` to `main` when lab requirements are met
