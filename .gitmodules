@@ -16,3 +16,9 @@
 [submodule "moderation-service"]
 	path = moderation-service
 	url = git@github.com:andyp1xe1/pad-moderation-service.git
+[submodule "player-service"]
+	path = player-service
+	url = https://github.com/Tirppy/student-id-player-service.git
+[submodule "session-service"]
+	path = session-service
+	url = https://github.com/Tirppy/student-id-session-service.git
