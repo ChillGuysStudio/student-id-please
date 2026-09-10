@@ -10,3 +10,6 @@
 [submodule "university-record-service"]
 	path = university-record-service
 	url = https://github.com/MaxNoragami/university-record-service
+[submodule "moderation-service"]
+	path = moderation-service
+	url = git@github.com:andyp1xe1/pad-moderation-service.git
