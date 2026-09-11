@@ -23,7 +23,7 @@ During a shift, Junior Moderators can inspect only their assigned records. They 
 | Chicu Andrei | Moderation Service<br>Discord DMs Service | Python, FastAPI | [moderation-service](https://github.com/andyp1xe1/pad-moderation-service)<br>[discord-dms-service](https://github.com/andyp1xe1/pad-discord-dms-service) |
 | Vremere Adrian | Applicant Service<br>Credential Service | Java, Spring Boot | [applicant-service](https://github.com/mcittkmims/applicant-service)<br>[credential-service](https://github.com/mcittkmims/credential-service) |
 | Alexei Maxim | Server Rules Service<br>University Record Service | Java, Spring Boot | [server-rules-service](https://github.com/MaxNoragami/server-rules-service)<br>[university-record-service](https://github.com/MaxNoragami/university-record-service) |
-| Gebotari Alexandru | Player Service<br>Server Moderation Session Service | Python, FastAPI | [player-service](https://github.com/Tirppy/student-id-player-service)<br>[session-service](https://github.com/Tirppy/student-id-session-service) |
+| Cebotari Alexandru | Player Service<br>Server Moderation Session Service | Python, FastAPI | [player-service](https://github.com/Tirppy/student-id-player-service)<br>[session-service](https://github.com/Tirppy/student-id-session-service) |
 
 ## Service boundaries
 
