@@ -147,7 +147,7 @@ The architecture assigns a language, framework, storage system, and communicatio
 | Server Rules | Java, Spring Boot | PostgreSQL for immutable rule versions | REST for shift rules and internal policy evaluation |
 | University Record | Java, Spring Boot | MongoDB for university facts and record permissions | REST<br>Publishes and consumes `CaseInitialized` |
 | Moderation | Python, FastAPI | PostgreSQL for decisions, policy snapshots, bans, and disciplinary actions | REST orchestration<br>Publishes `DecisionScored` and `DisciplinaryActionApplied` |
-| Discord DMs | Python, FastAPI | Redis for live WebSocket state and Pub/Sub<br>MongoDB for channels, memberships, and chat history | REST for channel and history access<br>WebSockets for live chat |
+| Discord DMs | Python, FastAPI | PostgreSQL for channels, memberships, and chat history<br>Redis for chat tickets and WebSocket Pub/Sub | REST for channel and history access<br>WebSockets for live chat |
 
 ### Selection rationale and trade-offs
 
@@ -165,11 +165,11 @@ Spring Boot adds its own configuration and build tooling. Using it for the Appli
 
 #### Storage per service
 
-Each service owns its storage. The Server Moderation Session Service and the Discord DMs Service each use two databases because live state and durable records have different access patterns.
+Each service owns its storage. The Server Moderation Session Service and the Discord DMs Service use PostgreSQL for durable records and Redis for ephemeral state.
 
-- **PostgreSQL:** The Player, Server Moderation Session, Server Rules, and Moderation services store relational data in PostgreSQL. Local transactions and constraints protect progression ledgers, shift history, outbox entries, rule versions, decisions, and bans.
-- **MongoDB:** The Applicant, Credential, University Record, and Discord DMs services store document-shaped data in MongoDB. Applicant claims, credentials, and university record types have different fields. The application still validates every document against the contract. The Discord DMs Service stores channels, memberships, and chat history in MongoDB so they survive restarts.
-- **Redis:** The Server Moderation Session Service uses Redis for active rosters, case-start locks, and other live shift state. The Discord DMs Service uses Redis for connection lookups and Pub/Sub between WebSocket replicas. Redis does not store durable chat or shift history.
+- **PostgreSQL:** The Player, Server Moderation Session, Server Rules, Moderation, and Discord DMs services store relational data in PostgreSQL. Local transactions and constraints protect progression ledgers, shift history, outbox entries, rule versions, decisions, bans, chat channels, memberships, and message history.
+- **MongoDB:** The Applicant, Credential, and University Record services store document-shaped data in MongoDB. Applicant claims, credentials, and university record types have different fields. The application still validates every document against the contract.
+- **Redis:** The Server Moderation Session Service uses Redis for active rosters, case-start locks, and other live shift state. The Discord DMs Service uses Redis for single-use chat tickets and Pub/Sub between WebSocket replicas. Redis does not store durable chat or shift history.
 
 #### REST over HTTP with JSON
 
@@ -539,6 +539,8 @@ Message = {message_id: Id, client_message_id: Id, channel_id: Id,
 | `POST /api/v1/sessions/{session_id}/chat-tickets` | Participant in active shift | Empty object | `201 {ticket: string, expires_at: Time}`<br>The ticket works once, expires after 30 seconds, and belongs to one player and shift. |
 | `GET /api/v1/sessions/{session_id}/ws` (upgrade) | Chat-ticket holder | Query `ticket: string` | `101 Switching Protocols`<br>Authentication errors use REST responses before the upgrade. |
 
+The Discord DMs Service stores only a hash of each chat ticket in Redis. The Redis value contains the player and session IDs and expires after 30 seconds. The service uses `GETDEL` to consume the ticket once.
+
 The Discord DMs Service creates the four session channels on first access. A retry does not create duplicate channels. Every participant can join `#general-mod-chat`, and the Moderator can join all channels.
 
 A Junior Moderator can join `#enrollment-check` with enrollment or academic-year access. Outlook-group or FCIM-message access grants entry to `#faculty-check`. Course or schedule access grants entry to `#course-registration`. Channel membership permits discussion of records but does not grant access to additional records.
@@ -556,7 +558,7 @@ All frames are JSON objects:
 
 The service sends a WebSocket ping every 30 seconds. Two missed pong responses close the connection. A reconnect requires a new chat ticket. The client then recovers history through REST with its last retained pagination cursor. Reusing `client_message_id` makes it safe to retry after a lost acknowledgement. Each channel sorts its history by `(sent_at, message_id)`. Message order across channels is not defined.
 
-When the Discord DMs Service has multiple replicas, each message must reach every replica with connected members. Dedicated broker queues for each replica meet this requirement. One competing-consumer queue does not, because it delivers a message to only one replica.
+When the Discord DMs Service has multiple replicas, each replica subscribes to the same Redis Pub/Sub channel. The service publishes a message only after it commits the message to PostgreSQL. Redis sends the publication to every connected replica, and each replica forwards it to authorized local connections. Redis does not replay missed publications. Clients recover missed messages from PostgreSQL history and deduplicate them by `message_id`.
 
 ### RabbitMQ event contract
 
