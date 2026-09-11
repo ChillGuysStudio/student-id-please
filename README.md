@@ -149,24 +149,28 @@ No service writes directly to another service's database. The shared `case_id` l
 
 ## Technologies & Communication Patterns
 
-This is the proposed Lab 0 design for implementation in later labs. The language and framework mapping follows the architecture diagram. Endpoint paths, schemas, PostgreSQL storage, and delivery rules below are the team's reviewable contract proposal; they do not imply that services already run.
+This is the proposed Lab 0 design for implementation in later labs. The language and framework mapping follows the architecture diagram. Endpoint paths, schemas, data storage, and delivery rules below are the team's reviewable contract proposal; they do not imply that services already run.
 
 | Service | Language / framework | Storage owned by service | Communication |
 | --- | --- | --- | --- |
 | Player | Python / FastAPI | PostgreSQL: accounts, profiles, friendships, teams, progression | REST; consumes `ShiftEnded` and `DisciplinaryActionApplied` |
-| Server Moderation Session | Python / FastAPI | PostgreSQL: shifts, participants, roles, case references, score | REST; consumes `DecisionScored`; publishes `ShiftEnded` |
-| Applicant | Java / Spring Boot | PostgreSQL: applicant claims and case initialization metadata | REST; publishes/consumes `CaseInitialized` |
-| Credential | Java / Spring Boot | PostgreSQL: submitted credentials and validation results | REST; publishes/consumes `CaseInitialized` |
+| Server Moderation Session | Python / FastAPI | Redis + PostgreSQL: active shifts, participants, score (Redis for locks/live state, Postgres for history) | REST; consumes `DecisionScored`; publishes `ShiftEnded` |
+| Applicant | Java / Spring Boot | MongoDB: applicant claims and case initialization metadata | REST; publishes/consumes `CaseInitialized` |
+| Credential | Java / Spring Boot | MongoDB: submitted credentials and validation results | REST; publishes/consumes `CaseInitialized` |
 | Server Rules | Java / Spring Boot | PostgreSQL: immutable rule versions | Internal REST policy evaluation; REST for shift rules |
-| University Record | Java / Spring Boot | PostgreSQL: university facts and record permissions | REST; publishes/consumes `CaseInitialized` |
+| University Record | Java / Spring Boot | MongoDB: university facts and record permissions | REST; publishes/consumes `CaseInitialized` |
 | Moderation | Python / FastAPI | PostgreSQL: decisions, policy snapshots, bans, disciplinary actions | REST orchestration; publishes `DecisionScored` and `DisciplinaryActionApplied` |
-| Discord DMs | Python / FastAPI | PostgreSQL: channels, memberships, messages | REST for channel/history access; WebSockets for live chat |
+| Discord DMs | Python / FastAPI | Redis + MongoDB: channels, memberships, messages (Mongo for durable channels/memberships/history, Redis for live WS/PubSub) | REST for channel/history access; WebSockets for live chat |
+
 
 ### Selection rationale and trade-offs
 
 - **Python / FastAPI:** Player APIs, session orchestration, moderation decisions and live DMs involve many network waits and relatively small transformations. FastAPI's typed request models and asynchronous HTTP/WebSocket support fit this group, while Python keeps scoring and orchestration concise. Blocking database/broker operations must use appropriate drivers or workers, and CPU-heavy work must not block live chat. Maintaining Python alongside Java costs additional tooling, but satisfies the required two-language team split.
 - **Java / Spring Boot:** Applicant generation, document validation, versioned policy evaluation and authoritative university records share structured domain models and invariants. Java's types and Spring's validation, security and transaction facilities suit these services and their isolated databases. The trade-off is more configuration and runtime overhead; using one framework throughout the case-data group keeps its implementation conventions consistent. Initial generation is bounded and deterministic, without external AI calls.
-- **PostgreSQL per service:** Transactions and unique constraints suit team membership, one final decision per case, and duplicate-event protection. JSONB can hold variable credential details while identifiers and relationships remain typed columns. A common database engine reduces operational learning, but each service gets its own database and credentials, with no cross-service SQL or shared tables. One PostgreSQL server may host those isolated databases in a lab environment; this saves resources but shares its failure domain.
+- **Storage per service:** We chose the database engines that best fit the data structure of each specific domain. Some services utilize multiple stores to separate live state from persistent history.
+  - **PostgreSQL** is used for the Player, Server Moderation Session, Server Rules, and Moderation services. These require strict ACID transactions, relational joins, and structured ledgers to reliably manage XP progression, shift history and outbox guarantees, immutable rule sets, and final admission decisions.
+  - **MongoDB** is used for the Applicant, Credential, and University Record services, along with Discord DMs channels, memberships, and chat history. Document databases handle unpredictable, schema-less structures well. This lets us store vastly different records (like an `Enrollment` versus an `FcimMessage`) naturally, without creating SQL tables full of empty columns. It also reliably handles the high write volume of chat messages and ensures channel permissions survive broker restarts.
+  - **Redis** acts as an ephemeral in-memory datastore for the Discord DMs and Session services. It coordinates live WebSocket message broadcasting (via Pub/Sub) and connection caching—leaving durable channel and membership records to MongoDB—and provides distributed locks for concurrent case starts alongside fast lookups for active shift rosters.
 - **REST / HTTP with JSON:** Immediate reads and commands use request/response communication. Human-readable JSON is easy to inspect during a lab demonstration and supported by both frameworks. It is more verbose than Protobuf and provides no distributed transaction; callers need explicit timeout, retry, and unavailable responses. UUIDs are JSON strings, which avoids language-specific integer serialization issues.
 - **RabbitMQ / AMQP:** Case initialization, decision scoring, and progression propagation use durable events so producers do not depend on consumers being available at the same instant. This introduces eventual consistency, duplicate delivery, and broker operations; the contract defines readiness, deduplication, and an outbox instead of assuming exactly-once delivery.
 - **WebSockets:** DMs need server-to-client delivery while the shift is active. A persistent connection avoids repeated polling, but requires reconnect/history recovery and permission rechecks. Messages are persisted before broadcast; clients recover missed messages through the REST history endpoint.
