@@ -132,7 +132,8 @@ No service writes to another service's database. The shared `case_id` links the 
 
 ## Architecture diagram
 
-![Student ID, please architecture](docs/architecture.png)
+
+<img src="docs/architecture.jpg" alt="Architecture Diagram" width="1080"/>
 
 ## Technologies and communication patterns
 
