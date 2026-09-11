@@ -10,61 +10,63 @@ flowchart TB
     %% Actors
     C(("Client"))
 
-    %% Entry Point
-    AGW{{"API Gateway"}}
+    %% Entry point
+    AGW{{"API gateway"}}
 
-    %% Message Broker
+    %% Message broker
     EB{{"RabbitMQ<br/>(AMQP Event Broker)"}}
 
-    %% Java Services (Verification & Policy Core)
-    subgraph Java_Services ["Java Services (Spring Boot)"]
+    %% Java services
+    subgraph Java_Services ["Java services (Spring Boot)"]
         AS["Applicant Service"]
         CS["Credential Service"]
         SRS["Server Rules Service"]
         URS["University Record Service"]
     end
 
-    %% Python Services (Game & Session Management)
-    subgraph Python_Services ["Python Services (FastAPI)"]
+    %% Python services
+    subgraph Python_Services ["Python services (FastAPI)"]
         PS["Player Service"]
         SMS["Server Moderation<br/>Session Service"]
         MS["Moderation Service"]
         DMS["Discord DMs Service"]
     end
 
-    %% Database Isolation (Polyglot Persistence)
-    dbAS[("MongoDB<br/>(Claims)")] -.- AS
-    dbCS[("MongoDB<br/>(Credentials)")] -.- CS
+    %% Service-owned storage
+    dbAS[("MongoDB<br/>(Claims and Case Metadata)")] -.- AS
+    dbCS[("MongoDB<br/>(Credentials and Validations)")] -.- CS
     dbSRS[("PostgreSQL<br/>(Rule Versions)")] -.- SRS
-    dbURS[("MongoDB<br/>(University Facts)")] -.- URS
+    dbURS[("MongoDB<br/>(University Facts<br/>and Record Permissions)")] -.- URS
 
-    dbPS[("PostgreSQL<br/>(Profiles & XP)")] -.- PS
-    dbMS[("PostgreSQL<br/>(Decisions & Bans)")] -.- MS
+    dbPS[("PostgreSQL<br/>(Accounts, Profiles,<br/>Friendships, Teams, and XP)")] -.- PS
+    dbMS[("PostgreSQL<br/>(Decisions, Bans,<br/>Policy Snapshots, and<br/>Disciplinary Actions)")] -.- MS
 
-    %% Dual-Database Services
-    dbSMS_Redis[("Redis<br/>(Live State & Locks)")] -.- SMS
+    %% Services with PostgreSQL and Redis
+    dbSMS_Redis[("Redis<br/>(Live State and Locks)")] -.- SMS
     dbSMS_PG[("PostgreSQL<br/>(Shift History)")] -.- SMS
 
-    dbDMS_Redis[("Redis<br/>(Live WS Pub/Sub)")] -.- DMS
-    dbDMS_Mongo[("MongoDB<br/>(Chat Channels & History)")] -.- DMS
+    dbDMS_Redis[("Redis<br/>(Chat Tickets and<br/>WebSocket Pub/Sub)")] -.- DMS
+    dbDMS_PG[("PostgreSQL<br/>(Channels, Memberships,<br/>and Message History)")] -.- DMS
 
-    %% 1. Client to API Gateway
+    %% 1. Client to API gateway
     C <-->|"WebSocket"| AGW
-    C -->|"REST / HTTP Requests"| AGW
+    C -->|"REST over HTTP"| AGW
 
-    %% 2. Gateway Routing & RBAC Constraints
-    AGW -->|"Route REST<br/>(Auth / Profile / Teams / Friends)"| PS
-    AGW -->|"Route REST<br/>(Start & Join Shift)"| SMS
-    AGW -->|"Route REST<br/>(Read Public Claims)"| AS
-    AGW -->|"Route REST<br/>(Read Credential Status)"| CS
-    AGW -->|"Route REST<br/>(Inspect Records)<br/>[RBAC: Jr Mod Only]"| URS
-    AGW -->|"Route REST<br/>(Submit Decision)<br/>[RBAC: Mod Only]"| MS
-    AGW <-->|"Route WS<br/>(Chat Channels)"| DMS
+    %% 2. Gateway Routes to Public Endpoints
+    AGW -->|"Route REST<br/>(Authentication, Players,<br/>Friends, and Teams)"| PS
+    AGW -->|"Route REST<br/>(Sessions, Roles,<br/>Cases, and Status)"| SMS
+    AGW -->|"Route REST<br/>(Applicant Claims)"| AS
+    AGW -->|"Route REST<br/>(Credentials and Validation)"| CS
+    AGW -->|"Route REST<br/>(Rule Versions)"| SRS
+    AGW -->|"Route REST<br/>(Permissions and Records)"| URS
+    AGW -->|"Route REST<br/>(Decisions, Bans, and<br/>Disciplinary Actions)"| MS
+    AGW -->|"Route REST<br/>(Channels, History,<br/>and Chat Tickets)"| DMS
+    AGW <-->|"Route WebSocket<br/>(Live Chat)"| DMS
 
-    %% 3. Asynchronous Events (RabbitMQ)
-    AS <.->|"Publish / Subscribe<br/>(CaseInitialized)"| EB
-    CS <.->|"Publish / Subscribe<br/>(CaseInitialized)"| EB
-    URS <.->|"Publish / Subscribe<br/>(CaseInitialized)"| EB
+    %% 3. Asynchronous RabbitMQ events
+    AS <.->|"Publish and Subscribe<br/>(CaseInitialized)"| EB
+    CS <.->|"Publish and Subscribe<br/>(CaseInitialized)"| EB
+    URS <.->|"Publish and Subscribe<br/>(CaseInitialized)"| EB
 
     MS -.->|"Publish<br/>(DecisionScored,<br/>DisciplinaryActionApplied)"| EB
     EB -.->|"Subscribe<br/>(DecisionScored)"| SMS
@@ -72,13 +74,15 @@ flowchart TB
     SMS -.->|"Publish<br/>(ShiftEnded)"| EB
     EB -.->|"Subscribe<br/>(ShiftEnded,<br/>DisciplinaryActionApplied)"| PS
 
-    %% 4. Internal Synchronous REST Communication
-    SMS -->|"REST: Validate Team & Player Accounts"| PS
+    %% 4. Internal REST calls
+    SMS -->|"REST: Validate Team and Player Accounts"| PS
+    MS -->|"REST: Verify Session Context"| SMS
+    MS -->|"REST: Validate Disciplinary Target"| PS
     MS -->|"REST: Fetch Claims"| AS
     MS -->|"REST: Fetch Validations"| CS
-    MS -->|"REST: Fetch Univ Records"| URS
+    MS -->|"REST: Fetch University Records"| URS
     MS -->|"REST: Evaluate Policy"| SRS
 
-    %% 5. Internal Access Control Validations
+    %% 5. Internal authorization checks
     DMS -.->|"REST: Verify Session Role"| SMS
-    DMS -.->|"REST: Verify View Permissions"| URS
+    DMS -.->|"REST: Verify Record Permissions"| URS
