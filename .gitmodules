@@ -6,10 +6,10 @@
 	url = https://github.com/mcittkmims/credential-service.git
 [submodule "server-rules-service"]
 	path = server-rules-service
-	url = https://github.com/MaxNoragami/server-rules-service
+	url = git@github.com:MaxNoragami/server-rules-service.git
 [submodule "university-record-service"]
 	path = university-record-service
-	url = https://github.com/MaxNoragami/university-record-service
+	url = git@github.com:MaxNoragami/university-record-service.git
 [submodule "discord-dms-service"]
 	path = discord-dms-service
 	url = git@github.com:andyp1xe1/pad-discord-dms-service.git
