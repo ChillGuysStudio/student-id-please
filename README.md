@@ -1,34 +1,37 @@
 # Topic 3 - Student ID, please
 
-**Student ID, please** is a distributed, microservice-based game where players act as Discord moderators tasked with guarding a university server. In this system, players must evaluate applicants attempting to join the server by cross-referencing their presented claims and credentials against authoritative university records and dynamic, ever-changing server rules. The project leverages an event-driven architecture to simulate realistic, real-time moderation shifts, complete with live WebSocket chat channels, role-based access control (Information Asymmetry), and persistent player progression.
+Student ID, please is a game about moderating a university Discord server. The Lab 0 design splits the game into the services listed below. Players compare applicants' claims and credentials with university records and the rules for the current shift.
 
-## Table of Contents
-- [Team Overview](#team-overview)
-- [Service Boundaries](#service-boundaries)
-- [Architecture Diagram](#architecture-diagram)
-- [Technologies & Communication Patterns](#technologies--communication-patterns)
-- [Communication Contract](#communication-contract)
-- [Contribution & Workflow Guidelines](#contribution--workflow-guidelines)
-- [Project Board](#project-board)
+This README defines the Lab 0 design that the team plans to implement in later labs. The services do not run yet.
 
-## Team Overview
+During a shift, Junior Moderators can inspect only their assigned records. They share their findings in WebSocket chat channels, and the Moderator decides whether to accept, reject, flag, or ban each applicant. Player progression carries across shifts.
 
-| Developer | Microservices Owned | Language / Stack | Repository Links |
+## Table of contents
+
+- [Team overview](#team-overview)
+- [Service boundaries](#service-boundaries)
+- [Architecture diagram](#architecture-diagram)
+- [Technologies and communication patterns](#technologies-and-communication-patterns)
+- [Communication contract](#communication-contract)
+- [Contribution and workflow guidelines](#contribution-and-workflow-guidelines)
+- [Project board](#project-board)
+
+## Team overview
+
+| Developer | Services owned | Language and framework | Repositories |
 | :--- | :--- | :--- | :--- |
-| **Chicu Andrei** | Moderation Service<br>Discord DMs Service | Python / FastAPI | [moderation-service](https://github.com/andyp1xe1/pad-moderation-service)<br>[discord-dms-service](https://github.com/andyp1xe1/pad-discord-dms-service) |
-| **Vremere Adrian** | Applicant Service<br>Credential Service | Java / Spring Boot | [applicant-service](https://github.com/mcittkmims/applicant-service)<br>[credential-service](https://github.com/mcittkmims/credential-service) |
-| **Alexei Maxim** | Server Rules Service<br>University Record Service | Java / Spring Boot | [server-rules-service](https://github.com/MaxNoragami/server-rules-service)<br>[university-record-service](https://github.com/MaxNoragami/university-record-service) |
-| **Gebotari Alexandru** | Player Service<br>Session Service | Python / FastAPI | [player-service](https://github.com/Tirppy/student-id-player-service)<br>[session-service](https://github.com/Tirppy/student-id-session-service) |
+| Chicu Andrei | Moderation Service<br>Discord DMs Service | Python, FastAPI | [moderation-service](https://github.com/andyp1xe1/pad-moderation-service)<br>[discord-dms-service](https://github.com/andyp1xe1/pad-discord-dms-service) |
+| Vremere Adrian | Applicant Service<br>Credential Service | Java, Spring Boot | [applicant-service](https://github.com/mcittkmims/applicant-service)<br>[credential-service](https://github.com/mcittkmims/credential-service) |
+| Alexei Maxim | Server Rules Service<br>University Record Service | Java, Spring Boot | [server-rules-service](https://github.com/MaxNoragami/server-rules-service)<br>[university-record-service](https://github.com/MaxNoragami/university-record-service) |
+| Cebotari Alexandru | Player Service<br>Server Moderation Session Service | Python, FastAPI | [player-service](https://github.com/Tirppy/student-id-player-service)<br>[session-service](https://github.com/Tirppy/student-id-session-service) |
 
-## Service Boundaries
+## Service boundaries
 
-Each service is the only writer to the data it owns. Other services use APIs to request that data or consume events containing the data they need. Data copied into a local projection does not become a new source of truth.
+Each service is the sole writer of its data. Other services read that data through APIs or consume events that contain the fields they need. A local projection is a copy, not a new source of truth.
 
 ### Player Service
 
-*Responsible for global player identity, user authentication, profile management, and persistent moderator progression.*
-
-The Player Service owns:
+The Player Service owns global player identity and persistent moderator progression:
 
 - player accounts and authentication
 - player profiles and friendships
@@ -39,9 +42,7 @@ It updates progression from completed-shift and disciplinary events. It does not
 
 ### Server Moderation Session Service
 
-*Manages active Discord moderation shifts, session rosters, assigned moderator roles, and aggregate shift scoring.*
-
-The Server Moderation Session Service owns:
+The Server Moderation Session Service owns active Discord moderation shifts:
 
 - moderation-shift creation and lifecycle
 - the participant roster and the Moderator or Junior Moderator role assigned to each participant
@@ -49,15 +50,13 @@ The Server Moderation Session Service owns:
 - the number of processed applications
 - the aggregate shift score and penalties
 
-It consumes individual outcomes from the Moderation Service and calculates the overall shift result. When a shift ends, it publishes the result for the Player Service to apply to player progression.
+The service consumes individual outcomes from the Moderation Service and calculates the final shift result. When the shift ends, the service publishes that result. The Player Service then applies it to player progression.
 
 It does not own player accounts or progression, applicant details, individual admission decisions, server rules, or chat messages.
 
 ### Applicant Service
 
-*Generates and maintains the profiles, claims, and background details of individuals attempting to join the Discord server.*
-
-The Applicant Service owns the applicant profile and the claims presented by the applicant. These claims can include the applicant's name, student ID, major, year, university status, courses, and role.
+The Applicant Service generates and stores applicant profiles and presented claims. Claims can include a name, student ID, major, year, university status, course list, and role.
 
 An applicant can claim to be a FAF student, a student from another major, a teaching assistant, a university staff member, an alumnus, or an outsider. The claims may be false or may impersonate another person.
 
@@ -65,9 +64,7 @@ The service does not own submitted credentials, authoritative university records
 
 ### Credential Service
 
-*Validates the structural authenticity and integrity of physical or digital verification documents presented by applicants.*
-
-The Credential Service owns:
+The Credential Service validates the structure, authenticity, and integrity of physical or digital documents. It owns:
 
 - documents and credentials presented by an applicant
 - structural and authenticity checks
@@ -79,8 +76,6 @@ The service does not own the applicant's claimed identity, authoritative univers
 
 ### Server Rules Service
 
-*Maintains active server access policies and evaluates applicant claims against current shift entry requirements.*
-
 The Server Rules Service owns versioned rules for accessing the Discord server. It evaluates applicant claims, credential results, university facts, and moderation history against the rule version active for the shift.
 
 Rules can restrict access by major, year, enrollment duration, university role, allowed channels, or an existing ban. The service returns the expected policy result and the rules that matched.
@@ -88,8 +83,6 @@ Rules can restrict access by major, year, enrollment duration, university role, 
 It does not own applicant data, credentials, university records, bans, moderator actions, or scoring. The Moderation Service owns the comparison between the expected policy result and the Moderator's decision.
 
 ### University Record Service
-
-*Stores authoritative university databases and enforces player permission limits for inspecting verification records.*
 
 The University Record Service owns authoritative university facts, including:
 
@@ -100,28 +93,24 @@ The University Record Service owns authoritative university facts, including:
 - the semester schedule
 - FCIM server message records
 
-It also owns permissions that determine which university records each Junior Moderator may inspect. The service enforces these permissions whenever a player requests a record.
+The University Record Service also owns the permissions that control which records each Junior Moderator may inspect. The service checks these permissions for every player request.
 
 It does not own applicant claims, submitted credentials, credential-validation results, or admission decisions.
 
 ### Moderation Service
 
-*Executes admission decisions (Accept, Reject, Flag, Ban) and evaluates decision correctness against server rules.*
-
-The Moderation Service owns:
+The Moderation Service executes admission decisions and checks them against server rules. It owns:
 
 - the Moderator's Accept, Reject, Flag, or Ban action for each applicant
 - decision history and active bans
 - the server-rule result used for the decision
 - the correctness, violated rules, outcome, and penalty for one decision
 
-The service obtains the required facts from the Applicant, Credential, University Record, and Server Rules services. It compares the Moderator's action with the result returned by the Server Rules Service, then publishes the decision outcome to the Server Moderation Session Service.
+The Moderation Service gets the required facts from the Applicant, Credential, University Record, and Server Rules services. It compares the Moderator's action with the Server Rules Service result. The service then publishes the outcome to the Server Moderation Session Service.
 
 It does not own the source applicant data, credentials, university records, rule definitions, or aggregate shift score.
 
 ### Discord DMs Service
-
-*Facilitates real-time, WebSocket-based communication across role-restricted moderation channels during active shifts.*
 
 The Discord DMs Service owns moderation channels, channel membership, messages, and real-time message delivery over WebSockets. Session channels can include:
 
@@ -134,88 +123,160 @@ The service uses session roles and university-record permissions when granting c
 
 ### Applicant case initialization
 
-The Applicant, Credential, or University Record service may receive the initial request for a new applicant case. Whichever service receives this first request generates the authoritative `case_id` and publishes a `CaseInitialized` event containing this `case_id` along with the generation payload to the event broker.
+The Server Moderation Session Service sends each new case request to the Applicant, Credential, or University Record service. The selected service creates the authoritative `case_id` and publishes a `CaseInitialized` event that contains the ID and generation payload.
 
-To maintain strict data consistency across services:
-- **ID Reuse:** Receiving services consume the event and reuse the provided `case_id` to create only the domain records they own.
-- **Idempotency:** Receiving services must handle duplicate or concurrent initialization events idempotently (e.g., enforcing a `UNIQUE(case_id)` constraint or performing upserts) to prevent duplicate records or mismatched IDs for the same applicant case.
+- Each consumer reuses the event's `case_id` and creates only the records that it owns.
+- Each consumer enforces `UNIQUE(case_id)` and compares duplicate events with the stored payload. It treats an identical event as a no-op and quarantines a conflicting event.
 
-No service writes directly to another service's database. The shared `case_id` links the applicant profile, credentials, university records, moderation decision, and session entry across isolated databases without violating data ownership boundaries.
+No service writes to another service's database. The shared `case_id` links the applicant profile, credentials, university records, moderation decision, and session entry across the service databases.
 
-## Architecture Diagram
-
-<img src="docs/architecture.svg" alt="Architecture Diagram" width="1080"/>
+## Architecture diagram
 
 
-## Technologies & Communication Patterns
+<img src="docs/architecture.jpg" alt="Architecture Diagram" width="1080"/>
 
-This is the proposed Lab 0 design for implementation in later labs. The language and framework mapping follows the architecture diagram. Endpoint paths, schemas, data storage, and delivery rules below are the team's reviewable contract proposal; they do not imply that services already run.
+## Technologies and communication patterns
 
-| Service | Language / framework | Storage owned by service | Communication |
+The architecture assigns a language, framework, storage system, and communication method to each service.
+
+| Service | Language and framework | Storage | Communication |
 | --- | --- | --- | --- |
-| Player | Python / FastAPI | PostgreSQL: accounts, profiles, friendships, teams, progression | REST; consumes `ShiftEnded` and `DisciplinaryActionApplied` |
-| Server Moderation Session | Python / FastAPI | Redis + PostgreSQL: active shifts, participants, score (Redis for locks/live state, Postgres for history) | REST; consumes `DecisionScored`; publishes `ShiftEnded` |
-| Applicant | Java / Spring Boot | MongoDB: applicant claims and case initialization metadata | REST; publishes/consumes `CaseInitialized` |
-| Credential | Java / Spring Boot | MongoDB: submitted credentials and validation results | REST; publishes/consumes `CaseInitialized` |
-| Server Rules | Java / Spring Boot | PostgreSQL: immutable rule versions | Internal REST policy evaluation; REST for shift rules |
-| University Record | Java / Spring Boot | MongoDB: university facts and record permissions | REST; publishes/consumes `CaseInitialized` |
-| Moderation | Python / FastAPI | PostgreSQL: decisions, policy snapshots, bans, disciplinary actions | REST orchestration; publishes `DecisionScored` and `DisciplinaryActionApplied` |
-| Discord DMs | Python / FastAPI | Redis + MongoDB: channels, memberships, messages (Mongo for durable channels/memberships/history, Redis for live WS/PubSub) | REST for channel/history access; WebSockets for live chat |
-
+| Player | Python, FastAPI | PostgreSQL for accounts, profiles, friendships, teams, and progression | REST<br>Consumes `ShiftEnded` and `DisciplinaryActionApplied` |
+| Server Moderation Session | Python, FastAPI | Redis for live state and locks<br>PostgreSQL for shift history | REST<br>Consumes `DecisionScored`<br>Publishes `ShiftEnded` |
+| Applicant | Java, Spring Boot | MongoDB for applicant claims and case initialization metadata | REST<br>Publishes and consumes `CaseInitialized` |
+| Credential | Java, Spring Boot | MongoDB for credentials and validation results | REST<br>Publishes and consumes `CaseInitialized` |
+| Server Rules | Java, Spring Boot | PostgreSQL for immutable rule versions | REST for shift rules and internal policy evaluation |
+| University Record | Java, Spring Boot | MongoDB for university facts and record permissions | REST<br>Publishes and consumes `CaseInitialized` |
+| Moderation | Python, FastAPI | PostgreSQL for decisions, policy snapshots, bans, and disciplinary actions | REST orchestration<br>Publishes `DecisionScored` and `DisciplinaryActionApplied` |
+| Discord DMs | Python, FastAPI | PostgreSQL for channels, memberships, and chat history<br>Redis for chat tickets and WebSocket Pub/Sub | REST for channel and history access<br>WebSockets for live chat |
 
 ### Selection rationale and trade-offs
 
-- **Python / FastAPI:** Player APIs, session orchestration, moderation decisions and live DMs involve many network waits and relatively small transformations. FastAPI's typed request models and asynchronous HTTP/WebSocket support fit this group, while Python keeps scoring and orchestration concise. Blocking database/broker operations must use appropriate drivers or workers, and CPU-heavy work must not block live chat. Maintaining Python alongside Java costs additional tooling, but satisfies the required two-language team split.
-- **Java / Spring Boot:** Applicant generation, document validation, versioned policy evaluation and authoritative university records share structured domain models and invariants. Java's types and Spring's validation, security and transaction facilities suit these services and their isolated databases. The trade-off is more configuration and runtime overhead; using one framework throughout the case-data group keeps its implementation conventions consistent. Initial generation is bounded and deterministic, without external AI calls.
-- **Storage per service:** We chose the database engines that best fit the data structure of each specific domain. Some services utilize multiple stores to separate live state from persistent history.
-  - **PostgreSQL** is used for the Player, Server Moderation Session, Server Rules, and Moderation services. These require strict ACID transactions, relational joins, and structured ledgers to reliably manage XP progression, shift history and outbox guarantees, immutable rule sets, and final admission decisions.
-  - **MongoDB** is used for the Applicant, Credential, and University Record services, along with Discord DMs channels, memberships, and chat history. Document databases handle unpredictable, schema-less structures well. This lets us store vastly different records (like an `Enrollment` versus an `FcimMessage`) naturally, without creating SQL tables full of empty columns. It also reliably handles the high write volume of chat messages and ensures channel permissions survive broker restarts.
-  - **Redis** acts as an ephemeral in-memory datastore for the Discord DMs and Session services. It coordinates live WebSocket message broadcasting (via Pub/Sub) and connection caching—leaving durable channel and membership records to MongoDB—and provides distributed locks for concurrent case starts alongside fast lookups for active shift rosters.
-- **REST / HTTP with JSON:** Immediate reads and commands use request/response communication. Human-readable JSON is easy to inspect during a lab demonstration and supported by both frameworks. It is more verbose than Protobuf and provides no distributed transaction; callers need explicit timeout, retry, and unavailable responses. UUIDs are JSON strings, which avoids language-specific integer serialization issues.
-- **RabbitMQ / AMQP:** Case initialization, decision scoring, and progression propagation use durable events so producers do not depend on consumers being available at the same instant. This introduces eventual consistency, duplicate delivery, and broker operations; the contract defines readiness, deduplication, and an outbox instead of assuming exactly-once delivery.
-- **WebSockets:** DMs need server-to-client delivery while the shift is active. A persistent connection avoids repeated polling, but requires reconnect/history recovery and permission rechecks. Messages are persisted before broadcast; clients recover missed messages through the REST history endpoint.
-- **API Gateway:** One public entry point routes REST and the WebSocket upgrade, verifies player authentication, and applies request limits. This simplifies client routing but adds a shared dependency. Each service still enforces its own authorization. The gateway implementation is an infrastructure choice to be agreed before deployment; it is not an additional domain service.
+#### Python and FastAPI
+
+Player requests, session coordination, moderation decisions, and live chat spend much of their time waiting for network or storage operations. FastAPI provides typed request models and asynchronous HTTP and WebSocket handlers for this work.
+
+Database and broker clients must not block the event loop. CPU-heavy work must run outside the live-chat request path. Supporting both Python and Java adds tooling, but the project requires two languages.
+
+#### Java and Spring Boot
+
+Applicant generation, document validation, policy evaluation, and university records use structured domain models with explicit constraints. Java types and Spring's validation, security, and transaction support fit these services.
+
+Spring Boot adds its own configuration and build tooling. Using it for the Applicant, Credential, Server Rules, and University Record services gives those services the same implementation conventions. Case generation is deterministic and does not call an external AI service.
+
+#### Storage per service
+
+Each service owns its storage. The Server Moderation Session Service and the Discord DMs Service use PostgreSQL for durable records and Redis for ephemeral state.
+
+- **PostgreSQL:** The Player, Server Moderation Session, Server Rules, Moderation, and Discord DMs services store relational data in PostgreSQL. Local transactions and constraints protect progression ledgers, shift history, outbox entries, rule versions, decisions, bans, chat channels, memberships, and message history.
+- **MongoDB:** The Applicant, Credential, and University Record services store document-shaped data in MongoDB. Applicant claims, credentials, and university record types have different fields. The application still validates every document against the contract.
+- **Redis:** The Server Moderation Session Service uses Redis for active rosters, case-start locks, and other live shift state. The Discord DMs Service uses Redis for single-use chat tickets and Pub/Sub between WebSocket replicas. Redis does not store durable chat or shift history.
+
+#### REST over HTTP with JSON
+
+Services use REST requests for reads and commands that need an immediate response. Both frameworks support JSON, and the team can inspect JSON during a lab demonstration. HTTP calls do not create a transaction across services, so callers need explicit timeouts, retries, and dependency errors. UUIDs remain strings in JSON in both languages.
+
+#### RabbitMQ with AMQP
+
+Services publish case initialization, decision scoring, and progression events through RabbitMQ. Producers can publish without waiting for consumers to process each event. Consumers must handle delayed and duplicate delivery. The contract uses readiness checks, inbox deduplication, and outbox publishing instead of claiming exactly-once delivery.
+
+#### WebSockets
+
+The Discord DMs Service uses WebSockets to deliver messages during active shifts. It stores each message before broadcast. After a reconnect, clients read missed messages from the REST history endpoint. The service rechecks permissions during each connection.
+
+#### API gateway
+
+The API gateway routes public REST requests and WebSocket upgrades. It verifies player authentication and applies request limits. The gateway is a shared dependency, and each service still checks authorization. The team has not selected the gateway implementation. The gateway is infrastructure, not a domain service.
 
 ### Interaction map
 
-The diagram is the overview; this table specifies the full planned interactions, including authorization and event paths omitted from the drawing for readability.
+The diagram omits some authorization and event paths. This table lists the planned service interactions.
 
-| Caller / producer | Receiver / consumer | Purpose and transport |
+| Caller or producer | Receiver or consumer | Purpose and transport |
 | --- | --- | --- |
-| Client via gateway | All services' public endpoints | REST/JSON; authenticated player commands and permitted reads |
+| Client via gateway | All public service endpoints | Authenticated player commands and permitted reads over REST with JSON |
 | Client via gateway | Discord DMs | WebSocket upgrade and chat frames |
 | Session | Player | REST: check team and player membership |
 | Session | Server Rules, University Record | REST: pin the published rule version and validate permission distribution when starting a shift |
 | Session | Applicant, Credential, University Record | Internal REST: initialize a case through one selected service, poll readiness in all three |
 | Moderation | Session | Internal REST: verify active shift, assigned Moderator, current case and pinned rules |
 | Moderation | Applicant, Credential, University Record | Internal REST: gather complete case facts for scoring |
-| Moderation | Server Rules | Internal REST: evaluate those facts and pre-existing bans/history |
+| Moderation | Server Rules | Internal REST: evaluate case facts, existing bans, and decision history |
 | Moderation | Player | Internal REST: validate the target of a disciplinary action |
 | Applicant, Credential, Server Rules, University Record, Discord DMs | Session | Internal REST: verify shift participation, roles and lifecycle |
 | Discord DMs | University Record | Internal REST: enforce record-derived channel permissions |
-| Applicant / Credential / University Record | Other two case services | RabbitMQ: initialize owned records using the same `case_id` |
+| Applicant, Credential, or University Record | The other two case services | RabbitMQ: initialize owned records with the same `case_id` |
 | Moderation | Session | RabbitMQ: apply `DecisionScored` once |
 | Session | Player | RabbitMQ: apply final `ShiftEnded` progression once |
 | Moderation | Player | RabbitMQ: apply `DisciplinaryActionApplied` once |
 
-## Communication Contract
+## Communication contract
 
 ### Data ownership and consistency
 
-Each service is the sole writer of its database. Cross-service reads use the APIs below; events maintain local projections that are never a new authority. Database foreign keys stay within one service. Cross-service UUID references are validated through the owner API, and cached data is rechecked for authorization-sensitive operations. University records describe simulated people; the `subject_id` identifies the person in those authoritative records, while `case_id` identifies the particular application. Bans use `subject_id`, so returning under a new case does not discard a ban. A case may have no known university subject.
+Each service is the sole writer of its storage. Other services read through the APIs below or maintain local projections from events. A projection is never authoritative. Database foreign keys do not cross service boundaries. Callers validate cross-service UUIDs through the API of the service that owns each UUID. They recheck cached data before authorization-sensitive operations.
 
-Mutations and their pending events are committed in the same local database transaction using an **outbox**. A publisher retries until RabbitMQ confirms receipt. Consumers commit a unique `(consumer, event_id)` inbox record with their domain update before acknowledging. Domain constraints such as `UNIQUE(case_id)`, `UNIQUE(session_id, case_id)` for final decisions, and `UNIQUE(session_id)` for applied shift progression also prevent semantic duplicates. There is no distributed transaction: partially initialized cases remain pending, and downstream failures never become negative admission decisions.
+University records describe simulated people. A `subject_id` identifies a person in those records, while a `case_id` identifies an application. Bans use `subject_id`, so a new case does not remove an existing ban. An outsider might not have a known `subject_id`.
+
+A service commits a mutation and its pending events in one local transaction through an outbox. The publisher retries until RabbitMQ confirms receipt. A consumer commits its domain update and a unique `(consumer, event_id)` inbox record before it acknowledges the event.
+
+Domain constraints prevent duplicate business operations. These include `UNIQUE(case_id)`, `UNIQUE(session_id, case_id)` for final decisions, and `UNIQUE(session_id)` for applied shift progression. Services do not use distributed transactions. A partly initialized case remains pending, and a downstream failure never becomes a negative admission decision.
 
 ### Shared REST conventions
 
-- Public paths below are gateway paths under `/api/v1`. Internal paths start with `/internal/v1` and are never routed publicly. Each endpoint belongs to the named service.
-- Requests and non-empty responses use `application/json`. Field names use `snake_case`. `Id` means a UUID string; `Time` means an RFC 3339 UTC timestamp string; `Int` is a signed 32-bit integer; `Bool` is a boolean. Scores may be negative; counts are non-negative. `T[]` means an array of `T`; `T?` means an optional field; `T | null` means a required nullable field. All other fields are required. Objects below are type notation, not JSON literals.
-- Authentication uses `Authorization: Bearer <access_token>`. Player owns token issuance. Services verify signature, issuer, audience, and expiry. Access tokens expire after 15 minutes. Refresh tokens are opaque, stored hashed, expire after 7 days, and rotate on use; logout revokes the refresh session. Global `admin` is provisioned administratively and cannot be selected during registration. Shift roles come from Session, never a client-submitted role claim.
-- Internal calls use service credentials scoped to caller, receiver and operation. A service identity alone does not authorize an arbitrary player action: the initiating player's identity is propagated in verified auth context and checked against Session. Player-facing responses never include hidden generation data, expected decisions, or another player's restricted records.
-- Every mutating REST request includes `Idempotency-Key: <UUID>`. An identical retry to the same endpoint by the same caller returns the original status/body; key reuse with a different body returns `409`. Keys and results remain for the lifetime of the associated case/shift; authentication operations retain them for 24 hours, and clients must not retry outside that window. Replays still require valid authorization. Clients retry a case-start request through the same entry service using the same key; routing the same logical request to a different service is not supported.
-- Collections use optional `limit: Int` (default 50, range 1–100) and `cursor: string` query parameters. `Page<T> = {items: T[], next_cursor: string | null}`; cursors are opaque and scoped to the caller and resource. Stable ordering uses creation time then ID. Empty collections return `200` with `items: []`.
-- Common error shape: `Error = {code: string, message: string, request_id: Id, details: {field: string, reason: string}[]}`. Do not include hidden facts, secrets, or stack traces. Common statuses are `400` malformed request, `401` invalid auth, `403` insufficient permission, `404` absent resource, `409` state/key conflict, `422` invalid field values, `429` rate limit, and `503` unavailable dependency. An existing but unfinished case returns `409 CASE_NOT_READY` with `Retry-After: 1`, never an empty result interpreted as false facts. Rate limits also include `Retry-After` seconds. Tables specify success responses; these common errors apply wherever relevant.
-- Internal reads have a 2-second timeout. Only safe reads and commands carrying the original idempotency key may retry, at most twice with backoff. A failed dependency returns `503`; the caller does not fabricate facts or correctness. Pagination, timeout and size values are initial contract defaults to review during implementation.
+#### Paths and data types
+
+Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the gateway does not expose them. Each endpoint belongs to the service named in its section.
+
+Requests and non-empty responses use `application/json`. Field names use `snake_case`.
+
+| Notation | Meaning |
+| --- | --- |
+| `Id` | UUID string |
+| `Time` | RFC 3339 UTC timestamp string |
+| `Int` | Signed 32-bit integer |
+| `Bool` | Boolean |
+| `T[]` | Array of `T` |
+| `T?` | Optional field |
+
+`T | null` means that the field is required but can contain `null`. All other fields are required. Scores can be negative. Counts cannot be negative. The objects below use type notation, not JSON syntax.
+
+#### Authentication and authorization
+
+Clients authenticate with `Authorization: Bearer <access_token>`. The Player Service issues tokens. Each service verifies the token signature, issuer, audience, and expiry. Access tokens expire after 15 minutes. Refresh tokens expire after 7 days. The Player Service stores refresh-token hashes, rotates refresh tokens after use, and revokes the refresh session on logout.
+
+Administrators assign global `admin` access. Players cannot select `admin` during registration. The Server Moderation Session Service assigns shift roles. Services never trust a role claim from a client.
+
+Internal calls use service credentials that identify the caller, receiver, and permitted operation. A service credential alone does not authorize a player action. The caller also passes the initiating player's identity in verified authentication context. The receiving service checks that identity against the Server Moderation Session Service. Player-facing responses never contain hidden generation data, expected decisions, or restricted records that belong to another player.
+
+#### Idempotency
+
+Every REST request that changes data includes `Idempotency-Key: <UUID>`. When the same caller retries with the same key, endpoint, and body, the service returns the original status and body. Reusing the key with a different body returns `409`.
+
+Services retain keys and results for the lifetime of the related case or shift. Authentication operations retain them for 24 hours. Clients must not retry an authentication operation after that window. A replay still requires valid authorization. To retry a case-start request, the client uses the same entry service and key. A retry sent to another service is not supported.
+
+#### Pagination
+
+Collection endpoints accept optional `limit: Int` and `cursor: string` query parameters. The default limit is 50, and the valid range is 1 through 100. `Page<T> = {items: T[], next_cursor: string | null}`. A cursor is opaque and applies only to its caller and resource. Results sort by creation time and then by ID. An empty collection returns `200` with `items: []`.
+
+#### Errors and retries
+
+Common error shape: `Error = {code: string, message: string, request_id: Id, details: {field: string, reason: string}[]}`. Do not include hidden facts, secrets, or stack traces.
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Malformed request |
+| `401` | Invalid auth |
+| `403` | Insufficient permission |
+| `404` | Absent resource |
+| `409` | State/key conflict |
+| `422` | Invalid field values |
+| `429` | Rate limit |
+| `503` | Unavailable dependency |
+
+An existing case that is not ready returns `409 CASE_NOT_READY` with `Retry-After: 1`. It does not return an empty result that a caller could treat as an absence of facts. A rate-limit response also includes `Retry-After` in seconds. The endpoint tables list success responses. These common errors apply to every relevant endpoint.
+
+Internal reads time out after 2 seconds. A caller can retry a safe read or a command that carries the original idempotency key. It retries at most twice with backoff. When a dependency fails, the caller returns `503` instead of inventing facts or a decision result. The pagination, timeout, and size values are initial defaults that the team will review during implementation.
 
 Example error response:
 
@@ -265,7 +326,9 @@ Decision = {decision_id: Id, session_id: Id, case_id: Id, moderator_id: Id,
             score_delta: Int, penalty: Int, created_at: Time}
 ```
 
-`UniversityRecord.data` must match `kind` in the listed order; no arbitrary object payload is accepted. `student_id` is a presented or university identifier, never the database case key. Empty record arrays mean an authoritative completed lookup found no records. The full record set can be read only by authorized internal consumers; player inspection is filtered by permission. Credential validation authenticates documents independently of access policy. `authentic` in generation inputs is private metadata and is not a field of the player-visible credential.
+`UniversityRecord.data` must match its `kind`. Services reject any other object shape. A `student_id` is an identifier presented by an applicant or stored in a university record. It is never the database key for a case.
+
+An empty record array means that a completed authoritative lookup found no records. Only authorized internal consumers can read the full record set. Players can inspect only the records allowed by their permissions. Credential validation checks documents independently of the access policy. The `authentic` field in a generation input is private metadata and does not appear in a player-visible credential.
 
 ### Player Service endpoints
 
@@ -277,28 +340,30 @@ Friendship = {friendship_id: Id, requester_id: Id, recipient_id: Id,
               status: "pending" | "accepted"}
 ```
 
-| Method and path | Authorized caller | Request body / additional query | Success response |
+| Method and path | Authorized caller | Request body or query | Success response |
 | --- | --- | --- | --- |
-| `POST /api/v1/players` | Anonymous | `{username: string, email: string, password: string, display_name: string}` | `201 Player`; unique username/email; password stored hashed, never returned |
-| `POST /api/v1/auth/login` | Anonymous | `{email: string, password: string}` | `200 Tokens`; wrong credentials `401` |
-| `POST /api/v1/auth/refresh` | Refresh-token holder | `{refresh_token: string}` | `200 Tokens`; old refresh token revoked atomically |
+| `POST /api/v1/players` | Anonymous | `{username: string, email: string, password: string, display_name: string}` | `201 Player`<br>Username and email are unique. The service stores a password hash and never returns it. |
+| `POST /api/v1/auth/login` | Anonymous | `{email: string, password: string}` | `200 Tokens`<br>Wrong credentials return `401`. |
+| `POST /api/v1/auth/refresh` | Refresh-token holder | `{refresh_token: string}` | `200 Tokens`<br>The service atomically revokes the old refresh token. |
 | `POST /api/v1/auth/logout` | Refresh-token holder | `{refresh_token: string}` | `204`, no body |
 | `GET /api/v1/players/me` | Player | None | `200 Player` |
-| `PATCH /api/v1/players/me` | Player | `{display_name: string}` | `200 Player`; XP/level cannot be edited |
-| `GET /api/v1/players/{player_id}` | Player | None | `200 Player`; no email/password/token fields |
+| `PATCH /api/v1/players/me` | Player | `{display_name: string}` | `200 Player`<br>The request cannot change XP or level. |
+| `GET /api/v1/players/{player_id}` | Player | None | `200 Player`<br>The response excludes email, password, and token fields. |
 | `POST /api/v1/friendships` | Player | `{recipient_id: Id}` | `201 Friendship` in pending state |
 | `PUT /api/v1/friendships/{friendship_id}/acceptance` | Recipient | Empty object | `200 Friendship` in accepted state |
-| `GET /api/v1/friendships` | Player | Pagination | `200 Page<Friendship>` involving caller |
-| `DELETE /api/v1/friendships/{friendship_id}` | Either participant | None | `204`, no body; removes or declines request |
-| `POST /api/v1/teams` | Player | `{name: string}` | `201 Team`; caller becomes owner/member |
+| `GET /api/v1/friendships` | Player | Pagination | `200 Page<Friendship>` for the caller |
+| `DELETE /api/v1/friendships/{friendship_id}` | Either participant | None | `204`, no body<br>Removes a friendship or declines a request. |
+| `POST /api/v1/teams` | Player | `{name: string}` | `201 Team`<br>The caller becomes the owner and a member. |
 | `GET /api/v1/teams/{team_id}` | Team member | None | `200 Team` |
-| `POST /api/v1/teams/{team_id}/members` | Team owner | `{player_id: Id}` | `200 Team`; target must be an accepted friend |
-| `DELETE /api/v1/teams/{team_id}/members/{player_id}` | Owner or departing member | None | `200 Team`; owner cannot leave without deleting team |
-| `DELETE /api/v1/teams/{team_id}` | Owner | None | `204`, no body; historical shift rosters remain snapshots |
+| `POST /api/v1/teams/{team_id}/members` | Team owner | `{player_id: Id}` | `200 Team`<br>The target must be an accepted friend. |
+| `DELETE /api/v1/teams/{team_id}/members/{player_id}` | Owner or departing member | None | `200 Team`<br>The owner cannot leave without deleting the team. |
+| `DELETE /api/v1/teams/{team_id}` | Owner | None | `204`, no body<br>Historical shift rosters remain snapshots. |
 | `GET /internal/v1/players/{player_id}` | Session or Moderation | None | `200 Player` |
 | `GET /internal/v1/teams/{team_id}` | Session | None | `200 Team` |
 
-Player consumes progression events, not client XP commands. Completed-shift XP is `max(0, score)` for each participant. Store those awards and distinct disciplinary `xp_penalty` deductions in a progression ledger; total XP is `max(0, sum(awards) - sum(deductions))`. Recompute from that ledger so different delivery orders produce the same result. Level is `1 + floor(xp / 100)`. Shift decision penalties are already part of the final score and must not also produce disciplinary deductions.
+The Player Service consumes progression events. It does not accept client commands that change XP. Each participant receives `max(0, score)` XP when a shift ends. The service stores shift awards and separate disciplinary `xp_penalty` deductions in a progression ledger. Total XP is `max(0, sum(awards) - sum(deductions))`.
+
+The service recalculates XP from the ledger so event delivery order cannot change the result. A player's level is `1 + floor(xp / 100)`. The final shift score already includes decision penalties, so the Player Service does not deduct them again.
 
 ### Server Moderation Session Service endpoints
 
@@ -313,24 +378,28 @@ CaseStatus = {case_id: Id, session_id: Id, state: "pending" | "ready",
 SessionContext = {session: Session, player: Participant}
 ```
 
-| Method and path | Authorized caller | Request body / additional query | Success response |
+| Method and path | Authorized caller | Request body or query | Success response |
 | --- | --- | --- | --- |
-| `POST /api/v1/sessions` | Team member | `{team_id: Id}` | `201 Session`; caller owns lobby and initially has Moderator role |
-| `GET /api/v1/sessions` | Player | Pagination | `200 Page<Session>` for caller's joined sessions |
-| `POST /api/v1/sessions/{session_id}/participants` | Member of that team | Empty object | `200 Session`; joins self as Junior Moderator while lobby is open |
-| `PUT /api/v1/sessions/{session_id}/roles` | Session owner | `{participants: Participant[]}` | `200 Session`; complete existing roster, exactly one Moderator |
+| `POST /api/v1/sessions` | Team member | `{team_id: Id}` | `201 Session`<br>The caller owns the lobby and starts with the Moderator role. |
+| `GET /api/v1/sessions` | Player | Pagination | `200 Page<Session>` for sessions that the caller joined |
+| `POST /api/v1/sessions/{session_id}/participants` | Member of that team | Empty object | `200 Session`<br>The caller joins as a Junior Moderator while the lobby is open. |
+| `PUT /api/v1/sessions/{session_id}/roles` | Session owner | `{participants: Participant[]}` | `200 Session`<br>The body includes the complete roster with exactly one Moderator. |
 | `GET /api/v1/sessions/{session_id}` | Participant | None | `200 Session` |
-| `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`; pins currently published rule version and freezes roster/roles |
-| `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`; selects one initializer, reserves current case slot; scenario is chosen internally |
-| `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant | None | `200 CaseStatus`; readiness queried from all three owners |
-| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `202 Session` in ending state, or `200 Session` if already ended |
-| `GET /internal/v1/sessions/{session_id}/context` | Case services, Moderation, Rules, University Record or DMs | Query `player_id: Id` | `200 SessionContext`; validates participation; callers check required role/status |
+| `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>The service pins the current published rule version and freezes the roster and roles. |
+| `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>The service selects one initializer and reserves the current-case slot. It selects the scenario internally. |
+| `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant | None | `200 CaseStatus`<br>The service queries readiness from all three case owners. |
+| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `202 Session` in `ending`, or `200 Session` if already ended |
+| `GET /internal/v1/sessions/{session_id}/context` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
 
-A shift starts with one Moderator and at least two Junior Moderators, so record permissions can be distributed. Session serializes case-start and end commands. It calls exactly one of the three internal initializer endpoints below using a persisted idempotency key and verified Moderator context; if the response is lost it retries that same service/key. It never fails over that command to a different initializer. Initialization metadata pins the scenario and seed once, even for `random`. Each service still initializes its own records and can be the first service contacted, as required by Topic 3.
+A shift starts with one Moderator and at least two Junior Moderators. The Server Moderation Session Service serializes commands that start a case or end the shift. For each case, it calls one of the three internal initializer endpoints with a stored idempotency key and verified Moderator context. If the response is lost, it retries the same service with the same key. It does not send the retry to another initializer.
 
-Normal gameplay always requests the internal `random` scenario; fixed scenarios are internal test fixtures. Players cannot choose or inspect the hidden scenario/seed. A case's status endpoint reports readiness only.
+Initialization metadata fixes the scenario and seed, including when the request specifies `random`. Each case service initializes its own records. Any of the three case services can receive the initial request, as Topic 3 requires.
 
-Only one case is current at a time. A new case is allowed after the current case's `DecisionScored` has been applied. Session accepts a score event only for its current case and only once per decision; it increments `processed_count`, adds `score_delta`, and accumulates `penalty`. Ending a shift with an undecided/pending current case returns `409`; if a submitted decision's event is still in transit, end waits in `ending`. The final `ShiftEnded` is published only after all accepted decisions are counted. Case starts and decisions reject `ending`/`ended` shifts. Clients poll `GET /sessions/{session_id}` until completion; timeout does not imply completion.
+Normal gameplay requests the internal `random` scenario. Fixed scenarios are internal test fixtures. Players cannot choose or inspect the hidden scenario or seed. The case-status endpoint reports only readiness.
+
+Only one case can be current. The Server Moderation Session Service allows a new case after it applies `DecisionScored` for the current case. It accepts one event for that case and rejects events for other cases. The service then increments `processed_count`, adds `score_delta`, and accumulates `penalty`.
+
+Ending a shift with a pending or undecided case returns `409`. If a decision is complete but its event is still in transit, the shift remains in `ending`. The Server Moderation Session Service publishes `ShiftEnded` after it counts every accepted decision. Case-start and decision requests reject shifts in `ending` or `ended`. Clients poll `GET /sessions/{session_id}` until the shift ends. A timeout does not mean that the shift has ended.
 
 ### Applicant, Credential and University Record initialization
 
@@ -344,35 +413,41 @@ Generation = {scenario: "eligible" | "forged" | "impersonation" | "outsider",
               university_records: UniversityRecord[]}
 ```
 
-| Method and path | Owner / authorized caller | Request | Success response |
+| Method and path | Owner and authorized caller | Request | Success response |
 | --- | --- | --- | --- |
-| `POST /internal/v1/applicant/cases` | Applicant / Session | `CaseStart` plus propagated Moderator context | `202 CaseAccepted` |
-| `POST /internal/v1/credential/cases` | Credential / Session | `CaseStart` plus propagated Moderator context | `202 CaseAccepted` |
-| `POST /internal/v1/university-record/cases` | University Record / Session | `CaseStart` plus propagated Moderator context | `202 CaseAccepted` |
-| `GET /internal/v1/applicant/cases/{case_id}/status` | Applicant / Session | None | `200 LocalCaseState` |
-| `GET /internal/v1/credential/cases/{case_id}/status` | Credential / Session | None | `200 LocalCaseState` |
-| `GET /internal/v1/university-record/cases/{case_id}/status` | University Record / Session | None | `200 LocalCaseState` |
+| `POST /internal/v1/applicant/cases` | Applicant owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
+| `POST /internal/v1/credential/cases` | Credential owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
+| `POST /internal/v1/university-record/cases` | University Record owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
+| `GET /internal/v1/applicant/cases/{case_id}/status` | Applicant owns<br>Session calls | None | `200 LocalCaseState` |
+| `GET /internal/v1/credential/cases/{case_id}/status` | Credential owns<br>Session calls | None | `200 LocalCaseState` |
+| `GET /internal/v1/university-record/cases/{case_id}/status` | University Record owns<br>Session calls | None | `200 LocalCaseState` |
 
-The first service creates `case_id`, materializes a coherent `Generation` payload, saves only its own domain records, and emits `CaseInitialized`. All IDs inside the payload must match that case. The other services reuse the event's IDs and typed values; they do not independently randomize received facts. False claims, forged credentials and impersonation are deliberate differences inside that payload, not accidental inconsistencies. For impersonation, `subject_id` is the actual simulated applicant and presented claims may refer to another person. The initializer's payload is a generation instruction, not an alternate authoritative record database. Each domain owner validates and persists its portion; immutable initialization facts are then read from that owner.
+The selected initializer creates the `case_id` and a consistent `Generation` payload. It stores only the domain records that it owns and emits `CaseInitialized`. Every ID in the payload must belong to that case. The other two services use the IDs and typed values from the event. They do not generate different facts.
 
-Consumers may receive the same event repeatedly. The same case with conflicting initialization data is rejected and quarantined, never overwritten with an upsert. A service marks local state ready only after committing its records; Session considers the case ready only when all three are ready. A `404` from a consumer during propagation counts as pending. Failed/quarantined initialization remains pending for operator repair, and no decision is scored until readiness is restored. Hidden generation payloads are available only to these services.
+False claims, forged credentials, and impersonation are intentional differences in the payload. In an impersonation case, `subject_id` identifies the simulated applicant, while the presented claims can identify another person.
+
+The payload is an instruction for record generation, not an authoritative database. Each domain owner validates and stores its part. Callers then read the immutable facts from that owner.
+
+Consumers can receive the same event more than once. An identical event is a no-op. A consumer rejects and quarantines conflicting data for the same case. It never overwrites the stored data.
+
+A service marks its local state as ready only after it commits its records. The Server Moderation Session Service marks the case as ready only after all three services report ready. During event propagation, a consumer's `404` response means that the case is still pending. A failed or quarantined initialization remains pending until an operator repairs it. The Moderation Service cannot score a decision before the case is ready. Only the three case services can read hidden generation payloads.
 
 ### Applicant Service endpoints
 
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
-| `GET /api/v1/sessions/{session_id}/applicants/{case_id}` | Assigned Moderator in active shift | None | `200 Applicant`; presented claims only |
-| `GET /internal/v1/applicants/{case_id}` | Moderation | Query `session_id: Id` | `200 Applicant`; verifies case/shift association |
+| `GET /api/v1/sessions/{session_id}/applicants/{case_id}` | Assigned Moderator in active shift | None | `200 Applicant` with presented claims only |
+| `GET /internal/v1/applicants/{case_id}` | Moderation | Query `session_id: Id` | `200 Applicant`<br>The service verifies that the case belongs to the shift. |
 
 ### Credential Service endpoints
 
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/credentials` | Assigned Moderator in active shift | Pagination | `200 Page<Credential>` |
-| `POST /api/v1/sessions/{session_id}/credentials/{credential_id}/validation` | Assigned Moderator in active shift | Empty object | `200 Validation`; credential must belong to current case |
-| `GET /internal/v1/cases/{case_id}/credential-results` | Moderation | Query `session_id: Id` | `200 {case_id: Id, credentials: Credential[], validations: Validation[]}`; complete results for every credential |
+| `POST /api/v1/sessions/{session_id}/credentials/{credential_id}/validation` | Assigned Moderator in active shift | Empty object | `200 Validation`<br>The credential must belong to the current case. |
+| `GET /internal/v1/cases/{case_id}/credential-results` | Moderation | Query `session_id: Id` | `200 {case_id: Id, credentials: Credential[], validations: Validation[]}` with complete results for every credential |
 
-The internal endpoint performs or reuses deterministic validation even when the player did not request it. Checks use the shift's start time as the expiry reference, so a replay cannot change correctness mid-case. Forgery checks use the private authenticity metadata. Credentials are immutable during an active case.
+The internal endpoint runs or reuses deterministic validation even if the player did not request validation. Expiry checks use the shift start time, so a replay cannot change the result during a case. Forgery checks use private authenticity metadata. Credentials do not change during an active case.
 
 ### Server Rules Service endpoints
 
@@ -398,24 +473,32 @@ PolicyInput = {session_id: Id, case_id: Id, rule_version: Id, claims: Claims,
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
 | `POST /api/v1/rule-versions` | Global admin | `{rules: Rule[], default_action: Action, default_channels: string[]}` | `201 RuleSet` in draft state |
-| `POST /api/v1/rule-versions/{rule_version}/publish` | Global admin | Empty object | `200 RuleSet`; atomically becomes current for future shifts |
-| `GET /api/v1/rule-versions/{rule_version}` | Player | None | `200 RuleSet`; non-admins see published versions only |
-| `GET /internal/v1/rule-versions/current` | Session | None | `200 RuleSet`; no published set gives `409` |
-| `POST /internal/v1/policy/evaluations` | Moderation | `PolicyInput` | `200 PolicyResult`; session's pinned version must match |
+| `POST /api/v1/rule-versions/{rule_version}/publish` | Global admin | Empty object | `200 RuleSet`<br>The version atomically becomes current for future shifts. |
+| `GET /api/v1/rule-versions/{rule_version}` | Player | None | `200 RuleSet`<br>Players without `admin` access can read only published versions. |
+| `GET /internal/v1/rule-versions/current` | Session | None | `200 RuleSet`<br>If no published version exists, the endpoint returns `409`. |
+| `POST /internal/v1/policy/evaluations` | Moderation | `PolicyInput` | `200 PolicyResult`<br>The `rule_version` must match the version pinned to the session. |
 
-Rule conditions are discriminated by `kind`. Major/year/duration/credential conditions match when the applicant fails the stated requirement; role/ban conditions match when the stated role/ban exists. University facts are authoritative for identity and enrollment checks; claims are compared against those facts, and a material identity mismatch defaults to `flag` before ordinary access rules. An existing subject ban always returns `ban`. Otherwise, matching rules use ascending priority (ties resolved by rule ID); the first determines action/channels, with the default used when none match. Matched requirement failures populate `violated_rule_ids`. Channels are empty for any non-accept action. Months mean completed calendar months at shift start. Each credential required by the rules must pass; a missing required credential fails. Rules and their versions are immutable after publication, and updates create a new version. The proposed initial policy vocabulary is intentionally bounded; new rule kinds require a versioned schema update.
+The `kind` field identifies each condition type. The `major`, `year`, `duration`, and `credential` conditions match when the applicant fails a requirement. The `role` and `ban` conditions match when the specified role or ban exists.
+
+University facts are authoritative for identity and enrollment checks. The Server Rules Service compares applicant claims with those facts. A material identity mismatch returns `flag` before the service evaluates ordinary access rules. An existing ban for the `subject_id` always returns `ban`. Otherwise, the service evaluates matching rules by ascending priority and resolves equal priorities by rule ID. The first rule determines the action and channels. If no rule matches, the service uses the defaults.
+
+Failed requirements populate `violated_rule_ids`. Every action other than `accept` returns an empty channel list. A month means a completed calendar month at the shift start time. Every credential required by a rule must pass validation. A missing required credential fails the rule.
+
+Published rules and rule versions are immutable. An update creates a new version. The initial contract supports only the listed condition types. A new condition type requires a versioned schema update.
 
 ### University Record Service endpoints
 
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
-| `PUT /api/v1/sessions/{session_id}/record-permissions` | Session owner while lobby is open | `{permissions: Permission[]}` | `200 {permissions: Permission[]}`; complete replacement for Junior Moderators only |
-| `GET /api/v1/sessions/{session_id}/record-permissions/me` | Participant | None | `200 Permission`; Moderator has no direct record permissions |
-| `GET /api/v1/sessions/{session_id}/cases/{case_id}/university-records` | Junior Moderator in active shift | Required query `kind: RecordKind`; pagination | `200 Page<UniversityRecord>`; unassigned kind gives `403` |
+| `PUT /api/v1/sessions/{session_id}/record-permissions` | Session owner while lobby is open | `{permissions: Permission[]}` | `200 {permissions: Permission[]}`<br>The body replaces all Junior Moderator permissions. |
+| `GET /api/v1/sessions/{session_id}/record-permissions/me` | Participant | None | `200 Permission`<br>The Moderator has no direct record permissions. |
+| `GET /api/v1/sessions/{session_id}/cases/{case_id}/university-records` | Junior Moderator in active shift | Required query `kind: RecordKind` with pagination | `200 Page<UniversityRecord>`<br>An unassigned `kind` returns `403`. |
 | `GET /internal/v1/sessions/{session_id}/record-permissions/{player_id}` | DMs or Session | None | `200 Permission` |
-| `GET /internal/v1/cases/{case_id}/university-records` | Moderation | Query `session_id: Id` | `200 {case_id: Id, subject_id: Id \| null, records: UniversityRecord[]}`; full internal facts |
+| `GET /internal/v1/cases/{case_id}/university-records` | Moderation | Query `session_id: Id` | `200 {case_id: Id, subject_id: Id \| null, records: UniversityRecord[]}` with all internal facts |
 
-Permissions freeze at shift start; Session checks that every record kind is assigned to at least one Junior Moderator and no single Junior Moderator has every kind. Starting with an incomplete distribution returns `409`. Thus this initial game configuration needs at least two Junior Moderators. No player can query the internal complete-record endpoint, and the Moderator learns hidden records through DMs. Missing subject records are a valid result for outsiders, not an authorization bypass.
+Record permissions do not change after a shift starts. The Server Moderation Session Service checks that at least one Junior Moderator can inspect each record kind. It also rejects an assignment that gives one Junior Moderator every kind. An incomplete or invalid assignment returns `409`. These rules require at least two Junior Moderators.
+
+Players cannot call the internal endpoint that returns all records. The Moderator receives hidden record details from Junior Moderators through DMs. An empty record set is valid for an outsider and does not grant access to restricted records.
 
 ### Moderation Service endpoints
 
@@ -426,15 +509,21 @@ Discipline = {disciplinary_action_id: Id, player_id: Id, reason: string,
 
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
-| `POST /api/v1/sessions/{session_id}/decisions` | Assigned Moderator in active shift | `{case_id: Id, action: Action, reason: string}` | `201 Decision`; one final decision per current case |
-| `GET /api/v1/sessions/{session_id}/decisions` | Participant | Pagination | `200 Page<Decision>`; committed outcomes only |
-| `GET /api/v1/sessions/{session_id}/decisions/{decision_id}` | Participant | None | `200 Decision`; validates shift association |
-| `GET /api/v1/bans` | Global admin | Optional query `subject_id: Id`; pagination | `200 Page<Ban>` |
-| `POST /api/v1/disciplinary-actions` | Global admin | `{player_id: Id, reason: string, xp_penalty: Int}` | `201 Discipline`; non-negative penalty, distinct from decision scoring |
+| `POST /api/v1/sessions/{session_id}/decisions` | Assigned Moderator in active shift | `{case_id: Id, action: Action, reason: string}` | `201 Decision`<br>Each current case has one final decision. |
+| `GET /api/v1/sessions/{session_id}/decisions` | Participant | Pagination | `200 Page<Decision>` with committed outcomes only |
+| `GET /api/v1/sessions/{session_id}/decisions/{decision_id}` | Participant | None | `200 Decision`<br>The service verifies that the decision belongs to the shift. |
+| `GET /api/v1/bans` | Global admin | Optional query `subject_id: Id` with pagination | `200 Page<Ban>` |
+| `POST /api/v1/disciplinary-actions` | Global admin | `{player_id: Id, reason: string, xp_penalty: Int}` | `201 Discipline`<br>The penalty cannot be negative and is separate from decision scoring. |
 
-Moderation checks Session context and all case data before evaluation. It supplies prior history and bans from its own database to Rules; it never accepts an expected answer from the player. It snapshots `PolicyResult` with the immutable decision. The initial score is `+10` for a correct action and `-5` for an incorrect one (`penalty` is respectively 0 or 5); correctness means the action equals `expected_action`. `flag` is a final outcome for this case, with no investigation workflow in the initial contract. `ban` creates a persistent subject ban in the same transaction as the decision, even if the player chose incorrectly. A ban without an identifiable `subject_id` returns `422 SUBJECT_REQUIRED`; rules must use reject/flag for an unidentifiable outsider. Admissions return allowed channel names; this is a simulation, not a call to Discord's production API.
+Before evaluation, the Moderation Service checks the session context and reads all case data. It sends existing bans and decision history to the Server Rules Service. The service never accepts an expected result from a player. It stores the returned `PolicyResult` with the immutable decision.
 
-When creating a ban, evaluate policy against bans that existed **before** this decision, then persist the decision/new ban/outbox atomically. This prevents a newly created ban from making its own action appear correct. Competing decision requests with different keys receive `409` after the first decision wins; retries with the winning key return its original result. Player-visible decision results become available only after commit, so correctness cannot be previewed through an evaluation endpoint.
+A correct action adds 10 points. An incorrect action subtracts 5 points. The `penalty` is 0 for a correct action and 5 for an incorrect action. An action is correct when it equals `expected_action`.
+
+The `flag` action ends the case. The initial contract does not include a later investigation. The `ban` action creates a persistent ban for the `subject_id` in the same transaction as the decision, even when the action is incorrect. If the case has no `subject_id`, a ban request returns `422 SUBJECT_REQUIRED`. Rules must return `reject` or `flag` for an unidentified outsider. A decision with `action: accept` returns the allowed channel names. It does not call the production Discord API.
+
+Before it creates a ban, the Moderation Service evaluates the policy against bans that existed before the decision. It then stores the decision, the new ban, and the outbox event in one transaction. The new ban therefore cannot make its own decision correct.
+
+When different idempotency keys submit decisions at the same time, the first decision wins. Other requests return `409`. A retry with the winning key returns the original result. Players can read a decision result only after commit, and no endpoint previews whether a proposed decision is correct.
 
 ### Discord DMs Service endpoints and WebSocket frames
 
@@ -446,27 +535,35 @@ Message = {message_id: Id, client_message_id: Id, channel_id: Id,
 
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
-| `GET /api/v1/sessions/{session_id}/channels` | Participant | None | `200 {channels: Channel[]}`; only caller's allowed channels |
+| `GET /api/v1/sessions/{session_id}/channels` | Participant | None | `200 {channels: Channel[]}` with only the caller's channels |
 | `GET /api/v1/channels/{channel_id}/messages` | Authorized channel member | Pagination | `200 Page<Message>` in chronological order |
-| `POST /api/v1/sessions/{session_id}/chat-tickets` | Participant in active shift | Empty object | `201 {ticket: string, expires_at: Time}`; single-use, 30-second lifetime, bound to player and shift |
-| `GET /api/v1/sessions/{session_id}/ws` (upgrade) | Chat-ticket holder | Query `ticket: string` | `101 Switching Protocols`; REST-style auth errors before upgrade |
+| `POST /api/v1/sessions/{session_id}/chat-tickets` | Participant in active shift | Empty object | `201 {ticket: string, expires_at: Time}`<br>The ticket works once, expires after 30 seconds, and belongs to one player and shift. |
+| `GET /api/v1/sessions/{session_id}/ws` (upgrade) | Chat-ticket holder | Query `ticket: string` | `101 Switching Protocols`<br>Authentication errors use REST responses before the upgrade. |
 
-DMs creates the four named session channels idempotently on first access. `#general-mod-chat` admits all participants. The Moderator can join all channels to receive findings. Junior Moderators may join `#enrollment-check` with enrollment or academic-year access, `#faculty-check` with outlook-group or FCIM-message access, and `#course-registration` with course or schedule access. These are permissions to discuss records, not permission to read extra records. DMs verifies Session roles and University Record permissions on connection, history reads and every send; failures deny access. Ended shifts permit authorized history reads but close live connections with code `1000` and reason `SHIFT_ENDED`. Connections also recheck lifecycle/auth expiry on a 30-second heartbeat; expiry closes with `1008`. Query tickets must be redacted from logs, and a consumed/expired ticket cannot reconnect.
+The Discord DMs Service stores only a hash of each chat ticket in Redis. The Redis value contains the player and session IDs and expires after 30 seconds. The service uses `GETDEL` to consume the ticket once.
+
+The Discord DMs Service creates the four session channels on first access. A retry does not create duplicate channels. Every participant can join `#general-mod-chat`, and the Moderator can join all channels.
+
+A Junior Moderator can join `#enrollment-check` with enrollment or academic-year access. Outlook-group or FCIM-message access grants entry to `#faculty-check`. Course or schedule access grants entry to `#course-registration`. Channel membership permits discussion of records but does not grant access to additional records.
+
+Before a client connects, reads history, or sends a message, the Discord DMs Service gets the current role from the Server Moderation Session Service. It gets record permissions from the University Record Service. A failed check denies access. After a shift ends, authorized clients can read history, but the service closes live connections with code `1000` and reason `SHIFT_ENDED`. Every 30 seconds, the service rechecks the shift lifecycle and token expiry. An expired token closes the connection with code `1008`. The service redacts query tickets from logs. A consumed or expired ticket cannot reconnect.
 
 All frames are JSON objects:
 
-| Direction / type | Fields | Behavior |
+| Direction and type | Fields | Behavior |
 | --- | --- | --- |
-| Client `message.send` | `{type: "message.send", client_message_id: Id, channel_id: Id, text: string}` | 1–2000 characters; authenticated author is derived server-side |
-| Server `message.ack` | `{type: "message.ack", client_message_id: Id, message_id: Id}` | Sent to author after persistence; duplicate `(author_id, client_message_id)` returns original ack |
-| Server `message.created` | `{type: "message.created", message: Message}` | Broadcast only to authorized members; clients deduplicate by `message_id` |
-| Server `error` | `{type: "error", client_message_id: Id \| null, error: Error}` | Invalid frame, permission failure or reused ID with different content; no broadcast |
+| Client `message.send` | `{type: "message.send", client_message_id: Id, channel_id: Id, text: string}` | `text` contains 1 through 2000 characters. The service derives the author from authentication. |
+| Server `message.ack` | `{type: "message.ack", client_message_id: Id, message_id: Id}` | Sent to the author after storage. A duplicate `(author_id, client_message_id)` returns the original acknowledgement. |
+| Server `message.created` | `{type: "message.created", message: Message}` | Sent only to authorized members. Clients deduplicate by `message_id`. |
+| Server `error` | `{type: "error", client_message_id: Id \| null, error: Error}` | Returned for an invalid frame, a permission failure, or a reused ID with different content. The service does not broadcast it. |
 
-Control-frame ping/pong runs every 30 seconds; two missed responses close the connection. Reconnect requires a new chat ticket and REST history recovery using the last retained pagination cursor; persistent `client_message_id` makes a lost acknowledgement safe to retry. Each channel's history order is stable by `(sent_at, message_id)`; cross-channel delivery order is not guaranteed. If multiple DMs replicas are deployed, fan-out must reach every replica with connected members (for example, dedicated per-replica broker queues), rather than a competing-consumer queue that delivers each chat message to only one replica.
+The service sends a WebSocket ping every 30 seconds. Two missed pong responses close the connection. A reconnect requires a new chat ticket. The client then recovers history through REST with its last retained pagination cursor. Reusing `client_message_id` makes it safe to retry after a lost acknowledgement. Each channel sorts its history by `(sent_at, message_id)`. Message order across channels is not defined.
+
+When the Discord DMs Service has multiple replicas, each replica subscribes to the same Redis Pub/Sub channel. The service publishes a message only after it commits the message to PostgreSQL. Redis sends the publication to every connected replica, and each replica forwards it to authorized local connections. Redis does not replay missed publications. Clients recover missed messages from PostgreSQL history and deduplicate them by `message_id`.
 
 ### RabbitMQ event contract
 
-All events use a durable topic exchange `student-id.events.v1`, persistent JSON messages, publisher confirms and manual consumer acknowledgements. `schema_version` is `1`. Event names, routing keys and payloads are fixed below; changing/removing fields requires a new major schema/exchange version. Consumers tolerate additional optional fields.
+All events use the durable topic exchange `student-id.events.v1`. Messages use JSON and RabbitMQ persistent delivery. Publishers wait for broker confirms, and consumers acknowledge messages after processing. The `schema_version` is `1`. The event names, routing keys, and payload fields below are fixed. Removing or changing a field requires a new major schema and exchange version. Consumers accept additional optional fields.
 
 ```text
 Event<T> = {event_id: Id, event_type: string, schema_version: Int,
@@ -481,16 +578,18 @@ DisciplinaryPayload = {disciplinary_action_id: Id, player_id: Id, xp_penalty: In
                        reason: string}
 ```
 
-| Event / routing key | Producer | Durable subscriber queue(s) | Payload / correlation |
-| --- | --- | --- | --- |
-| `CaseInitialized` / `case.initialized` | Any one of Applicant, Credential, University Record | `applicant.case-initialized.v1`, `credential.case-initialized.v1`, `university-record.case-initialized.v1` | `CaseInitializedPayload`; `correlation_id = case_id` |
-| `DecisionScored` / `decision.scored` | Moderation | `session.decision-scored.v1` | `DecisionScoredPayload`; `correlation_id = case_id` |
-| `ShiftEnded` / `shift.ended` | Session | `player.shift-ended.v1` | `ShiftEndedPayload`; `correlation_id = session_id` |
-| `DisciplinaryActionApplied` / `discipline.applied` | Moderation | `player.discipline-applied.v1` | `DisciplinaryPayload`; `correlation_id = disciplinary_action_id` |
+| Event | Routing key | Producer | Durable subscriber queues | Payload and correlation |
+| --- | --- | --- | --- | --- |
+| `CaseInitialized` | `case.initialized` | Applicant, Credential, or University Record | `applicant.case-initialized.v1`<br>`credential.case-initialized.v1`<br>`university-record.case-initialized.v1` | `CaseInitializedPayload`<br>`correlation_id = case_id` |
+| `DecisionScored` | `decision.scored` | Moderation | `session.decision-scored.v1` | `DecisionScoredPayload`<br>`correlation_id = case_id` |
+| `ShiftEnded` | `shift.ended` | Session | `player.shift-ended.v1` | `ShiftEndedPayload`<br>`correlation_id = session_id` |
+| `DisciplinaryActionApplied` | `discipline.applied` | Moderation | `player.discipline-applied.v1` | `DisciplinaryPayload`<br>`correlation_id = disciplinary_action_id` |
 
-Every subscriber gets its own queue; replicas of a single service share that service's queue. An initializer may consume its own case event as a deduplicated no-op and never republishes a received initialization. Publication must use the same `event_id` for retries. Consumers also deduplicate by the payload's case/decision/shift/disciplinary-action ID, because a producer defect could assign a second event ID to the same business operation.
+Each subscriber has its own queue. Replicas of one service share that service's queue. An initializer can consume its own case event as a deduplicated no-op, but it never republishes a consumed initialization event. A publication retry uses the original `event_id`. Consumers also deduplicate by the business ID in the payload. This protects against a producer that assigns two event IDs to one case, decision, shift, or disciplinary action.
 
-Transient failures retry at 1, 5 and 30 seconds using delayed retry queues; after those retries, messages move to a durable service-specific dead-letter queue named `<subscriber-queue>.dlq` for inspection/replay. Schema-invalid or conflicting messages go directly there. Replays keep IDs and remain idempotent. Consumer failures do not silently drop messages or repeatedly requeue without a bound. Broker credentials restrict publishers and consumers to their needed exchanges/queues; only the three initialization services may read hidden `CaseInitialized` payloads. Outbox entries are retained until confirmed; inbox/domain deduplication records remain for the lifetime of the domain records.
+After a temporary failure, delayed queues retry the message after 1, 5, and 30 seconds. If all retries fail, the message moves to `<subscriber-queue>.dlq`, a durable queue for inspection and replay. A message with an invalid schema or a conflicting payload moves there without a retry. A replay keeps the original IDs and remains idempotent. A consumer never drops a failed message or requeues it without a retry limit.
+
+Broker credentials grant publishers and consumers access only to the exchanges and queues they need. Only the Applicant, Credential, and University Record services can read hidden `CaseInitialized` payloads. A service retains an outbox entry until the broker confirms it. The service retains inbox and domain deduplication records for as long as the related domain records exist.
 
 Example scored event:
 
@@ -517,24 +616,24 @@ Example scored event:
 
 ### Contract verification scenarios
 
-Before implementing endpoints, review these scenarios together with the owning service developers. Implementation PRs must cover them with relevant unit/integration tests:
+Before implementation, the developers who own each service review these scenarios together. Implementation PRs cover each relevant scenario with unit or integration tests:
 
-- Initialize a case through each of the three entry services; verify all records share its ID, hidden data stays internal, and retries reproduce the original case.
-- Deliver an initialization or scoring event twice; verify no extra records, processed applications, XP or penalties. Conflicting payloads must be quarantined.
-- Delay one case consumer; readiness remains pending and a decision cannot be submitted/scored from incomplete facts.
-- Attempt university-record reads and chat sends with the wrong role, record permission or shift; require denial without leaking facts.
-- Publish new rules during an active shift; that shift uses its pinned version and future shifts use the new one.
-- Submit two decisions concurrently, end a shift while scoring is in transit, and redeliver the completion event; verify one decision and one complete progression update.
-- Reconnect chat after a lost acknowledgement; verify retry deduplication and recovery of persisted history.
+- Initialize a case through each of the three entry services. Every record uses the same `case_id`, hidden data stays internal, and a retry returns the original case.
+- Deliver an initialization or scoring event twice. The second delivery does not add records, processed applications, XP, or penalties. A conflicting payload moves to quarantine.
+- Delay one case consumer. The case remains pending, and the Moderation Service cannot accept or score a decision from incomplete facts.
+- Read university records or send chat messages with the wrong role, permission, or shift. The service denies the request without returning restricted facts.
+- Publish new rules during an active shift. The active shift keeps its pinned version, and later shifts use the new version.
+- Submit two decisions at the same time. While the scoring event is in transit, end the shift and redeliver the completion event. The system stores one decision and applies one complete progression update.
+- Reconnect chat after a lost acknowledgement. The retry does not duplicate the message, and the client recovers stored history.
 
-## Contribution & Workflow Guidelines
+## Contribution and workflow guidelines
 
-### Branching Model
+### Branching model
 
-We follow a Gitflow-inspired branching model with `main`, `dev`, and short-lived feature/task branches:
+The repository uses `main`, `dev`, and short-lived task branches:
 
 ```text
-main (stable / production releases)
+main (stable production releases)
  └── dev (integration of current lab)
       ├── feat/lab-X/service-or-feature
       ├── fix/lab-X/issue-description
@@ -542,126 +641,121 @@ main (stable / production releases)
       └── chore/lab-X/task-description
 ```
 
-#### Naming Conventions
+#### Naming conventions
 
-- **`main`**: Production-ready state. Only receives merges from `dev` upon lab completion.
+`main` holds production-ready releases and receives merges only from `dev` at lab completion. `dev` is the integration branch for the current lab.
 
-- **`dev`**: Active integration branch for the current laboratory work.
+| Task | Branch pattern | Example |
+| --- | --- | --- |
+| Feature | `feat/lab-X/service-or-feature` | `feat/lab-1/player-auth` |
+| Fix | `fix/lab-X/issue-description` | `fix/lab-0/submodule-link-error` |
+| Documentation | `docs/lab-X/update-description` | `docs/lab-0/communication-contracts` |
+| Maintenance | `chore/lab-X/task-description` | `chore/lab-0/update-submodules` |
 
-- **Feature Branches**: `feat/lab-X/service-or-feature`
-    - *Example:* `feat/lab-1/player-auth`
+### Commit conventions
 
-- **Fix Branches**: `fix/lab-X/issue-description`
-    - *Example:* `fix/lab-0/submodule-link-error`
+Use [Conventional Commits v1.0.0](https://www.conventionalcommits.org/) for every commit:
 
-- **Documentation Branches**: `docs/lab-X/update-description`
-    - *Example:* `docs/lab-0/communication-contracts`
-
-
-- **Chore Branches**: `chore/lab-X/task-description`
-    - *Example:* `chore/lab-0/update-submodules`
-
-
-### Commit Conventions
-
-Our commit strategy is strictly based on the **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/)** specification to maintain a clean and readable git log.
-
-**Commit Format:**
 `<type>(<scope>): <short summary in imperative mood>`
 
-* **`feat`**: Used when introducing a brand-new feature or service functionality.
-  * *Example:* `feat(game-service): implement websocket cycle timer`
-* **`fix`**: Used when patching a bug, error, or unwanted behavior in the codebase.
-  * *Example:* `fix(user-service): fix jwt token expiration validation`
-* **`docs`**: Used exclusively for documentation updates (README files, architecture diagrams, API specifications).
-  * *Example:* `docs(readme): add contribution and workflow rules`
-* **`style`**: Used for code style/formatting changes that do not affect logic (white-space, semi-colons, formatting).
-  * *Example:* `style(player-service): format files according to prettier rules`
-* **`refactor`**: Used for rewriting or restructuring code without changing existing behavior or adding features.
-  * *Example:* `refactor(resource-service): extract database connection logic into helper module`
-* **`test`**: Used when adding missing unit/integration tests or updating existing test suites.
-  * *Example:* `test(exam-service): add unit tests for grade calculation endpoints`
-* **`chore`**: Used for routine maintenance, build configuration, dependency updates, or git submodule management.
-  * *Example:* `chore(submodules): link private user-service repository`
+Use the changed component as the commit scope. Reserve the lab scope for PR titles.
 
+| Type | Use for | Example |
+| --- | --- | --- |
+| `feat` | New features or service functionality | `feat(game-service): implement websocket cycle timer` |
+| `fix` | Bugs, errors, or unwanted behavior | `fix(user-service): fix jwt token expiration validation` |
+| `docs` | Documentation only: READMEs, architecture diagrams, API specifications | `docs(readme): add contribution and workflow rules` |
+| `style` | Code formatting, such as whitespace or semicolons, without logic changes | `style(player-service): format files according to prettier rules` |
+| `refactor` | Code restructuring without behavior changes or new features | `refactor(resource-service): extract database connection logic into helper module` |
+| `test` | New or updated unit/integration tests | `test(exam-service): add unit tests for grade calculation endpoints` |
+| `chore` | Maintenance, build configuration, dependencies, or submodules | `chore(submodules): link private user-service repository` |
 
-### Merge Strategy
+### Merge strategy
 
-- **Feature --> `dev`**: Use *Squash and Merge* to maintain a clean, linear history of completed tasks on the integration branch.
+| Source | Target | Method | Purpose |
+| --- | --- | --- | --- |
+| Task branch | `dev` | Squash and Merge | Keep a linear history of completed tasks |
+| `dev` | `main` | Rebase and Merge | Preserve milestone history at final lab evaluation |
 
-- **`dev` --> `main`**: Use *Rebase and Merge* upon final lab evaluation to preserve full milestone history.
+Delete task branches after merging their PRs into `dev`. Keep `main` and `dev` as permanent branches.
 
-- **Branch cleanup**: Task branches must be deleted after their PRs are merged into `dev`. Keep `main` and `dev` as permanent branches.
+### Versioning strategy
 
+Create version tags only on `main`:
 
-### Versioning Strategy
+- A completed lab uses `vX.0.0`, such as `v1.0.0` or `v2.0.0`.
+- A hotfix uses `vX.0.Y`, such as `v1.0.1`.
 
-Versions are tagged exclusively on `main` upon completing lab checkpoints or hotfixes:
+### Pull request format
 
-* **Major Lab Releases (`vX.0.0`):** Created when merging `dev` into `main` after completing all lab requirements (e.g., `v0.0.0`, `v1.0.0`, `v2.0.0`).
-* **Hotfixes (`vX.0.Y`):** Created if fixes are required on `main` (e.g., `v1.0.1`).
+#### PR naming convention
 
-### Pull Request Format
+PR titles must use the lab as the Conventional Commits scope:
 
-#### PR Naming Convention
-PR titles must follow the Conventional Commits scope pattern:  
 `<type>(lab-X): <short imperative summary>`
 
-* **Example:** `docs(lab-0): define architecture diagram and workflow rules`
-* **Example:** `feat(lab-1): implement JWT authentication in player service`
+Examples:
 
-#### PR Description Template
-All PRs targeting `dev` or `main` must use the following structured format:
+- `docs(lab-0): define architecture diagram and workflow rules`
+- `feat(lab-1): implement JWT authentication in player service`
+
+#### PR description template
+
+Every PR into `dev` or `main` uses this template:
 
 ```markdown
 ## Why?
-[Explain the goal or problem this PR addresses]
+[State the problem or goal.]
 
 ## Changes
-[Brief overview of the technical approach/implementation and changes included]
+[List the implementation changes.]
 
 ## How to Test?
-[Provide step-by-step instructions on how reviewers can verify these changes]
+[List the commands and steps that verify the changes. Include the expected results.]
 
 ## Screenshots / Evidence (Optional)
-[Attach screenshots, API test output, or logs if applicable]
+[Attach relevant screenshots, test output, or logs.]
 ```
 
-#### PR Reviewing Process
+#### PR review process
 
-- **Minimum Approvals & Reviewers**: At least one, for the CPR
-- **Automated Checks**: All CI pipelines and tests must pass before merging
-- **Enforcement**: `main` and `dev` require a PR, one peer approval on the latest changes, CPR only, resolved review threads, and linear history. Force pushes and branch deletion are blocked. `dev` permits squash merges; `main` permits rebase merges. Repository administrators have no configured bypass.
-- **Workflow check**: The `PR policy` check validates PR titles, branch names/targets and required description sections. PRs into `main` must come from this repository's `dev`; task PRs target `dev`. Both branches require this check.
-- **Test coverage policy**: Lab 0 has a PR workflow check with no service-code coverage target. For later implementation PRs, a target of 69% code coverage is recommended. Unit and integration tests should focus exclusively on critical business logic, security and authorization boundaries, and core contract flows rather than aiming for exhaustive line coverage.
-- **Review Criteria**:
-  - Code quality, readability, and modularity
-  - Adherence to branch and commit naming standards
-  - Test coverage and endpoint functionality
-  - Security considerations and secret protection
+Changes enter `main` and `dev` only through PRs. The latest changes need at least one peer approval. Only CPR approvals count. Reviewers must resolve every review thread. All required CI checks and tests must pass. Both branches require linear history and block force pushes and branch deletion. Repository administrators have no configured bypass. Use squash merges for `dev` and rebase merges for `main`.
 
+The required `PR policy` check validates the PR title, source branch, target branch, and description sections. A PR into `main` must come from this repository's `dev` branch. A task PR targets `dev`.
 
-### Example Lab Workflow
+The Lab 0 workflow does not set a coverage target because Lab 0 has no service code. For later implementation PRs, the recommended target is 69% code coverage. Tests focus on business rules, authorization boundaries, security checks, and the main contract flows. The policy does not require exhaustive line coverage.
 
-**1. Task Development**
-* Branch off `dev`: `git checkout -b <type>/lab-X/<description>`
-  (First update your local `dev`, or explicitly create the task branch from `origin/dev`.)
-* Commit changes: `git commit -m "<type>(<scope>): <summary>"`
-* Push and open PR targeting `dev`
+Reviewers check:
 
-**2. Peer Review & Integration**
-* Request at least 1 peer approval
-* Verify CI checks, submodule pointers, and lack of secrets
-* Merge into `dev` using **Squash and Merge**
+- Code quality, readability, and modularity
+- Branch and commit naming
+- Test coverage and endpoint functionality
+- Security and secret protection
 
-**3. Lab Completion & Release**
-* Open PR from `dev` to `main` when lab requirements are met
-* Perform final testing and submission verification
-* Merge into `main` using **Rebase and Merge**
-* Fetch and switch to the released `main` before tagging; do not tag the task branch or `dev`.
-* Tag release on `main`: `git tag -a vX.0.0 -m "Lab X completion"` && `git push origin vX.0.0`
+### Example lab workflow
 
+#### 1. Task development
 
-## Project Board
+1. Fetch `origin`: `git fetch origin`.
+2. Create the task branch from `origin/dev`: `git switch -c <type>/lab-X/<description> origin/dev`.
+3. Commit the change: `git commit -m "<type>(<scope>): <summary>"`.
+4. Push the branch and open a PR into `dev`.
 
-**[Github Project Board](https://github.com/orgs/ChillGuysStudio/projects/2)** - Tracks lab tasks, issues, and progress across all team members.
+#### 2. Peer review and integration
+
+1. Request at least one peer approval.
+2. Check the CI results, submodule pointers, and changed files for secrets.
+3. Resolve every review thread.
+4. Squash the PR into `dev`.
+
+#### 3. Lab completion and release
+
+1. After the team completes the lab requirements, open a PR from `dev` to `main`.
+2. Run the final tests and verify the submission files.
+3. Rebase the PR into `main`.
+4. Update local `main`: `git fetch origin && git switch main && git pull --ff-only`. Do not tag the task branch or `dev`.
+5. Create and push the release tag: `git tag -a vX.0.0 -m "Lab X completion" && git push origin vX.0.0`.
+
+## Project board
+
+The [GitHub project board](https://github.com/orgs/ChillGuysStudio/projects/2) tracks lab tasks, issues, and status.
