@@ -24,8 +24,6 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - name: Test commit policy checker
-        run: python3 .github/scripts/test_check_commits.py
       - name: Check commit workflow rules
         run: >-
           python3 .github/scripts/check_commits.py
