@@ -7,7 +7,7 @@ import sys
 
 COMMIT_SUBJECT = re.compile(
     r"(feat|fix|docs|style|refactor|test|chore)"
-    r"\([a-z0-9]+(?:-[a-z0-9]+)*\): "
+    r"(?:\([a-z0-9]+(?:-[a-z0-9]+)*\))?: "
     r"\S(?:.*\S)?"
 )
 
