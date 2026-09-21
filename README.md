@@ -2,12 +2,13 @@
 
 Student ID, please is a game about moderating a university Discord server. The Lab 0 design splits the game into the services listed below. Players compare applicants' claims and credentials with university records and the rules for the current shift.
 
-This README defines the Lab 0 design that the team plans to implement in later labs. The services do not run yet.
+This README defines the shared service contracts. The Lab 1 Player and Server Moderation Session implementations run together with PostgreSQL, Redis, and RabbitMQ. Session uses contract-compatible mocks for the unavailable teammate services. See [Run the Lab 1 pair](docs/lab1-running.md).
 
 During a shift, Junior Moderators can inspect only their assigned records. They share their findings in WebSocket chat channels, and the Moderator decides whether to accept, reject, flag, or ban each applicant. Player progression carries across shifts.
 
 ## Table of contents
 
+- [Lab 1 delivery](#lab-1-delivery)
 - [Team overview](#team-overview)
 - [Service boundaries](#service-boundaries)
 - [Architecture diagram](#architecture-diagram)
@@ -142,7 +143,7 @@ The architecture assigns a language, framework, storage system, and communicatio
 | Service | Language and framework | Storage | Communication |
 | --- | --- | --- | --- |
 | Player | Python, FastAPI | PostgreSQL for accounts, profiles, friendships, teams, and progression | REST<br>Consumes `ShiftEnded` and `DisciplinaryActionApplied` |
-| Server Moderation Session | Python, FastAPI | Redis for live state and locks<br>PostgreSQL for shift history | REST<br>Consumes `DecisionScored`<br>Publishes `ShiftEnded` |
+| Server Moderation Session | Python, FastAPI | Redis for cached live views<br>PostgreSQL for state, transaction locks, and shift history | REST<br>Consumes `DecisionScored`<br>Publishes `ShiftEnded` |
 | Applicant | Java, Spring Boot | MongoDB for applicant claims and case initialization metadata | REST<br>Publishes and consumes `CaseInitialized` |
 | Credential | Java, Spring Boot | MongoDB for credentials and validation results | REST<br>Publishes and consumes `CaseInitialized` |
 | Server Rules | Java, Spring Boot | PostgreSQL for immutable rule versions | REST for shift rules and internal policy evaluation |
@@ -170,7 +171,7 @@ Each service owns its storage. The Server Moderation Session Service and the Dis
 
 - **PostgreSQL:** The Player, Server Moderation Session, Server Rules, Moderation, and Discord DMs services store relational data in PostgreSQL. Local transactions and constraints protect progression ledgers, shift history, outbox entries, rule versions, decisions, bans, chat channels, memberships, and message history.
 - **MongoDB:** The Applicant, Credential, and University Record services store document-shaped data in MongoDB. Applicant claims, credentials, and university record types have different fields. The application still validates every document against the contract.
-- **Redis:** The Server Moderation Session Service uses Redis for active rosters, case-start locks, and other live shift state. The Discord DMs Service uses Redis for single-use chat tickets and Pub/Sub between WebSocket replicas. Redis does not store durable chat or shift history.
+- **Redis:** The Server Moderation Session Service caches live session views in Redis. Its PostgreSQL transaction locks serialize state changes in Lab 1. The Discord DMs Service uses Redis for single-use chat tickets and Pub/Sub between WebSocket replicas. Redis does not store durable chat or shift history.
 
 #### REST over HTTP with JSON
 
@@ -388,7 +389,7 @@ SessionContext = {session: Session, player: Participant}
 | `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>The service pins the current published rule version and freezes the roster and roles. |
 | `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>The service selects one initializer and reserves the current-case slot. It selects the scenario internally. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant | None | `200 CaseStatus`<br>The service queries readiness from all three case owners. |
-| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `202 Session` in `ending`, or `200 Session` if already ended |
+| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. An unfinished case returns `409`. |
 | `GET /internal/v1/sessions/{session_id}/context` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
 
 A shift starts with one Moderator and at least two Junior Moderators. The Server Moderation Session Service serializes commands that start a case or end the shift. For each case, it calls one of the three internal initializer endpoints with a stored idempotency key and verified Moderator context. If the response is lost, it retries the same service with the same key. It does not send the retry to another initializer.
@@ -399,7 +400,7 @@ Normal gameplay requests the internal `random` scenario. Fixed scenarios are int
 
 Only one case can be current. The Server Moderation Session Service allows a new case after it applies `DecisionScored` for the current case. It accepts one event for that case and rejects events for other cases. The service then increments `processed_count`, adds `score_delta`, and accumulates `penalty`.
 
-Ending a shift with a pending or undecided case returns `409`. If a decision is complete but its event is still in transit, the shift remains in `ending`. The Server Moderation Session Service publishes `ShiftEnded` after it counts every accepted decision. Case-start and decision requests reject shifts in `ending` or `ended`. Clients poll `GET /sessions/{session_id}` until the shift ends. A timeout does not mean that the shift has ended.
+Ending a shift with a pending or undecided case returns `409`. Lab 1 also returns `409` while a scoring event is in transit. The owner can retry after Session applies the event. Session commits the final result and its `ShiftEnded` outbox entry together, then returns `200`. The worker publishes the event after commit. Case-start and new decision requests reject ended shifts. The `ending` value remains reserved for a later asynchronous completion protocol; Lab 1 does not enter it.
 
 ### Applicant, Credential and University Record initialization
 
@@ -723,7 +724,7 @@ Changes enter `main` and `dev` only through PRs. The latest changes need at leas
 
 The required `PR policy` check validates the PR title, source branch, target branch, and description sections. A PR into `main` must come from this repository's `dev` branch. A task PR targets `dev`.
 
-The Lab 0 workflow does not set a coverage target because Lab 0 has no service code. For later implementation PRs, the recommended target is 69% code coverage. Tests focus on business rules, authorization boundaries, security checks, and the main contract flows. The policy does not require exhaustive line coverage.
+The Lab 0 workflow does not set a coverage target because Lab 0 has no service code. For Lab 1, the professor waived the build/run script, database seed script, and 80% unit-test coverage criteria. The team still tests business rules, authorization boundaries, and the main contract flows. The Player and Session CI workflows run tests and build their Docker images without a coverage threshold.
 
 Reviewers check:
 
@@ -755,6 +756,25 @@ Reviewers check:
 3. Rebase the PR into `main`.
 4. Update local `main`: `git fetch origin && git switch main && git pull --ff-only`. Do not tag the task branch or `dev`.
 5. Create and push the release tag: `git tag -a vX.0.0 -m "Lab X completion" && git push origin vX.0.0`.
+
+## Lab 1 delivery
+
+| Service | Versioned public Docker Hub image | HTTP port |
+| --- | --- | --- |
+| Player | [`tirppy/student-id-player-service:1.0.0-rc.1`](https://hub.docker.com/r/tirppy/student-id-player-service) | `8001` |
+| Server Moderation Session | [`tirppy/student-id-session-service:1.0.0-rc.1`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
+
+The `rc.1` tag identifies the Lab 1 review build. Create the final Git release tag on `main` after the required reviews and merges.
+
+The pair requires Docker Engine with Linux containers, Docker Compose, and free local ports `8001` and `8002`. The configuration helper and verification scripts require Python 3.12. Docker supplies the application runtimes, two PostgreSQL databases, RabbitMQ, and Redis. Both database volumes and the signing-key volume persist across container recreation.
+
+- [Run the pair and verify persistence](docs/lab1-running.md)
+- [Postman collection](postman/lab1.postman_collection.json)
+- [Image-based Compose deployment](compose.yaml)
+- [Team deployment override](compose.team.yaml)
+- [Lab 1 contract additions](docs/lab1-contract-additions.md)
+
+The team override requires the six teammate image names, container ports, environment files, and their storage configuration. Those details are not available yet. The default deployment runs the two implemented services with explicit mocks for the missing dependencies.
 
 ## Project board
 

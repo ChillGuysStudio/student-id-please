@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+team-env/
+data/
+*.pem
+__pycache__/
+.pytest_cache/
+.venv/
+node_modules/
+postman/*local*.json
+postman/results/
