@@ -25,7 +25,7 @@ Both services use **Java 25**, **Spring Boot 4.1.1**, and the **Maven 3.9.16 Wra
 docker compose -f compose.mongodb.yml up -d --wait
 ```
 
-MongoDB 8.0 currently refuses to start on Linux kernels 6.19 or newer. If its container logs report that incompatibility (including on recent Docker Desktop), use a Docker engine with a supported kernel. On this Mac, Colima's Linux 6.8 engine works: run `colima start` and `export DOCKER_CONTEXT=colima` before Compose or tests. This selects Colima for the current shell without changing the global Docker context.
+MongoDB 8.0 currently refuses to start on Linux kernels 6.19 or newer. If its container logs report that incompatibility (including on recent Docker Desktop), use a Docker engine with a supported kernel. On this Mac, Colima's Linux 6.8 engine works: run `colima start` and `export DOCKER_CONTEXT=colima` before starting Compose. This selects Colima for the current shell without changing the global Docker context.
 
 With Homebrew's standalone Compose executable, replace `docker compose` with `docker-compose`. Start a Docker engine first, for example `colima start` when using Colima.
 
@@ -45,7 +45,7 @@ These additions follow the contract's JSON, pagination, error, and idempotency c
 
 The Compose file runs only MongoDB 8.0 with a single-node replica set, publishes `127.0.0.1:27017`, and persists data in a named volume. Services own separate `applicant` and `credential` databases. `docker compose down` preserves data; adding `-v` deletes it. Configuration contains no real credentials. This unauthenticated setup is for local development.
 
-Run `./mvnw -B verify` in each service repository. Each suite creates an isolated real MongoDB container, tests its HTTP API and transactional behavior, restarts MongoDB to verify persistence, and checks database-outage errors. A running Docker engine is required.
+Run `./mvnw -B package -Dmaven.test.skip=true` in each service repository to compile and package it. Build CI uses JDK 25 and does not require Docker. No automated test suite is included. Each service uses `controller`, `service`, `repository`, `model`, `dto`, `config`, and `exception` packages.
 
 The remaining communication contract describes planned gameplay. Session-scoped routes, authentication and authorization, case generation/readiness, RabbitMQ, cross-service checks, and credential validation are not implemented in this milestone. There are no active gameplay sessions yet, so standalone editing does not claim to enforce active-case immutability. The applications themselves are not Dockerized.
 
