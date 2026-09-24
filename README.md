@@ -2,7 +2,7 @@
 
 Student ID, please is a game about moderating a university Discord server. The Lab 0 design splits the game into the services listed below. Players compare applicants' claims and credentials with university records and the rules for the current shift.
 
-This README defines the shared service contracts. The Lab 1 Player and Server Moderation Session implementations run together with PostgreSQL, Redis, and RabbitMQ. Session uses contract-compatible mocks for the unavailable teammate services. See [Run the Lab 1 pair](docs/lab1-running.md).
+This README defines the shared service contracts. The Lab 1 Player and Server Moderation Session implementations run together with PostgreSQL, Redis, and RabbitMQ. Session uses contract-compatible mocks for the unavailable teammate services. Their private repositories contain the service run instructions.
 
 During a shift, Junior Moderators can inspect only their assigned records. They share their findings in WebSocket chat channels, and the Moderator decides whether to accept, reject, flag, or ban each applicant. Player progression carries across shifts.
 
@@ -258,7 +258,7 @@ Clients authenticate with `Authorization: Bearer <access_token>`. The Player Ser
 
 Administrators assign global `admin` access. Players cannot select `admin` during registration. The Server Moderation Session Service assigns shift roles. Services never trust a role claim from a client.
 
-Internal calls use service credentials that identify the caller, receiver, and permitted operation. A service credential alone does not authorize a player action. The caller also passes the initiating player's identity in verified authentication context. The receiving service checks that identity against the Server Moderation Session Service. Player-facing responses never contain hidden generation data, expected decisions, or restricted records that belong to another player.
+Internal HTTP calls use `X-Service-Name` and `X-Service-Token`. Each receiver checks the named caller against its `SERVICE_TOKENS` map and the endpoint's allowed callers. A service credential alone does not authorize a player action. Player's internal reads and Session's context endpoint also require the initiating player's `Authorization: Bearer` access token; Session requires the `player_id` query to match its verified subject. Events authenticate the producer as a service. Player-facing responses never contain hidden generation data, expected decisions, or restricted records that belong to another player.
 
 #### Idempotency
 
@@ -1096,12 +1096,14 @@ The `rc.2` tag identifies the Lab 1 review build. Create the final Git release t
 
 Both images target Linux AMD64. Player needs a writable database and persistent signing-key path. Session needs its own writable database and a reachable Player API; Redis caches live views, and RabbitMQ delivers shift results to Player. The service READMEs describe the exact environment variables. A separate team PR will supply the common image-based deployment and persistent volumes.
 
-- [Run the service collections](docs/lab1-running.md)
+- [Player run instructions](https://github.com/Tirppy/student-id-player-service/blob/0ac87baa602dc0d5e3f29175cd123d7b8692f7da/docs/running.md)
+- [Session run instructions](https://github.com/Tirppy/student-id-session-service/blob/e42ea58aebc58afb32654c3902a24f86b3e28309/docs/running.md)
 - [Player Postman collection](postman/player-service.json)
 - [Session Postman collection](postman/session-service.json)
-- [Lab 1 contract additions](docs/lab1-contract-additions.md)
 
 The Session collection contains only Session endpoints. Its runner creates a Player team before Newman starts, then runs Session against typed mocks for unavailable teammate services. The Player collection tests its own endpoints and progression with authenticated event fixtures.
+
+The Lab 1 implementations also expose `GET /health` and `GET /ready`. Player publishes verification keys at `GET /.well-known/jwks.json`. Player and Session accept authenticated `POST /internal/v1/events` fixtures for their documented event types while producers are unavailable. Session allows its owner to `DELETE /api/v1/sessions/{session_id}` while the session is a lobby; active and historical shifts return `409`. These adapters remain internal and must not be exposed through the future gateway.
 
 ## Project board
 
