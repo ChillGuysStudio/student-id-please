@@ -13,6 +13,7 @@ During a shift, Junior Moderators can inspect only their assigned records. They 
 - [Architecture diagram](#architecture-diagram)
 - [Technologies and communication patterns](#technologies-and-communication-patterns)
 - [Communication contract](#communication-contract)
+- [Service integration references](#service-integration-references)
 - [Contribution and workflow guidelines](#contribution-and-workflow-guidelines)
 - [Project board](#project-board)
 
@@ -56,7 +57,7 @@ It does not own player accounts or progression, applicant details, individual ad
 
 ### Applicant Service
 
-The Applicant Service generates and stores applicant profiles and presented claims. Claims can include a name, student ID, major, year, university status, course list, and role.
+The Applicant Service generates and stores applicant profiles and presented claims. Claims include separate first and last names, email, student ID, major, year, university status, course list, and role.
 
 An applicant can claim to be a FAF student, a student from another major, a teaching assistant, a university staff member, an alumnus, or an outsider. The claims may be false or may impersonate another person.
 
@@ -123,12 +124,18 @@ The service uses session roles and university-record permissions when granting c
 
 ### Applicant case initialization
 
-The Server Moderation Session Service sends each new case request to the Applicant, Credential, or University Record service. The selected service creates the authoritative `case_id` and publishes a `CaseInitialized` event that contains the ID and generation payload.
+The Server Moderation Session Service sends each new case request to the Applicant, Credential, or University Record service. The selected service creates the authoritative `case_id`, generates only its own domain data, and publishes it in one `CaseInitialized` event. The event contains claims **or** credentials **or** university records, never all three.
 
-- Each consumer reuses the event's `case_id` and creates only the records that it owns.
+- Each consumer reuses the event's `case_id` and derives the records it owns from the source data and the shared generation rules. It does not receive a ready-made copy of its own records.
 - Each consumer enforces `UNIQUE(case_id)` and compares duplicate events with the stored payload. It treats an identical event as a no-op and quarantines a conflicting event.
 
 No service writes to another service's database. The shared `case_id` links the applicant profile, credentials, university records, moderation decision, and session entry across the service databases.
+
+### Editable data and case snapshots
+
+Each case-data service has two resource lifecycles. Administrators use full CRUD for reusable data: Applicant profile presets, Credential document templates, and University reference data. Gameplay creates case snapshots through initialization and reads them afterward. Case snapshots have no update or delete endpoints; later reference-data edits never rewrite an existing case. Credential validation may add a result without changing the document.
+
+Server Rules similarly supports CRUD for draft rule versions. Publishing freezes a version so the rules used for an existing shift remain readable and unchanged. These administrative resources provide the CRUD functionality without allowing players to edit the evidence used to score their decisions.
 
 ## Architecture diagram
 
@@ -143,10 +150,10 @@ The architecture assigns a language, framework, storage system, and communicatio
 | --- | --- | --- | --- |
 | Player | Python, FastAPI | PostgreSQL for accounts, profiles, friendships, teams, and progression | REST<br>Consumes `ShiftEnded` and `DisciplinaryActionApplied` |
 | Server Moderation Session | Python, FastAPI | Redis for live state and locks<br>PostgreSQL for shift history | REST<br>Consumes `DecisionScored`<br>Publishes `ShiftEnded` |
-| Applicant | Java, Spring Boot | MongoDB for applicant claims and case initialization metadata | REST<br>Publishes and consumes `CaseInitialized` |
-| Credential | Java, Spring Boot | MongoDB for credentials and validation results | REST<br>Publishes and consumes `CaseInitialized` |
-| Server Rules | Java, Spring Boot | PostgreSQL for immutable rule versions | REST for shift rules and internal policy evaluation |
-| University Record | Java, Spring Boot | MongoDB for university facts and record permissions | REST<br>Publishes and consumes `CaseInitialized` |
+| Applicant | Java, Spring Boot | MongoDB for profile presets, case claims, and initialization metadata | REST<br>Publishes and consumes `CaseInitialized` |
+| Credential | Java, Spring Boot | MongoDB for document templates, case credentials, and validation results | REST<br>Publishes and consumes `CaseInitialized` |
+| Server Rules | Java, Spring Boot | PostgreSQL for editable drafts and immutable published rule versions | REST for shift rules and internal policy evaluation |
+| University Record | Java, Spring Boot | MongoDB for editable reference data, shift snapshots, case facts, and record permissions | REST<br>Publishes and consumes `CaseInitialized` |
 | Moderation | Python, FastAPI | PostgreSQL for decisions, policy snapshots, bans, and disciplinary actions | REST orchestration<br>Publishes `DecisionScored` and `DisciplinaryActionApplied` |
 | Discord DMs | Python, FastAPI | PostgreSQL for channels, memberships, and chat history<br>Redis for chat tickets and WebSocket Pub/Sub | REST for channel and history access<br>WebSockets for live chat |
 
@@ -197,7 +204,8 @@ The diagram omits some authorization and event paths. This table lists the plann
 | Client via gateway | All public service endpoints | Authenticated player commands and permitted reads over REST with JSON |
 | Client via gateway | Discord DMs | WebSocket upgrade and chat frames |
 | Session | Player | REST: check team and player membership |
-| Session | Server Rules, University Record | REST: pin the published rule version and validate permission distribution when starting a shift |
+| Session | Server Rules, University Record | REST: pin rules and a university-data snapshot, and validate permission distribution when starting a shift |
+| Applicant, Credential | University Record | Internal REST: read the shift's immutable reference-data snapshot and reserve a new university identity when they initialize |
 | Session | Applicant, Credential, University Record | Internal REST: initialize a case through one selected service, poll readiness in all three |
 | Moderation | Session | Internal REST: verify active shift, assigned Moderator, current case and pinned rules |
 | Moderation | Applicant, Credential, University Record | Internal REST: gather complete case facts for scoring |
@@ -205,7 +213,7 @@ The diagram omits some authorization and event paths. This table lists the plann
 | Moderation | Player | Internal REST: validate the target of a disciplinary action |
 | Applicant, Credential, Server Rules, University Record, Discord DMs | Session | Internal REST: verify shift participation, roles and lifecycle |
 | Discord DMs | University Record | Internal REST: enforce record-derived channel permissions |
-| Applicant, Credential, or University Record | The other two case services | RabbitMQ: initialize owned records with the same `case_id` |
+| Applicant, Credential, or University Record | The other two case services | RabbitMQ: derive owned records from the initiator's data using the same `case_id` |
 | Moderation | Session | RabbitMQ: apply `DecisionScored` once |
 | Session | Player | RabbitMQ: apply final `ShiftEnded` progression once |
 | Moderation | Player | RabbitMQ: apply `DisciplinaryActionApplied` once |
@@ -228,7 +236,7 @@ Domain constraints prevent duplicate business operations. These include `UNIQUE(
 
 Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the gateway does not expose them. Each endpoint belongs to the service named in its section.
 
-Requests and non-empty responses use `application/json`. Field names use `snake_case`.
+Requests and non-empty responses use `application/json`. Field names use `snake_case`. UUIDs are serialized in canonical lowercase hyphenated form before comparisons or deterministic generation.
 
 | Notation | Meaning |
 | --- | --- |
@@ -253,7 +261,7 @@ Internal calls use service credentials that identify the caller, receiver, and p
 
 Every REST request that changes data includes `Idempotency-Key: <UUID>`. When the same caller retries with the same key, endpoint, and body, the service returns the original status and body. Reusing the key with a different body returns `409`.
 
-Services retain keys and results for the lifetime of the related case or shift. Authentication operations retain them for 24 hours. Clients must not retry an authentication operation after that window. A replay still requires valid authorization. To retry a case-start request, the client uses the same entry service and key. A retry sent to another service is not supported.
+Services retain keys and results for the lifetime of the related case or shift. Authentication and administrative reference-data CRUD retain them for 24 hours, including a delete's result after the resource is removed; clients must not retry those commands outside that window. Published-version commands retain results with the version. A replay still requires valid authorization. To retry a case-start request, the client uses the same entry service and key. A retry sent to another service is not supported.
 
 #### Pagination
 
@@ -291,44 +299,209 @@ Example error response:
 
 ### Shared domain types
 
+#### Shared enum registry
+
+These wire values are normative. Services reject unknown values rather than silently mapping them to a local enum.
+
+| Type | Allowed values |
+| --- | --- |
+| `Scenario` | `eligible`, `forged`, `impersonation`, `outsider` |
+| `ApplicantRole` | `student`, `teaching_assistant`, `staff`, `alumnus`, `outsider` |
+| `UniversityStatus` | `active`, `inactive`, `graduated`, `none` |
+| `CredentialKind` | `student_id`, `university_email`, `enrollment_confirmation`, `else_registration` |
+| `ValidationIssue` | `FORGED`, `EXPIRED`, `INCOMPLETE`, `INCONSISTENT` |
+| `RecordKind` | `enrollment`, `outlook_group`, `course`, `academic_year`, `schedule`, `fcim_message` |
+| `UniversityDataKind` | `program`, `registration`, plus every `RecordKind` |
+| `Semester` | `autumn`, `spring` |
+| `Action` | `accept`, `reject`, `flag`, `ban` |
+| `RuleKind` | `major`, `year`, `enrollment_duration`, `role`, `ban`, `credential` |
+| `RuleSetStatus` | `draft`, `published` |
+| `LocalCaseState` | `pending`, `ready` |
+| `SessionStatus` | `lobby`, `active`, `ending`, `ended` |
+| `CaseProducer` | `applicant`, `credential`, `university_record` |
+
 ```text
 Role = "moderator" | "junior_moderator"
 ApplicantRole = "student" | "teaching_assistant" | "staff" | "alumnus" | "outsider"
 Action = "accept" | "reject" | "flag" | "ban"
 RecordKind = "enrollment" | "outlook_group" | "course" | "academic_year" | "schedule" | "fcim_message"
 CredentialKind = "student_id" | "university_email" | "enrollment_confirmation" | "else_registration"
-Claims = {name: string, student_id: string | null, major: string | null,
-          year: Int | null, university_status: "active" | "inactive" | "graduated" | "none",
-          courses: string[], role: ApplicantRole}
+Claims = {first_name: string, last_name: string,
+          student_id: string | null, major: string | null, year: Int | null,
+          university_status: UniversityStatus,
+          courses: string[], role: ApplicantRole, email: string}
 Applicant = {case_id: Id, session_id: Id, claims: Claims}
 Credential = {credential_id: Id, case_id: Id, kind: CredentialKind,
-              holder_name: string, student_id: string | null, issuer: string,
-              issued_at: Time, expires_at: Time | null, email: string | null,
-              course_ids: string[]}
+              holder_first_name: string, holder_last_name: string,
+              student_id: string | null, issuer: string,
+              issued_at: Time, expires_at: Time | null,
+              data: StudentCard | UniversityEmail | EnrollmentProof | ElseRegistration}
+StudentCard = {major: string}
+UniversityEmail = {email: string, groups: string[], role: ApplicantRole}
+EnrollmentProof = {major: string | null, year: Int | null,
+                   status: "active" | "inactive" | "graduated", role: ApplicantRole,
+                   enrolled_since: Time | null, academic_year: string,
+                   confirmation_number: string}
+ElseRegistration = {academic_year: string, semester: "autumn" | "spring", course_ids: string[]}
 Validation = {credential_id: Id, structurally_valid: Bool, authentic: Bool,
               expired: Bool, issues: string[], checked_at: Time}
 UniversityRecord = {record_id: Id, case_id: Id, kind: RecordKind, subject_id: Id | null,
                     data: Enrollment | OutlookGroup | Course | AcademicYear | Schedule | FcimMessage}
-Enrollment = {student_id: string, name: string, major: string, year: Int,
-              status: "active" | "inactive" | "graduated", enrolled_since: Time,
+Enrollment = {student_id: string | null, first_name: string, last_name: string,
+              major: string | null, year: Int | null,
+              status: "active" | "inactive" | "graduated", enrolled_since: Time | null,
               role: ApplicantRole}
 OutlookGroup = {email: string, group_name: string, member: Bool}
-Course = {course_id: string, title: string, enrolled: Bool}
+Course = {course_id: string, title: string | null, exists: Bool, enrolled: Bool}
 AcademicYear = {label: string, starts_at: Time, ends_at: Time}
 Schedule = {semester: string, course_id: string, starts_at: Time, ends_at: Time}
-FcimMessage = {author_name: string, channel: string, text: string, sent_at: Time}
+FcimMessage = {author_first_name: string, author_last_name: string,
+               channel: string, text: string, sent_at: Time}
 Permission = {session_id: Id, player_id: Id, record_kinds: RecordKind[]}
 Ban = {ban_id: Id, subject_id: Id, source_case_id: Id, reason: string, created_at: Time}
 PolicyResult = {rule_version: Id, expected_action: Action, allowed_channels: string[],
-                matched_rule_ids: Id[], violated_rule_ids: Id[]}
+                matched_rule_ids: Id[], violated_rule_ids: Id[], reasons: string[]}
 Decision = {decision_id: Id, session_id: Id, case_id: Id, moderator_id: Id,
             action: Action, reason: string, policy: PolicyResult, correct: Bool,
             score_delta: Int, penalty: Int, created_at: Time}
 ```
 
-`UniversityRecord.data` must match its `kind`. Services reject any other object shape. A `student_id` is an identifier presented by an applicant or stored in a university record. It is never the database key for a case.
+`UniversityRecord.data` must match its `kind`. Services reject any other object shape. A `student_id` is an identifier presented by an applicant or stored in a university record. It is never the database key for a case. In initialization events and complete internal responses, document/record arrays sort by kind then entity UUID; course-code lists sort lexically. Paginated reads follow the shared pagination order. Readers compare course/group lists as sets, not by incidental delivery order.
+
+`Credential.data` likewise matches `kind`: `student_id` uses `StudentCard`, `university_email` uses `UniversityEmail`, `enrollment_confirmation` uses `EnrollmentProof`, and `else_registration` uses `ElseRegistration`. The common holder first/last names and `student_id` identify what is printed on that document. `Enrollment` also represents staff affiliation; staff need not have a student ID. `Course.exists = false` requires `title = null` and `enrolled = false`.
 
 An empty record array means that a completed authoritative lookup found no records. Only authorized internal consumers can read the full record set. Players can inspect only the records allowed by their permissions. Credential validation checks documents independently of the access policy. The `authentic` field in a generation input is private metadata and does not appear in a player-visible credential.
+
+### Shared simulation catalog and identity rules
+
+The following values are **simulated teaching fixtures**, not an official UTM curriculum. They are the initial seed data, not a permanently closed list. Administrators can add programs, courses, academic periods, and university facts through the University data CRUD. The same representation rules apply to additions.
+
+#### University reference data and snapshots
+
+```text
+ProgramDefinition = {code: string, name: string, study_years: Int}
+CourseDefinition = {course_id: string, title: string, major: string, year: Int,
+                    semester: "autumn" | "spring"}
+UniversityRegistration = {course_id: string}
+UniversityDataKind = "program" | "registration" | RecordKind
+UniversityDataInput = {kind: UniversityDataKind, subject_id: Id | null,
+                       data: ProgramDefinition | UniversityRegistration | CourseDefinition | Enrollment |
+                             OutlookGroup | AcademicYear | Schedule | FcimMessage}
+UniversityData = UniversityDataInput & {reference_id: Id}
+UniversitySnapshot = {snapshot_id: Id, session_id: Id, reference_at: Time,
+                      entries: UniversityData[]}
+IdentityReservationInput = {case_id: Id, subject_id: Id, first_name: string, last_name: string,
+                            role: ApplicantRole, university_status: UniversityStatus,
+                            major: string | null, admission_year: Int | null}
+UniversityIdentity = {subject_id: Id, first_name: string, last_name: string,
+                      student_id: string | null, email: string}
+```
+
+For reference data, `kind = course` uses `CourseDefinition`; the per-case `Course` type records the result of looking up a course and that person's registration. `kind = registration` links a subject to a course and uses `UniversityRegistration`. Enrollment, registration, Outlook membership, and FCIM messages require a non-null `subject_id`. Programs, course definitions, academic years, and schedules use `subject_id = null`. One enrollment/affiliation row exists per reference subject; course and program codes are unique. Registrations are unique per `(subject_id, course_id)`. Snapshot creation validates references and overlapping academic periods. Program length is 1–8 years; course titles and program names are non-empty strings of at most 120 characters.
+
+When starting a shift, Session creates one immutable university snapshot and pins its ID alongside the rule version. Applicant and Credential fetch that snapshot by internal REST; University uses its local copy. This read supplies reusable university data, not another service's generated case. A snapshot can be cached by ID, never replaced by the latest editable data. An outage leaves initialization pending or returns `503` before acceptance; it never triggers different fallback facts.
+
+Editing or deleting live reference data affects future snapshots only. Existing snapshots are retained for the lifetime of their shifts and cases. `snapshot_id` identifies a data snapshot, not a generator version. Changes to the event schema still follow the existing RabbitMQ `schema_version` contract.
+
+#### Initial programs and courses
+
+Seed programs are `FAF` (Software Engineering), `IA` (Applied Informatics), `TI` (Information Technology), and `SC` (Computer Systems), each with four study years. A program code is 2–6 uppercase ASCII letters. Course codes are unique uppercase letters, digits, and hyphens, at most 32 characters. Initial course definitions are:
+
+| Major | Year | Autumn course — title | Spring course — title |
+| --- | --- | --- | --- |
+| FAF | 1 | `FAF-PROG1` — Programming Foundations | `FAF-DISCRETE` — Discrete Structures |
+| FAF | 2 | `FAF-OOP` — Object-Oriented Design | `FAF-DATA` — Data Structures |
+| FAF | 3 | `FAF-NET` — Networked Applications | `FAF-DB` — Database Design |
+| FAF | 4 | `FAF-DIST` — Distributed Systems | `FAF-TEST` — Software Testing |
+| IA | 1 | `IA-COMP` — Computing Basics | `IA-MATH` — Applied Mathematics |
+| IA | 2 | `IA-ALGO` — Algorithms | `IA-STATS` — Statistics |
+| IA | 3 | `IA-MODEL` — Data Modeling | `IA-OPT` — Optimization |
+| IA | 4 | `IA-ML` — Machine Learning | `IA-VIS` — Data Visualization |
+| TI | 1 | `TI-INTRO` — IT Foundations | `TI-WEB` — Web Foundations |
+| TI | 2 | `TI-OS` — Operating Systems | `TI-DB` — Database Administration |
+| TI | 3 | `TI-SEC` — Systems Security | `TI-OPS` — Service Operations |
+| TI | 4 | `TI-CLOUD` — Cloud Applications | `TI-AUDIT` — Infrastructure Audit |
+| SC | 1 | `SC-LOGIC` — Digital Logic | `SC-ELEC` — Electronics |
+| SC | 2 | `SC-ARCH` — Computer Architecture | `SC-EMBED` — Embedded Programming |
+| SC | 3 | `SC-SIGNAL` — Signal Processing | `SC-CTRL` — Control Systems |
+| SC | 4 | `SC-RT` — Real-Time Systems | `SC-IOT` — Connected Devices |
+
+`AcademicYear` ranges are half-open: `starts_at <= reference_at < ends_at`. The initial period is `2026-2027`, from `2026-09-01T00:00:00Z` to `2027-09-01T00:00:00Z`. Autumn runs until `2027-02-01T00:00:00Z`, then spring until the period ends. Seed one `Schedule` per course for its semester's interval. New periods and schedules are CRUD data; snapshot creation requires exactly one academic year and unambiguous course schedules at the reference time.
+
+For generated students, course selection uses matching major, year, and current semester, sorted by course code. Select up to the preset's `course_count`; fewer available courses means select all available, including zero. A course cannot be registered if it does not exist. University derives a per-case `Course` row for each selected course; explicit unknown course claims yield `exists = false`, never an invented catalog entry.
+
+#### Person fields and identifiers
+
+| Role / status | Student ID and major | Year | Courses | University email |
+| --- | --- | --- | --- | --- |
+| `student` / `active` | Present | 1 through program length | Current program/year/semester | Student address |
+| `student` / `inactive` | Present | Last study year | Empty | Student address; no active group membership |
+| `teaching_assistant` / `active` | Present | 1 through program length | Current program/year/semester | Student address plus teaching-assistant group |
+| `staff` / `active` | Both null | Null | Empty | Staff address |
+| `alumnus` / `graduated` | Present | Null | Empty | Retained student address; alumni group |
+| `outsider` / `none` | Both null | Null | Empty | Personal address |
+
+First and last names are separate, required Unicode strings of 1–60 characters. Store each in Unicode NFC; identity comparison trims ends, collapses internal whitespace, and case-folds each field independently. Do not store or transmit a redundant combined full name. Clients may display `first_name + " " + last_name`. Course lists are sorted sets, never null. Codes are uppercase and emails lowercase at creation; comparisons use these canonical forms.
+
+- **Student ID:** `{MAJOR}-{YY}-{SEQUENCE}`, for example `FAF-25-1`, `FAF-25-2`, then `FAF-25-10`. The sequence is a positive, unpadded decimal allocated atomically by University within `(major, admission_year)`. Regex: `^[A-Z]{2,6}-[0-9]{2}-[1-9][0-9]*$`. Simulation admission years are 2000–2099; the two printed digits must match the stored full year. Sequence numbers increase monotonically and are not reused after reference deletion. Staff and outsiders have no student ID; alumni retain their original ID. A presented ID is evidence, never an authentication credential or a case key.
+- **Study year:** let `A` be the first year of the pinned academic-year label. For current students, `year = A - admission_year + 1`; require `1 <= year <= study_years`. Generated enrollment starts on September 1 of the admission year. For alumni, use a completed program ending before the current academic year, with no current study year. An existing reference enrollment keeps its stored dates; do not infer policy duration from the printed identifier.
+- **Email local part:** independently normalize first and last name to lowercase ASCII, then join with a period. Fold `ă/â` to `a`, `î` to `i`, `ș/ş` to `s`, and `ț/ţ` to `t`; remove remaining combining marks and apostrophes, retain hyphens, collapse whitespace, and remove characters outside `[a-z0-9-]`. Both components must remain non-empty.
+- **University email:** students, teaching assistants, and alumni use `<first>.<last><suffix>@isa.utm.md`; staff use `<first>.<last><suffix>@utm.md`. The first reservation has no suffix, followed by `1`, `2`, and so on: `eliza.caraman@isa.utm.md`, `eliza.caraman1@isa.utm.md`, `eliza.caraman2@isa.utm.md`. University atomically allocates the lowest never-used suffix for `(normalized first, normalized last, domain)` and never reuses an address. A later legal-name update does not rename an allocated mailbox. Student groups are `students`, `major:<code>`, and `year:<n>`; add `teaching-assistants` for TAs. Staff use `staff`, alumni use `alumni`. Inactive students retain groups with `member = false`; active affiliations and alumni use `member = true`.
+- **Outsider email:** outsiders do not reserve a university mailbox. Use `<first>.<last><n>@example.net`, where `n` is a deterministic positive value from the case seed; this is simulated presented data and not part of University's uniqueness namespace.
+- **Stable synthetic names:** choose a first name from `[Eliza, Gavril, Iulian, Larisa, Petru, Sabina]` and a last name from `[Bivol, Caraman, Duca, Mocanu, Plesca, Vieru]` using the deterministic choices below. Existing reference subjects keep their names. For name impersonation, choose the presented pair by `case_id` with purposes `presented-first-name` and `presented-last-name`; if either selected field equals the corresponding actual field after normalization, advance that candidate once cyclically. Both presented fields therefore differ, remain realistic names, and never contain a case ID.
+
+Examples of the email normalizer use names not present in the seed catalog:
+
+| First name | Last name | Student mailbox base |
+| --- | --- | --- |
+| `Cătălin` | `Mîndru` | `catalin.mindru@isa.utm.md` |
+| `Sorina-Maria` | `Botezatu` | `sorina-maria.botezatu@isa.utm.md` |
+| `Nicolae` | `D'Amico` | `nicolae.damico@isa.utm.md` |
+
+For an existing `subject_id`, reference enrollment and memberships take precedence over generated defaults. Contradictory reference entries fail snapshot validation. For a new university-affiliated subject, the initializer first chooses names and requests one atomic University identity reservation. Applicant and Credential may request that reservation through internal REST; University uses the same operation locally. The response fixes the student ID and university email placed in the source event. Subscribers never allocate a second identity. An initializer may allocate a new subject UUID, but may not relabel an existing person to bypass a ban.
+
+The reservation is unique by `subject_id` and idempotent by case/idempotency key. Repeating identical data returns the original identity; changing names, role, major, or admission year for an existing reservation returns `409 IDENTITY_CONFLICT`. University allocates the next student sequence and email suffix in one local transaction. A consumed reservation remains allocated even if later case propagation fails, preventing another person from receiving the same identifiers.
+
+#### Cross-service representation invariants
+
+| ID | Invariant |
+| --- | --- |
+| `I1` | Every applicant-evidence identity object has separate non-empty `first_name` and `last_name`; no applicant-evidence wire type has a combined person `name`. |
+| `I2` | Role/status pairs follow the person-fields table; unknown enum values are rejected. |
+| `I3` | Students, teaching assistants, and alumni have a reserved student ID and major; staff and outsiders have neither. |
+| `I4` | Student IDs match `{MAJOR}-{YY}-{SEQUENCE}` and the stored major/admission year; sequence is positive and unpadded. |
+| `I5` | University emails use the role's domain and University's reserved suffix; outsiders never receive a university domain. |
+| `I6` | A subject's reserved student ID and university email are stable across cases and are never reallocated. |
+| `I7` | Active student/TA courses exist in the pinned program, year, and semester; staff, alumni, inactive students, and outsiders have no current courses. |
+| `I8` | Course and group lists are non-null sorted sets; duplicates are rejected. |
+| `I9` | Exactly one source branch appears in `CaseInitialized`, matching the authenticated producer. |
+| `I10` | Only the scenario table's named fields may diverge; `eligible` is evidence consistency, not guaranteed admission. |
+| `I11` | Generated case evidence and university snapshots are immutable; CRUD changes affect future snapshots/cases only. |
+| `I12` | Empty outsider documents/records are completed evidence and can reach `ready`; missing delivery remains pending. |
+
+#### Credential bundles and defects
+
+All non-outsider generation bundles include an enrollment/affiliation confirmation. It provides enough printed identity information for the other services to derive their data when Credential initiates. Staff receive an affiliation confirmation using the same kind, with null student fields. It is a document, not a separate `claims` section.
+
+| Kind | When generated | Kind-specific data | Default issuer |
+| --- | --- | --- | --- |
+| `student_id` | Student ID is present | `major` | `SIM-REGISTRY` |
+| `university_email` | University affiliation exists | `email`, `groups`, `role` | `SIM-IT` |
+| `enrollment_confirmation` | University affiliation exists, including staff and alumni | Major, year, status, role, enrollment date, academic-year label, confirmation number | `SIM-REGISTRY` |
+| `else_registration` | At least one current course | Academic year, semester, sorted course IDs | `SIM-ELSE` |
+
+Default issuance is the shift reference time; default expiry is the pinned academic-year end. Historical enrollment dates are printed separately. Confirmation numbers use `CONF-<case_id>`. Authentic alumni confirmations prove graduation, not current enrollment. A genuine alumni document need not be expired.
+
+| Defect | Representation | Validation |
+| --- | --- | --- |
+| Forged | Private `authentic = false` on the enrollment confirmation; printed fields may be perfectly coherent | `authentic = false`, issue `FORGED` |
+| Expired | `expires_at <= reference_at` | `expired = true`, issue `EXPIRED` |
+| Incomplete | A required printed string is `""` or a required printed list is empty, e.g. the mailbox address | `structurally_valid = false`, issue `INCOMPLETE` |
+| Inconsistent | A card's printed major differs from the enrollment confirmation / its own ID | `structurally_valid = false`, issue `INCONSISTENT` |
+
+Typed JSON fields remain present even for defective documents. An absent envelope field, wrong JSON type, or mismatched `kind`/`data` is a contract error, not a gameplay defect. A validator reports every applicable issue in sorted order; no single severity label hides other failures. `authentic` concerns document issuance, not whether its bearer tells the truth. An identity lie does not automatically make every document forged.
+
+The four initial scenarios do not randomly add expiry/structure defects. Those defects can be exercised with internal fixtures against generated documents; generated enrollment identity fields remain complete so they can serve as the derivation anchor. A deliberately malformed mailbox address never becomes a new authoritative university email.
 
 ### Player Service endpoints
 
@@ -372,6 +545,7 @@ Participant = {player_id: Id, role: Role}
 Session = {session_id: Id, team_id: Id, owner_id: Id,
            status: "lobby" | "active" | "ending" | "ended",
            participants: Participant[], rule_version: Id | null, started_at: Time | null,
+           university_snapshot_id: Id | null,
            current_case_id: Id | null, processed_count: Int, score: Int, penalties: Int}
 CaseStatus = {case_id: Id, session_id: Id, state: "pending" | "ready",
               ready_services: ("applicant" | "credential" | "university_record")[]}
@@ -385,8 +559,8 @@ SessionContext = {session: Session, player: Participant}
 | `POST /api/v1/sessions/{session_id}/participants` | Member of that team | Empty object | `200 Session`<br>The caller joins as a Junior Moderator while the lobby is open. |
 | `PUT /api/v1/sessions/{session_id}/roles` | Session owner | `{participants: Participant[]}` | `200 Session`<br>The body includes the complete roster with exactly one Moderator. |
 | `GET /api/v1/sessions/{session_id}` | Participant | None | `200 Session` |
-| `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>The service pins the current published rule version and freezes the roster and roles. |
-| `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>The service selects one initializer and reserves the current-case slot. It selects the scenario internally. |
+| `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>Pins the current published rules and a university snapshot; freezes roster and roles. |
+| `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>Calls the selected initializer with internal scenario `random` and reserves the current-case slot. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant | None | `200 CaseStatus`<br>The service queries readiness from all three case owners. |
 | `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `202 Session` in `ending`, or `200 Session` if already ended |
 | `GET /internal/v1/sessions/{session_id}/context` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
@@ -394,6 +568,8 @@ SessionContext = {session: Session, player: Participant}
 A shift starts with one Moderator and at least two Junior Moderators. The Server Moderation Session Service serializes commands that start a case or end the shift. For each case, it calls one of the three internal initializer endpoints with a stored idempotency key and verified Moderator context. If the response is lost, it retries the same service with the same key. It does not send the retry to another initializer.
 
 Initialization metadata fixes the scenario and seed, including when the request specifies `random`. Each case service initializes its own records. Any of the three case services can receive the initial request, as Topic 3 requires.
+
+Session reserves `started_at` once for a start attempt and passes it as `reference_at` when creating the university snapshot. A retry uses the same timestamp and idempotency key. The shift stays in the lobby until permissions, rules, and snapshot are available; it never starts with partially pinned configuration. `university_snapshot_id` is a reference only: its hidden contents are not included in public session responses.
 
 Normal gameplay requests the internal `random` scenario. Fixed scenarios are internal test fixtures. Players cannot choose or inspect the hidden scenario or seed. The case-status endpoint reports only readiness.
 
@@ -404,13 +580,18 @@ Ending a shift with a pending or undecided case returns `409`. If a decision is 
 ### Applicant, Credential and University Record initialization
 
 ```text
-CaseStart = {session_id: Id, scenario: "eligible" | "forged" | "impersonation" | "outsider" | "random"}
+CaseStart = {session_id: Id, scenario: "eligible" | "forged" | "impersonation" | "outsider" | "random",
+             seed: string?, subject_id: Id?}
 CaseAccepted = {case_id: Id, session_id: Id, state: "pending"}
 LocalCaseState = {case_id: Id, session_id: Id, state: "pending" | "ready"}
-Generation = {scenario: "eligible" | "forged" | "impersonation" | "outsider",
-              seed: string, subject_id: Id | null, claims: Claims,
-              credentials: {credential: Credential, authentic: Bool}[],
-              university_records: UniversityRecord[]}
+CaseSeed = {case_id: Id, session_id: Id,
+            scenario: "eligible" | "forged" | "impersonation" | "outsider",
+            seed: string, subject_id: Id | null, university_snapshot_id: Id, reference_at: Time}
+GeneratedCredential = {credential: Credential, authentic: Bool}
+CaseInitializedPayload =
+    CaseSeed & {claims: Claims}
+  | CaseSeed & {credentials: GeneratedCredential[]}
+  | CaseSeed & {university_records: UniversityRecord[]}
 ```
 
 | Method and path | Owner and authorized caller | Request | Success response |
@@ -422,27 +603,97 @@ Generation = {scenario: "eligible" | "forged" | "impersonation" | "outsider",
 | `GET /internal/v1/credential/cases/{case_id}/status` | Credential owns<br>Session calls | None | `200 LocalCaseState` |
 | `GET /internal/v1/university-record/cases/{case_id}/status` | University Record owns<br>Session calls | None | `200 LocalCaseState` |
 
-The selected initializer creates the `case_id` and a consistent `Generation` payload. It stores only the domain records that it owns and emits `CaseInitialized`. Every ID in the payload must belong to that case. The other two services use the IDs and typed values from the event. They do not generate different facts.
+The event envelope's `producer` is the discriminator: `applicant` requires only `claims`, `credential` requires only `credentials`, and `university_record` requires only `university_records`. Exactly one domain section is present, including when its value is an empty array. There is no extra `source` or `generation_version` field. Embedded `case_id` values must match the outer case; entity IDs are unique within their owning service. A record's `subject_id` identifies its person; global academic-year and schedule records have null subjects.
 
-False claims, forged credentials, and impersonation are intentional differences in the payload. In an impersonation case, `subject_id` identifies the simulated applicant, while the presented claims can identify another person.
+The initializer obtains the snapshot ID and reference time from verified Session context, resolves `random` once, and allocates the case ID and any new subject ID once. It commits its owned records, original event, and idempotency result together. Optional internal `seed` and `subject_id` inputs support reproducible fixtures and returning reference subjects; players cannot supply them. A seed is 1–128 ASCII letters, digits, hyphens, underscores, or periods; generate a random UUID string if omitted. A supplied subject must have an enrollment/affiliation in the pinned snapshot or the command returns `422 UNKNOWN_SUBJECT`. `outsider` requires no subject; supplying one returns `422 INVALID_SCENARIO`. When a subject is supplied with `random`, select only from `[eligible, forged, impersonation]`.
 
-The payload is an instruction for record generation, not an authoritative database. Each domain owner validates and stores its part. Callers then read the immutable facts from that owner.
+Consumers verify that the referenced snapshot belongs to the event's session and has the same `reference_at`. They trust the authenticated initializer's original Session authorization, not a player identity carried in arbitrary event data. Only the three authorized producers can publish initialization events. Reusing a snapshot from another shift is a schema/context conflict and is quarantined.
 
-Consumers can receive the same event more than once. An identical event is a no-op. A consumer rejects and quarantines conflicting data for the same case. It never overwrites the stored data.
+#### Deterministic choices and source precedence
 
-A service marks its local state as ready only after it commits its records. The Server Moderation Session Service marks the case as ready only after all three services report ready. During event propagation, a consumer's `404` response means that the case is still pending. A failed or quarantined initialization remains pending until an operator repairs it. The Moderation Service cannot score a decision before the case is ready. Only the three case services can read hidden generation payloads.
+For a bounded choice, calculate SHA-256 over the UTF-8 JSON array `[key, purpose]` with no extra whitespace. Interpret the first eight digest bytes as an unsigned big-endian integer and take modulo the candidate count. Candidates sort by stable code or UUID unless this contract explicitly lists their order. Empty required candidate sets return `409 GENERATION_DATA_UNAVAILABLE`; an optional course list may be empty. Never use process-global random state or event delivery order.
+
+Use `seed` for scenario, program, year, and preset choices with purposes `scenario`, `major`, `year`, and `preset`. `random` without a supplied subject selects from `[eligible, forged, impersonation, outsider]`. Program candidates sort by code; year candidates are integers from 1 to that program's length in numeric order. Use `subject_id` (or `case_id` for an outsider) with purposes `first-name` and `last-name` for the name tables. Locally generated credential/record UUIDs use UUIDv5 with namespace `case_id`: `credential:<kind>`, `record:enrollment`, `record:academic_year`, `record:outlook_group:<group_name>`, `record:course:<course_id>`, `record:schedule:<course_id>`, and `record:fcim_message:<reference_id>`. One case may have many documents and records: `UNIQUE(case_id)` protects the local aggregate, not each child row.
+
+Each owner persists the exact reusable preset/template values it selected when reserving a pending case, before generating from them. Retries reuse that local selection, even if an administrator edits or deletes the live template. The seed alone is not a snapshot of editable data. Inbox state distinguishes a reserved/pending event from a completed event; a worker resumes pending generation and acknowledges only after domain completion.
+
+| Owner | As initiator | As subscriber |
+| --- | --- | --- |
+| Applicant | Select a local profile preset, generate first/last names, reserve a new university identity when applicable, then generate only presented claims | From credentials: use holder first/last names and enrollment proof fields, mailbox email, and ELSE courses. From university records: use enrollment, Outlook membership, and enrolled courses. Apply the prescribed impersonation name pair once. |
+| Credential | Generate names and reserve a new university identity when applicable, then build only its document bundle using local templates | From claims: print the supported identity and courses, restoring only the actual first/last pair for impersonation. From university records: print the verified affiliation and registered courses. Apply document authenticity rules below. |
+| University Record | Reserve the identity locally and generate its authoritative enrollment/affiliation, memberships, course results, academic year, schedules, and optional FCIM facts | From claims: derive enrollment/affiliation and memberships, restoring only the actual first/last pair for impersonation. From credentials: derive identity from holder/enrollment fields and registrations from ELSE. Check codes and dates against the pinned snapshot; never treat `authentic = false` as an instruction to invent a different enrollment. |
+
+For a new University-initiated subject, use the same active-student defaults as Credential, selecting up to two current-semester courses. Applicant defaults come from its selected preset. For an existing reference subject, all initiators use that subject's recorded facts instead of changing its role or identity through a preset. Existing course registrations come from the snapshot's `registration` entries, limited to courses scheduled for the current semester.
+
+Received source fields are the derivation input; do not ignore them and generate a different person from the seed. A source may omit fields it cannot express: for example, an empty outsider document bundle conveys no names, so Applicant uses the deterministic name rule. When a new subject's mailbox is deliberately incomplete, a subscriber reads the existing University identity reservation; it never reconstructs an email from the subject UUID or allocates another suffix. University fills course titles and schedules from its snapshot. Only the scenario's named differences may contradict the source. A source that contradicts an existing reference subject outside those differences is a conflicting initialization, not a new truth.
+
+#### Scenario divergence rules
+
+| Scenario | Claims | Credentials | University records |
+| --- | --- | --- | --- |
+| `eligible` | Truthful identity and affiliation | Authentic, structurally valid, unexpired bundle | Confirm identity and affiliation; the role may still fail access policy |
+| `forged` | Truthful identity and affiliation | Enrollment confirmation has `authentic = false`; other documents remain authentic | Confirm the actual affiliation even though one supporting document is forged |
+| `impersonation` | Replace only `first_name` and `last_name` with the deterministic different presented pair | Genuine documents retain the actual holder fields | Retain the actual subject and names, revealing the contradiction |
+| `outsider` | Status `none`, role `outsider`, null student fields, no courses, deterministic personal email | Empty bundle | Empty record set; local state can still be ready |
+
+The first impersonation fixture is deliberately a **first/last-name-only** lie. Recover the actual pair from the supplied subject's snapshot enrollment or existing identity reservation; derive the presented pair from the case ID as specified above. This makes all six subscriber paths deterministic without transmitting a hidden `actual` profile. Full stolen-identity bundles and other lie patterns require additional explicit divergence rules; do not invent them independently in one service. `subject_id` always identifies the actual applicant, never the name pair being presented.
+
+`eligible` means consistent evidence, not guaranteed acceptance. The scenario is not sent to Server Rules. No case service chooses a policy result, and no generation event contains an expected action.
+
+Consumers persist the original producer and normalized payload along with their derived records. Object-key order is irrelevant to duplicate comparison; generation arrays use stable order. An identical initialization under the same or a different event ID is a no-op after completion. Different producer, metadata, or source values for the same case go to quarantine; never overwrite the stored case or reroll it. A subscriber creates only its own domain projection and publishes no new initialization event.
+
+A service marks its local state ready only after committing its records, including a completed empty bundle. Session marks the case ready only when all three owners report ready. During event propagation, a known Session case with a consumer `404` is still pending. Failed or quarantined initialization remains pending for repair. Moderation cannot score it. Only the three case services read hidden initialization payloads; neither readiness responses nor public administrative preset APIs expose them.
 
 ### Applicant Service endpoints
 
+```text
+ProfilePresetInput = {label: string, role: ApplicantRole,
+                      university_status: "active" | "inactive" | "graduated" | "none",
+                      major: string | null, year: Int | null, course_count: Int, enabled: Bool}
+ProfilePreset = ProfilePresetInput & {preset_id: Id}
+```
+
+Presets describe reusable generation choices, not existing applicants. Labels are 1–120 trimmed characters and course counts are 0–10. Seed these enabled presets once (IDs assigned by the service):
+
+| Label | Role | Status | Major | Year | Course count |
+| --- | --- | --- | --- | --- | --- |
+| FAF first year | `student` | `active` | FAF | 1 | 2 |
+| FAF second year | `student` | `active` | FAF | 2 | 2 |
+| IA second year | `student` | `active` | IA | 2 | 2 |
+| FAF teaching assistant | `teaching_assistant` | `active` | FAF | 4 | 2 |
+| University staff | `staff` | `active` | null | null | 0 |
+| FAF graduate | `alumnus` | `graduated` | FAF | null | 0 |
+| Visitor | `outsider` | `none` | null | null | 0 |
+
+`eligible`, `forged`, and `impersonation` select enabled non-outsider presets compatible with the pinned snapshot; `outsider` always uses outsider fields. A new alumni ID uses admission year `A - study_years`; an inactive student uses admission year `A - year + 1`, keeps the preset's last year, and has no courses. Staff have `enrolled_since = null`. Supplied reference subjects take precedence. CRUD syntax is validated locally; program/course compatibility is checked against the pinned snapshot at generation time. Empty compatible preset sets fail generation; do not silently change a preset's major/year.
+
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
+| `POST /api/v1/admin/applicant-presets` | Global admin | `ProfilePresetInput` | `201 ProfilePreset` |
+| `GET /api/v1/admin/applicant-presets` | Global admin | Pagination | `200 Page<ProfilePreset>` |
+| `GET /api/v1/admin/applicant-presets/{preset_id}` | Global admin | None | `200 ProfilePreset` |
+| `PUT /api/v1/admin/applicant-presets/{preset_id}` | Global admin | Full `ProfilePresetInput` | `200 ProfilePreset` |
+| `DELETE /api/v1/admin/applicant-presets/{preset_id}` | Global admin | None | `204`, no body; existing case snapshots remain |
 | `GET /api/v1/sessions/{session_id}/applicants/{case_id}` | Assigned Moderator in active shift | None | `200 Applicant` with presented claims only |
 | `GET /internal/v1/applicants/{case_id}` | Moderation | Query `session_id: Id` | `200 Applicant`<br>The service verifies that the case belongs to the shift. |
 
 ### Credential Service endpoints
 
+```text
+CredentialTemplateInput = {kind: CredentialKind, issuer: string,
+                           validity_days: Int | null, enabled: Bool}
+CredentialTemplate = CredentialTemplateInput & {template_id: Id}
+```
+
+Seed one enabled template per kind using the issuer table and `validity_days = null` (expire at academic-year end). Issuer is 1–120 characters. A positive number sets expiry to `issued_at + validity_days * 24 hours`. At most one template per kind is enabled; a duplicate returns `409 TEMPLATE_ALREADY_ENABLED`. PUT cannot change a template's kind. Templates control issuance defaults, never field schemas or an applicant's identity; new credential kinds require a schema change. Missing templates for required kinds return `409 GENERATION_DATA_UNAVAILABLE`. Templates produce usable documents; expiry/structure defect fixtures are test inputs to the same generator/validator, not public case-edit endpoints.
+
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
+| `POST /api/v1/admin/credential-templates` | Global admin | `CredentialTemplateInput` | `201 CredentialTemplate` |
+| `GET /api/v1/admin/credential-templates` | Global admin | Pagination | `200 Page<CredentialTemplate>` |
+| `GET /api/v1/admin/credential-templates/{template_id}` | Global admin | None | `200 CredentialTemplate` |
+| `PUT /api/v1/admin/credential-templates/{template_id}` | Global admin | Full `CredentialTemplateInput` | `200 CredentialTemplate` |
+| `DELETE /api/v1/admin/credential-templates/{template_id}` | Global admin | None | `204`, no body; stored documents and validations remain |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/credentials` | Assigned Moderator in active shift | Pagination | `200 Page<Credential>` |
 | `POST /api/v1/sessions/{session_id}/credentials/{credential_id}/validation` | Assigned Moderator in active shift | Empty object | `200 Validation`<br>The credential must belong to the current case. |
 | `GET /internal/v1/cases/{case_id}/credential-results` | Moderation | Query `session_id: Id` | `200 {case_id: Id, credentials: Credential[], validations: Validation[]}` with complete results for every credential |
@@ -454,6 +705,7 @@ The internal endpoint runs or reuses deterministic validation even if the player
 ```text
 Rule = {rule_id: Id, priority: Int, kind: "major" | "year" | "enrollment_duration" |
         "role" | "ban" | "credential", on_match: Action, allowed_channels: string[],
+        applies_to_roles: ApplicantRole[],
         condition: MajorCondition | YearCondition | DurationCondition | RoleCondition |
                    BanCondition | CredentialCondition}
 MajorCondition = {allowed_majors: string[]}
@@ -461,10 +713,12 @@ YearCondition = {min_year: Int, max_year: Int}
 DurationCondition = {min_months: Int}
 RoleCondition = {roles: ApplicantRole[]}
 BanCondition = {active: Bool}
-CredentialCondition = {required_kinds: CredentialKind[], require_authentic: Bool, require_unexpired: Bool}
+CredentialCondition = {required_kinds: CredentialKind[], require_authentic: Bool,
+                       require_unexpired: Bool, require_structurally_valid: Bool}
 RuleSet = {rule_version: Id, status: "draft" | "published", rules: Rule[],
            default_action: Action, default_channels: string[], created_at: Time}
 PolicyInput = {session_id: Id, case_id: Id, rule_version: Id, claims: Claims,
+               subject_id: Id | null, reference_at: Time,
                credentials: Credential[], validations: Validation[],
                university_records: UniversityRecord[], active_bans: Ban[],
                prior_decisions: {action: Action, created_at: Time}[]}
@@ -473,23 +727,71 @@ PolicyInput = {session_id: Id, case_id: Id, rule_version: Id, claims: Claims,
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
 | `POST /api/v1/rule-versions` | Global admin | `{rules: Rule[], default_action: Action, default_channels: string[]}` | `201 RuleSet` in draft state |
+| `GET /api/v1/admin/rule-versions` | Global admin | Pagination | `200 Page<RuleSet>` including drafts |
+| `PUT /api/v1/rule-versions/{rule_version}` | Global admin | `{rules: Rule[], default_action: Action, default_channels: string[]}` | `200 RuleSet`; full replacement of a draft only |
+| `DELETE /api/v1/rule-versions/{rule_version}` | Global admin | None | `204`, draft only; published version returns `409 RULE_VERSION_IMMUTABLE` |
 | `POST /api/v1/rule-versions/{rule_version}/publish` | Global admin | Empty object | `200 RuleSet`<br>The version atomically becomes current for future shifts. |
 | `GET /api/v1/rule-versions/{rule_version}` | Player | None | `200 RuleSet`<br>Players without `admin` access can read only published versions. |
 | `GET /internal/v1/rule-versions/current` | Session | None | `200 RuleSet`<br>If no published version exists, the endpoint returns `409`. |
 | `POST /internal/v1/policy/evaluations` | Moderation | `PolicyInput` | `200 PolicyResult`<br>The `rule_version` must match the version pinned to the session. |
 
-The `kind` field identifies each condition type. The `major`, `year`, `duration`, and `credential` conditions match when the applicant fails a requirement. The `role` and `ban` conditions match when the specified role or ban exists.
+The `kind` field identifies each condition type. `applies_to_roles = []` means all verified roles; otherwise skip the rule when the verified role is not listed. The `major`, `year`, `enrollment_duration`, and `credential` conditions match when a requirement fails. The `role` and `ban` conditions match when the specified role or ban exists. Prior decision history is accepted for audit context; the initial condition types do not inspect it.
 
-University facts are authoritative for identity and enrollment checks. The Server Rules Service compares applicant claims with those facts. A material identity mismatch returns `flag` before the service evaluates ordinary access rules. An existing ban for the `subject_id` always returns `ban`. Otherwise, the service evaluates matching rules by ascending priority and resolves equal priorities by rule ID. The first rule determines the action and channels. If no rule matches, the service uses the defaults.
+| Fact/check | Authority and missing-value behavior |
+| --- | --- |
+| Actual person | `subject_id` from University's internal case response; never extract the ban target from a claimed student ID |
+| Major, year, role, status, enrollment date | Case enrollment/affiliation belonging to the actual subject; no enrollment means role `outsider`, status `none`, and null student fields |
+| Email and registered courses | Case Outlook memberships and `Course` rows; reference catalogs alone do not prove membership |
+| Credential condition | Credential Service validations, exactly one per returned credential; missing required document is a failed requirement, missing validation for an existing document is `422 INVALID_POLICY_INPUT` |
+| Duration | Completed calendar months between authoritative `enrolled_since` and the shift reference time; unknown date or non-active status fails a duration requirement |
+| Identity consistency | Compare claims and document holder identities with the actual subject's enrollment. Compare names using the normalization rules, IDs exactly. Academic claims (major/year/status/role/courses) and claimed email must also agree with authoritative facts |
+| Time and policy | `reference_at` and `rule_version` must match Session's pinned values; wall-clock time is not used |
 
-Failed requirements populate `violated_rule_ids`. Every action other than `accept` returns an empty channel list. A month means a completed calendar month at the shift start time. Every credential required by a rule must pass validation. A missing required credential fails the rule.
+Evaluation order is fixed:
 
-Published rules and rule versions are immutable. An update creates a new version. The initial contract supports only the listed condition types. A new condition type requires a versioned schema update.
+1. Validate input completeness, case/session identity, rule version, and reference time. Dependency failure returns `503`; an unfinished case is never evaluated.
+2. An existing ban for the actual non-null subject returns `ban` with reason `EXISTING_BAN`, regardless of documents.
+3. A material claim/identity contradiction returns `flag` with reason `EVIDENCE_MISMATCH`. A truthful outsider with no records is not a mismatch. A malformed/empty printed credential field is handled by credential validation rather than treated as proof of a different identity.
+4. Evaluate applicable rules in ascending priority, breaking ties by rule UUID. The first matching rule decides action/channels. All matching rule IDs are returned in that order; `violated_rule_ids` contains matching failed requirements and an active-ban condition, not positive role matches. If none match, use the defaults.
+
+Null major/year fails the corresponding requirement. Non-active enrollment also fails major/year requirements; a role-scoped rule can exempt staff and alumni. A credential requirement fails if a required kind is missing or any supplied document of a required kind fails a check whose flag is true. An empty `required_kinds` applies checks to all supplied documents and does not itself require a document. Structural, authenticity, and expiry checks remain separate. A month is a completed calendar month, clamping the anniversary day to the last day of the target month.
+
+`PolicyResult.reasons` contains stable codes: `EXISTING_BAN`, `EVIDENCE_MISMATCH`, `MAJOR_REQUIREMENT`, `YEAR_REQUIREMENT`, `DURATION_REQUIREMENT`, `CREDENTIAL_MISSING`, `CREDENTIAL_STRUCTURE`, `CREDENTIAL_AUTHENTICITY`, `CREDENTIAL_EXPIRED`, `ROLE_MATCH`, `BAN_MATCH`, or `DEFAULT_POLICY`, as applicable, deduplicated in evaluation order. `BAN_MATCH` explains a configurable ban condition (including `active = false`); existing active bans normally short-circuit first. Early built-in results have empty rule-ID arrays because no configurable rules were evaluated. Every non-accept action has no channels. If a configured rule/default would ban an unidentified subject, return `reject` and append `SUBJECT_UNIDENTIFIED`; never return an action Moderation cannot execute.
+
+#### Baseline rules fixture
+
+Seed one published ruleset with `default_action = reject` and no default channels. The labels below describe rules; persist real UUIDs as `rule_id`. These are editable draft data for future versions, not hidden scenario mappings.
+
+| Priority | Roles in scope | Condition | Action / channels |
+| --- | --- | --- | --- |
+| 10 | `student`, `teaching_assistant`, `staff`, `alumnus` | Credential: required enrollment confirmation; require structure only | `flag` / none |
+| 11 | All | Credential: all supplied kinds; require structure only | `flag` / none |
+| 20 | All | Credential: all supplied kinds; require authenticity only | `ban` / none |
+| 30 | All | Credential: all supplied kinds; require unexpired only | `reject` / none |
+| 40 | `student`, `teaching_assistant` | Major allowed: `[FAF]` | `reject` / none |
+| 50 | `student`, `teaching_assistant` | Year range: 1–4 | `reject` / none |
+| 60 | `student` | Year range: 2–4 | `accept` / `general` (first-year limitation) |
+| 70 | All | Role is `staff` or `teaching_assistant` | `accept` / `general`, `teachers` |
+| 80 | All | Role is `student` | `accept` / `general`, `dark-memes`, `groapa` |
+| 90 | All | Role is `alumnus` | `accept` / `general`, `alumni` |
+
+For credential rows, unmentioned check flags are false; priorities 11, 20, and 30 use `required_kinds = []`. The priority-10 role scope lets a truthful outsider reach the default `reject`. An active FAF year 2 `eligible` case is accepted; an honest IA student is rejected; a forged confirmation leads to `ban`; the name-impersonation fixture leads to `flag`; an outsider is rejected. An existing subject ban overrides all five examples. The baseline deliberately flags structurally unresolved evidence before handling authenticity failures; changing that priority is a new ruleset, not a validator change. An optional later ruleset can add a 24-month duration requirement without changing the generator.
+
+Rules does not subscribe to `CaseInitialized`, fetch generator presets, or receive `seed`, `scenario`, or private generation authenticity flags. It receives the normal `Validation.authentic` result. It may share enum definitions and comparison conventions, but must not regenerate an answer from a seed. Published versions are immutable and retained; an update creates a new draft. New condition types require a versioned schema update.
 
 ### University Record Service endpoints
 
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
+| `POST /api/v1/admin/university-data` | Global admin | `UniversityDataInput` | `201 UniversityData` |
+| `GET /api/v1/admin/university-data` | Global admin | Pagination; optional `kind: UniversityDataKind`, `subject_id: Id` | `200 Page<UniversityData>` |
+| `GET /api/v1/admin/university-data/{reference_id}` | Global admin | None | `200 UniversityData` |
+| `PUT /api/v1/admin/university-data/{reference_id}` | Global admin | Full `UniversityDataInput` | `200 UniversityData`; kind, subject, and natural code cannot change |
+| `DELETE /api/v1/admin/university-data/{reference_id}` | Global admin | None | `204`; live references block deletion with `409 REFERENCE_IN_USE`, snapshots do not |
+| `POST /internal/v1/university-identities/reservations` | Applicant, Credential, or University Record initializer | `IdentityReservationInput` | `200 UniversityIdentity`; atomically reserves an unpadded student sequence and university-email suffix |
+| `GET /internal/v1/university-identities/{subject_id}` | Applicant, Credential, or University Record subscriber | Query `case_id: Id` | `200 UniversityIdentity`; reads an existing reservation for derivation, never allocates |
+| `POST /internal/v1/university-snapshots` | Session | `{session_id: Id, reference_at: Time}` | `201 {snapshot_id: Id, session_id: Id, reference_at: Time}`; atomically copy and validate current reference data |
+| `GET /internal/v1/university-snapshots/{snapshot_id}` | Applicant, Credential, University Record, or Session | None | `200 UniversitySnapshot`; full immutable reference data, internal only |
 | `PUT /api/v1/sessions/{session_id}/record-permissions` | Session owner while lobby is open | `{permissions: Permission[]}` | `200 {permissions: Permission[]}`<br>The body replaces all Junior Moderator permissions. |
 | `GET /api/v1/sessions/{session_id}/record-permissions/me` | Participant | None | `200 Permission`<br>The Moderator has no direct record permissions. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/university-records` | Junior Moderator in active shift | Required query `kind: RecordKind` with pagination | `200 Page<UniversityRecord>`<br>An unassigned `kind` returns `403`. |
@@ -499,6 +801,10 @@ Published rules and rule versions are immutable. An update creates a new version
 Record permissions do not change after a shift starts. The Server Moderation Session Service checks that at least one Junior Moderator can inspect each record kind. It also rejects an assignment that gives one Junior Moderator every kind. An incomplete or invalid assignment returns `409`. These rules require at least two Junior Moderators.
 
 Players cannot call the internal endpoint that returns all records. The Moderator receives hidden record details from Junior Moderators through DMs. An empty record set is valid for an outsider and does not grant access to restricted records.
+
+University reference CRUD accepts additional entries of existing kinds. Adding a course or person requires no schema change. Adding a new kind or new required fields does require a shared schema update. Updates are full replacements, not arbitrary JSON patches. Reference subjects must obey the person-field table; student IDs and canonical emails are unique among reference subjects. A referenced program, course, or subject affiliation cannot be deleted until its live dependents are removed. Case snapshots contain copied values, so they remain intact after live reference deletion. There is no PUT, PATCH, or DELETE for generated case records or immutable university snapshots.
+
+Identity reservation is not a general Applicant CRUD endpoint and is never public. The initializer forwards the signed Session context received with `CaseStart`; University verifies the session and selected initializer, then binds the authenticated service's proposed case ID and subject to the reservation without requiring Session to have already received `CaseAccepted`. Subscriber GETs occur after propagation and verify the persisted Session case. The API intentionally uses case-oriented paths such as `/internal/v1/{service}/cases`; it does not expose the reference project's `/api/v1/applicants/next` endpoint or its claimed/actual whole-person payload.
 
 ### Moderation Service endpoints
 
@@ -515,7 +821,7 @@ Discipline = {disciplinary_action_id: Id, player_id: Id, reason: string,
 | `GET /api/v1/bans` | Global admin | Optional query `subject_id: Id` with pagination | `200 Page<Ban>` |
 | `POST /api/v1/disciplinary-actions` | Global admin | `{player_id: Id, reason: string, xp_penalty: Int}` | `201 Discipline`<br>The penalty cannot be negative and is separate from decision scoring. |
 
-Before evaluation, the Moderation Service checks the session context and reads all case data. It sends existing bans and decision history to the Server Rules Service. The service never accepts an expected result from a player. It stores the returned `PolicyResult` with the immutable decision.
+Before evaluation, the Moderation Service checks session context and all-three readiness, then reads all case data. It takes the actual `subject_id` from University's internal response and uses it for existing bans and history. It sends those facts and the pinned `reference_at` to Server Rules, never generator metadata or a player-supplied expected result. It stores the returned `PolicyResult` with the immutable decision.
 
 A correct action adds 10 points. An incorrect action subtracts 5 points. The `penalty` is 0 for a correct action and 5 for an incorrect action. An action is correct when it equals `expected_action`.
 
@@ -569,7 +875,7 @@ All events use the durable topic exchange `student-id.events.v1`. Messages use J
 Event<T> = {event_id: Id, event_type: string, schema_version: Int,
             occurred_at: Time, producer: "applicant" | "credential" | "university_record" |
             "moderation" | "session", correlation_id: Id, payload: T}
-CaseInitializedPayload = {case_id: Id, session_id: Id, generation: Generation}
+// CaseInitializedPayload is the three-variant union in the initialization section.
 DecisionScoredPayload = {decision_id: Id, session_id: Id, case_id: Id, moderator_id: Id,
                         action: Action, correct: Bool, score_delta: Int, penalty: Int}
 ShiftEndedPayload = {session_id: Id, participant_ids: Id[], processed_count: Int,
@@ -619,12 +925,32 @@ Example scored event:
 Before implementation, the developers who own each service review these scenarios together. Implementation PRs cover each relevant scenario with unit or integration tests:
 
 - Initialize a case through each of the three entry services. Every record uses the same `case_id`, hidden data stays internal, and a retry returns the original case.
+- Cover the three initiators × four scenarios. Verify both subscribers derive owned records, received fields remain anchors, and the prescribed name/forgery differences occur exactly once. Reject an event with two domain sections or a producer/section mismatch.
+- Add, read, replace, and delete each reusable resource. Edit a course or template during a pending case; the pinned university snapshot and reserved local templates keep generation stable. Future shifts/cases use the new data.
+- Exercise staff without a student ID, alumni without a current year, existing reference subjects, empty outsider bundles, and a new course added through CRUD. Do not infer current enrollment from possession of an authentic historical document.
+- Validate expired, incomplete, inconsistent, and forged documents separately. Check all flags and issues, not just a single verdict. A typed defect remains usable evidence; a broken event schema is quarantined.
+- Evaluate a genuine FAF student, genuine IA student, forged confirmation, name impersonation, outsider, and returning banned subject with the baseline rules. Policy input must not contain a scenario or seed.
 - Deliver an initialization or scoring event twice. The second delivery does not add records, processed applications, XP, or penalties. A conflicting payload moves to quarantine.
 - Delay one case consumer. The case remains pending, and the Moderation Service cannot accept or score a decision from incomplete facts.
 - Read university records or send chat messages with the wrong role, permission, or shift. The service denies the request without returning restricted facts.
 - Publish new rules during an active shift. The active shift keeps its pinned version, and later shifts use the new version.
 - Submit two decisions at the same time. While the scoring event is in transit, end the shift and redeliver the completion event. The system stores one decision and applies one complete progression update.
 - Reconnect chat after a lost acknowledgement. The retry does not duplicate the message, and the client recovers stored history.
+
+## Service integration references
+
+These planned integration contracts expand the CPR's shared definitions with service-specific behavior, CRUD lifecycles, error codes, edge cases, and examples:
+
+| Service | Contract |
+| --- | --- |
+| Applicant | [Applicant integration README](docs/services/README.applicant.md) |
+| Credential | [Credential integration README](docs/services/README.credential.md) |
+| University Record | [University Record integration README](docs/services/README.university-records.md) |
+| Server Rules | [Server Rules integration README](docs/services/README.server-rules.md) |
+
+The shared types and tables above are normative across services. Keep these references synchronized when changing them. Each owner copies or links the relevant contract in their private service README for Lab 0; the references here do not claim an implementation or a deployment already exists.
+
+For independent Lab 1 work, mock missing Session/snapshot dependencies with these exact response types and deliver source-specific fixtures to the real event handler. Test reference CRUD against the local database and case initialization against those mocks. A mock should not bypass generation with a prebuilt whole-applicant payload. Seed reusable fixtures idempotently when storage is empty; restarts must not overwrite admin changes or recreate deliberately deleted resources in a populated database.
 
 ## Contribution and workflow guidelines
 
