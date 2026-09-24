@@ -31,6 +31,8 @@ During a shift, Junior Moderators can inspect only their assigned records. They 
 
 Each service is the sole writer of its data. Other services read that data through APIs or consume events that contain the fields they need. A local projection is a copy, not a new source of truth.
 
+Service-specific integration guides: [Player](docs/services/README.player.md), [Server Moderation Session](docs/services/README.session.md), [Applicant](docs/services/README.applicant.md), [Credential](docs/services/README.credential.md), [Server Rules](docs/services/README.server-rules.md), and [University Record](docs/services/README.university-records.md). The shared contract below remains authoritative.
+
 ### Player Service
 
 The Player Service owns global player identity and persistent moderator progression:
