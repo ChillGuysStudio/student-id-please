@@ -1101,7 +1101,7 @@ Both images target Linux AMD64. Player needs a writable database and persistent 
 - [Session Postman collection](postman/session-service.json)
 - [Lab 1 contract additions](docs/lab1-contract-additions.md)
 
-The Session collection creates its Player team as fixture setup, then runs Session endpoints against typed mocks for unavailable teammate services. The Player collection tests its own endpoints and progression with authenticated event fixtures.
+The Session collection contains only Session endpoints. Its runner creates a Player team before Newman starts, then runs Session against typed mocks for unavailable teammate services. The Player collection tests its own endpoints and progression with authenticated event fixtures.
 
 ## Project board
 

@@ -1,14 +1,10 @@
 {
   "info": {
     "name": "Student ID Lab 1 - Session Service",
-    "description": "Session API tests with Player fixture setup and mock external dependencies. Supply moderation_token in a local environment. Run against a Session configured with real Player calls and external-services mock mode.",
+    "description": "Session API tests with a preconfigured Player team and mock external dependencies. The service runner creates the Player fixtures and passes team/player IDs and tokens to Newman.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "player_url",
-      "value": "http://localhost:8001"
-    },
     {
       "key": "session_url",
       "value": "http://localhost:8002"
@@ -31,13 +27,9 @@
         "type": "text/javascript",
         "exec": [
           "const name = pm.info.requestName;",
-          "if (name === '201 Register moderator') {",
-          "  pm.collectionVariables.set('run_id', pm.variables.replaceIn('{{$guid}}').replace(/-/g, '').slice(0, 12));",
-          "  pm.collectionVariables.set('password', pm.variables.replaceIn('{{$guid}}') + 'Aa1!');",
-          "}",
           "if (!['GET', 'HEAD'].includes(pm.request.method)) pm.request.headers.upsert({key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}')});",
           "if (name === '200 Score current case') {",
-          "  pm.collectionVariables.set('score_event', JSON.stringify({event_id: pm.variables.replaceIn('{{$guid}}'), event_type: 'DecisionScored', schema_version: 1, occurred_at: new Date().toISOString(), producer: 'moderation', correlation_id: pm.collectionVariables.get('case_id'), payload: {decision_id: pm.variables.replaceIn('{{$guid}}'), session_id: pm.collectionVariables.get('session_id'), case_id: pm.collectionVariables.get('case_id'), moderator_id: pm.collectionVariables.get('moderator_id'), action: 'accept', correct: true, score_delta: 10, penalty: 0}}));",
+          "  pm.collectionVariables.set('score_event', JSON.stringify({event_id: pm.variables.replaceIn('{{$guid}}'), event_type: 'DecisionScored', schema_version: 1, occurred_at: new Date().toISOString(), producer: 'moderation', correlation_id: pm.collectionVariables.get('case_id'), payload: {decision_id: pm.variables.replaceIn('{{$guid}}'), session_id: pm.collectionVariables.get('session_id'), case_id: pm.collectionVariables.get('case_id'), moderator_id: pm.variables.get('moderator_id'), action: 'accept', correct: true, score_delta: 10, penalty: 0}}));",
           "}"
         ]
       }
@@ -52,11 +44,7 @@
           "pm.test('Request ID is present', () => pm.expect(pm.response.headers.get('X-Request-ID')).to.be.a('string'));",
           "if (pm.response.code !== 204) {",
           "  const body = pm.response.json();",
-          "  let match = name.match(/Register (moderator|junior1|junior2)$/);",
-          "  if (match && pm.response.code === 201) pm.collectionVariables.set(match[1] + '_id', body.player_id);",
-          "  match = name.match(/Login (moderator|junior1|junior2)$/);",
-          "  if (match && pm.response.code === 200) pm.collectionVariables.set(match[1] + '_token', body.access_token);",
-          "  const save = {'201 Request friendship 1': ['friendship1', 'friendship_id'], '201 Request friendship 2': ['friendship2', 'friendship_id'], '201 Create team': ['team_id', 'team_id'], '201 Create session': ['session_id', 'session_id'], '202 Create applicant case': ['case_id', 'case_id'], '201 Create disposable lobby': ['lobby_id', 'session_id']};",
+          "  const save = {'201 Create session': ['session_id', 'session_id'], '202 Create applicant case': ['case_id', 'case_id'], '201 Create disposable lobby': ['lobby_id', 'session_id']};",
           "  if (save[name] && pm.response.code < 300) pm.collectionVariables.set(save[name][0], body[save[name][1]]);",
           "  if (name === '200 Start shift') { pm.collectionVariables.set('university_snapshot_id', body.university_snapshot_id); pm.test('University snapshot is pinned', () => pm.expect(body.university_snapshot_id).to.match(/^[0-9a-f-]{36}$/)); }",
           "  if (name === '200 Case readiness') pm.test('All three case owners are ready', () => pm.expect(body.ready_services).to.have.length(3));",
@@ -71,270 +59,6 @@
     }
   ],
   "item": [
-    {
-      "name": "Player fixture setup",
-      "item": [
-        {
-          "name": "201 Register moderator",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/players",
-            "auth": {
-              "type": "noauth"
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"mod_{{run_id}}\",\"email\":\"mod_{{run_id}}@example.test\",\"password\":\"{{password}}\",\"display_name\":\"Moderator\"}"
-            }
-          }
-        },
-        {
-          "name": "201 Register junior1",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/players",
-            "auth": {
-              "type": "noauth"
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"j1_{{run_id}}\",\"email\":\"j1_{{run_id}}@example.test\",\"password\":\"{{password}}\",\"display_name\":\"Junior One\"}"
-            }
-          }
-        },
-        {
-          "name": "201 Register junior2",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/players",
-            "auth": {
-              "type": "noauth"
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"j2_{{run_id}}\",\"email\":\"j2_{{run_id}}@example.test\",\"password\":\"{{password}}\",\"display_name\":\"Junior Two\"}"
-            }
-          }
-        },
-        {
-          "name": "200 Login moderator",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/auth/login",
-            "auth": {
-              "type": "noauth"
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"mod_{{run_id}}@example.test\",\"password\":\"{{password}}\"}"
-            }
-          }
-        },
-        {
-          "name": "200 Login junior1",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/auth/login",
-            "auth": {
-              "type": "noauth"
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"j1_{{run_id}}@example.test\",\"password\":\"{{password}}\"}"
-            }
-          }
-        },
-        {
-          "name": "200 Login junior2",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/auth/login",
-            "auth": {
-              "type": "noauth"
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"j2_{{run_id}}@example.test\",\"password\":\"{{password}}\"}"
-            }
-          }
-        },
-        {
-          "name": "201 Request friendship 1",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/friendships",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"recipient_id\":\"{{junior1_id}}\"}"
-            }
-          }
-        },
-        {
-          "name": "200 Accept friendship 1",
-          "request": {
-            "method": "PUT",
-            "url": "{{player_url}}/api/v1/friendships/{{friendship1}}/acceptance",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{junior1_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "201 Request friendship 2",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/friendships",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"recipient_id\":\"{{junior2_id}}\"}"
-            }
-          }
-        },
-        {
-          "name": "200 Accept friendship 2",
-          "request": {
-            "method": "PUT",
-            "url": "{{player_url}}/api/v1/friendships/{{friendship2}}/acceptance",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{junior2_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "201 Create team",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/teams",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"name\":\"Demo moderators\"}"
-            }
-          }
-        },
-        {
-          "name": "200 Add junior1",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/teams/{{team_id}}/members",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"player_id\":\"{{junior1_id}}\"}"
-            }
-          }
-        },
-        {
-          "name": "200 Add junior2",
-          "request": {
-            "method": "POST",
-            "url": "{{player_url}}/api/v1/teams/{{team_id}}/members",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"player_id\":\"{{junior2_id}}\"}"
-            }
-          }
-        }
-      ]
-    },
     {
       "name": "Session lifecycle and scoring",
       "item": [

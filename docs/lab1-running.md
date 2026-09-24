@@ -27,9 +27,9 @@ The runner sends tokens through standard input to a temporary Newman environment
 
 ## Session collection
 
-Import [`postman/session-service.json`](../postman/session-service.json) into Postman. Set `player_url`, `session_url`, and `moderation_token` in a local environment. The defaults are `http://localhost:8001` and `http://localhost:8002`. Run the whole collection in order.
+Import [`postman/session-service.json`](../postman/session-service.json) into Postman. Set `session_url`, `moderation_token`, `team_id`, `moderator_id`, `junior1_id`, `junior2_id`, `moderator_token`, `junior1_token`, and `junior2_token` in a local environment. Create that three-player team through Player first, or use the runner below to do the setup automatically. The collection's default `session_url` is `http://localhost:8002`.
 
-The first folder creates a Player team as test setup. The second folder tests Session endpoints: lobby creation and deletion, joining and roles, start checks, the pinned university snapshot, a pending case, readiness, context, duplicate scoring, and shift end. It does not require the Player collection to run first. The scoring event is an explicit Moderation fixture because that service is not connected in this Lab 1 check.
+The collection contains only Session endpoints. It tests lobby creation and deletion, joining and roles, start checks, the pinned university snapshot, a pending case, readiness, context, duplicate scoring, and shift end. It does not require the Player collection to run first. The scoring event is an explicit Moderation fixture because that service is not connected in this Lab 1 check.
 
 To run it through Docker:
 
@@ -37,7 +37,7 @@ To run it through Docker:
 python tools/session-service/run_postman.py
 ```
 
-The runner needs `MODERATION_SERVICE_TOKEN` and sends it through standard input. Set `POSTMAN_DOCKER_NETWORK`, `PLAYER_URL`, and `SESSION_URL` if the services are on a Docker network instead of reachable through `host.docker.internal`.
+The runner needs `MODERATION_SERVICE_TOKEN`. It first calls Player from the host to create three players, friendships, and a team, then sends their IDs and access tokens through standard input to Newman. Set `PLAYER_SETUP_URL` if Player is not reachable from the host at `http://localhost:8001`. Set `POSTMAN_DOCKER_NETWORK` and `SESSION_URL` if Session is on a Docker network instead of reachable through `host.docker.internal`.
 
 ## Concurrent Session requests
 
