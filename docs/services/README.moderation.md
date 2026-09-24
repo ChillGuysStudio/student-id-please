@@ -65,7 +65,7 @@ Set `JWT_ISSUER` and `JWT_AUDIENCE` to the claims in Player's issued access toke
 | `moderation` | Run the versioned image after PostgreSQL is healthy. The image's default command starts the API and creates its tables. | Container port `8000`; bind it to `127.0.0.1:8008` for a local check. Mount the Player public key read-only. |
 | `publisher` | Run the same image with command `python -m moderation.publisher` after PostgreSQL and RabbitMQ are healthy. | Use the same `DATABASE_URL` and `RABBITMQ_URL` as the API. No public port. |
 
-To start the published API against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put `.env` and `player-public.pem` in the current directory. Set `MOCK_CONTRACT_FILE` to an empty value for real upstreams.
+To start the published API against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put `.env` and `player-public.pem` in the current directory. Make the public key readable by the image's non-root user, UID `65532`. Set `MOCK_CONTRACT_FILE` to an empty value for real upstreams.
 
 ```sh
 docker pull sentientmoss/pad-moderation-service:0.1.1

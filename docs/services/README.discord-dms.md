@@ -62,7 +62,7 @@ The later shared deployment needs these containers on one network. The listed na
 | `redis` | `redis:7-alpine`; start with `redis-server --requirepass <REDIS_PASSWORD>`; wait for an authenticated `redis-cli ping` to return `PONG`. | Ticket keys and Pub/Sub state are ephemeral. Keep port `6379` private. |
 | `discord-dms` | Run the versioned image after PostgreSQL and Redis are healthy. The default command starts the API and creates its tables. | Container port `8000`, optionally bound to `127.0.0.1:8009`. Mount the Player public key read-only. |
 
-To start the published image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put `.env` and `player-public.pem` in the current directory. Set `MOCK_CONTRACT_FILE` to an empty value for real upstreams.
+To start the published image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put `.env` and `player-public.pem` in the current directory. Make the public key readable by the image's non-root user, UID `65532`. Set `MOCK_CONTRACT_FILE` to an empty value for real upstreams.
 
 ```sh
 docker pull sentientmoss/pad-discord-dms-service:0.1.1
