@@ -1,0 +1,9 @@
+**/**/.playwright-mcp/
+**/**/.vscode/
+**/**/.opencode/
+**/.codegraph/
+**/**/.idea/
+**/**/.DS_Store
+**/**/node_modules/
+**/**/dist/
+**/**/workspace.local/**
