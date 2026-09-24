@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Student ID Lab 1 - Moderation Service",
-    "description": "Use the current private Moderation service dev branch. Run uv run python scripts/make_demo.py and docker compose -p moderation-postman-demo up -d --build in moderation-service. Import this collection, then set moderator_token and admin_token in a local Postman environment from .local/moderator.token and .local/admin.token. Never save tokens in this collection. The default IDs match the generated fixture. Run Decision workflow, then Admin and bans. Alternative ban flow uses the same case. Run it on a fresh test stack after docker compose -p moderation-postman-demo down -v, followed by docker compose -p moderation-postman-demo up -d. The Dependency failures folder requires MOCK_CONTRACT_FILE empty and upstream URLs unset. Stop and remove only the test stack when finished.",
+    "description": "Use with the published sentientmoss/pad-moderation-service:0.1.1 image, PostgreSQL, RabbitMQ, and configured upstreams or a matching local test fixture. Import this collection and set moderator_token, admin_token, session_id, case_id, and subject_id in a local Postman environment. Do not save tokens in the collection. Default IDs and assertions describe a synthetic scenario where the expected action is accept. Run Decision workflow, then Admin and bans. Run Alternative ban flow against a fresh database because it decides the same case. Run Dependency failures separately against an instance without upstream configuration.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -191,7 +191,7 @@
     },
     {
       "name": "Dependency failures",
-      "description": "Run this folder separately. From moderation-service, use MOCK_CONTRACT_FILE= docker compose -p moderation-postman-demo up -d --no-deps --force-recreate moderation. Leave SESSION_URL, PLAYER_URL, and their service tokens unset. Keep DATABASE_URL, JWT verification, and PostgreSQL configured. Missing upstream facts must return 503 without creating a decision or discipline.",
+      "description": "Run against a separate published-image instance with MOCK_CONTRACT_FILE empty and SESSION_URL, PLAYER_URL, and their service tokens unset. Keep DATABASE_URL, JWT verification, and PostgreSQL configured. Set moderation_url to this instance's address. Missing upstream facts must return 503 without creating a decision or discipline.",
       "item": [
         {
           "name": "503 Session context unavailable",
