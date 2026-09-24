@@ -17,7 +17,8 @@ def snapshot():
         keys = json.load(response)
     players = sql("player-db", "player", "player_db", "SELECT id, xp FROM players ORDER BY id")
     sessions = sql("session-db", "session", "session_db",
-                   "SELECT id, status, score, processed_count FROM sessions ORDER BY id")
+                   "SELECT id, status, score, penalties, processed_count, university_snapshot_id "
+                   "FROM sessions ORDER BY id")
     return keys, players, sessions
 
 
@@ -30,7 +31,7 @@ def main():
     after = snapshot()
     if before != after:
         raise SystemExit("FAIL: persisted keys or domain data changed during container recreation")
-    print("PASS: player IDs/XP, session states/scores, and the signing key survived container recreation.")
+    print("PASS: player IDs/XP, session totals/snapshot IDs, and the signing key survived container recreation.")
 
 
 if __name__ == "__main__":

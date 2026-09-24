@@ -1087,10 +1087,10 @@ Reviewers check:
 
 | Service | Versioned public Docker Hub image | HTTP port |
 | --- | --- | --- |
-| Player | [`tirppy/student-id-player-service:1.0.0-rc.1`](https://hub.docker.com/r/tirppy/student-id-player-service) | `8001` |
-| Server Moderation Session | [`tirppy/student-id-session-service:1.0.0-rc.1`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
+| Player | [`tirppy/student-id-player-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-player-service) | `8001` |
+| Server Moderation Session | [`tirppy/student-id-session-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
 
-The `rc.1` tag identifies the Lab 1 review build. Create the final Git release tag on `main` after the required reviews and merges.
+The `rc.2` tag identifies the Lab 1 review build. Create the final Git release tag on `main` after the required reviews and merges.
 
 The pair requires Docker Engine with Linux containers, Docker Compose, and free local ports `8001` and `8002`. The configuration helper and verification scripts require Python 3.12. Docker supplies the application runtimes, two PostgreSQL databases, RabbitMQ, and Redis. Both database volumes and the signing-key volume persist across container recreation.
 

@@ -7,7 +7,7 @@ from pathlib import Path
 def main():
     root = Path(__file__).resolve().parents[1]
     path = root / ".env"
-    values = {"SERVICE_VERSION": "1.0.0-rc.1"}
+    values = {"SERVICE_VERSION": "1.0.0-rc.2"}
     for name in ("PLAYER_DB_PASSWORD", "SESSION_DB_PASSWORD", "RABBITMQ_PASSWORD",
                  "SESSION_SERVICE_TOKEN", "MODERATION_SERVICE_TOKEN"):
         values[name] = secrets.token_hex(24)

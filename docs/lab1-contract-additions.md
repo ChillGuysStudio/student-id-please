@@ -39,7 +39,7 @@ Service consumers accept additional optional event fields for compatibility. The
 
 ## Mock dependencies
 
-Session's default `PLAYER_MODE=http` calls the real Player service. `EXTERNAL_SERVICES_MODE=mock` uses a fixed published ruleset, distributes all record kinds among Junior Moderators, and returns deterministic case IDs with typed readiness responses. Any of the three initializer names can be selected.
+Session's default `PLAYER_MODE=http` calls the real Player service. `EXTERNAL_SERVICES_MODE=mock` uses a fixed published ruleset, creates a stable university snapshot, distributes all record kinds among Junior Moderators, and returns deterministic case IDs with typed readiness responses. Any of the three initializer names can be selected.
 
 Mock mode does not create applicant documents or evaluate admission policy. The demonstration supplies `DecisionScored` fixtures explicitly. Session still validates the Moderator, case state, scoring values, and duplicate IDs before changing its persistent totals.
 

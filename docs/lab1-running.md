@@ -23,7 +23,7 @@ All six containers must become healthy. Open Player at `http://localhost:8001/do
 
 Import `postman/lab1.postman_collection.json` into Postman. Create a local environment with `moderation_token` set to `MODERATION_SERVICE_TOKEN` from your ignored `.env`. Keep the default Player and Session URLs. Run the whole collection with a 100 ms delay between requests.
 
-The collection creates three players, forms a team, completes a shift, verifies RabbitMQ progression, applies a disciplinary fixture, and exercises cleanup operations. The negative requests verify authorization and state rules. Each run uses fresh account names. Do not commit an export containing populated tokens or passwords.
+The collection creates three players, forms a team, pins and verifies the university snapshot, completes a shift, verifies RabbitMQ progression, applies a disciplinary fixture, and exercises cleanup operations. The negative requests verify authorization and state rules. Each run uses fresh account names. Do not commit an export containing populated tokens or passwords.
 
 To run the same collection through Docker without installing Postman:
 
@@ -49,7 +49,7 @@ Run the Postman collection before this check so both databases contain records:
 python tools/check_persistence.py
 ```
 
-This check stops and removes this Compose project's containers, then recreates them. It compares player IDs and XP, session states and totals, and the public signing key before and after recreation. It leaves the named volumes intact.
+This check stops and removes this Compose project's containers, then recreates them. It compares player IDs and XP, session states, totals, penalties and snapshot IDs, and the public signing key before and after recreation. It leaves the named volumes intact.
 
 To stop the demonstration yourself, run `docker compose down`. Do not add `--volumes` unless you intend to delete the demo databases and signing key.
 
