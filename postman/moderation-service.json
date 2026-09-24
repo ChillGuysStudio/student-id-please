@@ -1,0 +1,213 @@
+{
+  "info": {
+    "name": "Student ID Lab 1 - Moderation Service",
+    "description": "Use the current private Moderation service dev branch. Run uv run python scripts/make_demo.py and docker compose -p moderation-postman-demo up -d --build in moderation-service. Import this collection, then set moderator_token and admin_token in a local Postman environment from .local/moderator.token and .local/admin.token. Never save tokens in this collection. The default IDs match the generated fixture. Run Decision workflow, then Admin and bans. Alternative ban flow uses the same case. Run it on a fresh test stack after docker compose -p moderation-postman-demo down -v, followed by docker compose -p moderation-postman-demo up -d. The Dependency failures folder requires MOCK_CONTRACT_FILE empty and upstream URLs unset. Stop and remove only the test stack when finished.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "moderation_url", "value": "http://127.0.0.1:8008" },
+    { "key": "session_id", "value": "00000000-0000-4000-8000-000000000201" },
+    { "key": "case_id", "value": "00000000-0000-4000-8000-000000000202" },
+    { "key": "moderator_id", "value": "00000000-0000-4000-8000-000000000203" },
+    { "key": "subject_id", "value": "00000000-0000-4000-8000-000000000205" },
+    { "key": "unknown_player_id", "value": "00000000-0000-4000-8000-000000000299" },
+    { "key": "decision_id", "value": "" },
+    { "key": "decision_key", "value": "" },
+    { "key": "discipline_key", "value": "" },
+    { "key": "moderator_token", "value": "" },
+    { "key": "admin_token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{moderator_token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name = pm.info.requestName;",
+          "if (name === '201 Submit decision' || name === '201 Submit ban instead') pm.collectionVariables.set('decision_key', pm.variables.replaceIn('{{$guid}}'));",
+          "if (name === '201 Apply disciplinary action') pm.collectionVariables.set('discipline_key', pm.variables.replaceIn('{{$guid}}'));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name = pm.info.requestName;",
+          "pm.test('HTTP status matches contract', () => pm.response.to.have.status(Number(name.slice(0, 3))));",
+          "const body = pm.response.json();",
+          "if (pm.response.code >= 400) pm.test('Validation or typed error', () => { if (pm.response.code === 422) pm.expect(body.detail).to.be.an('array'); else pm.expect(body).to.have.all.keys('code', 'message', 'request_id', 'details'); });",
+          "if (name === '201 Submit decision' || name === '201 Submit ban instead') pm.collectionVariables.set('decision_id', body.decision_id);",
+          "if (name === '201 Submit decision') pm.test('Correct decision is scored', () => { pm.expect(body.correct).to.eql(true); pm.expect(body.score_delta).to.eql(10); });",
+          "if (name === '201 Submit ban instead') pm.test('Incorrect ban still persists', () => { pm.expect(body.correct).to.eql(false); pm.expect(body.penalty).to.eql(5); });",
+          "if (name === '200 Read decision' || name === '201 Retry decision with same key') pm.test('Decision ID is stable', () => pm.expect(body.decision_id).to.eql(pm.collectionVariables.get('decision_id')));",
+          "if (name === '200 List decisions') pm.test('Committed decision is listed', () => pm.expect(body.items.map(item => item.decision_id)).to.include(pm.collectionVariables.get('decision_id')));",
+          "if (name === '200 Ban after decision') pm.test('Accept did not create a ban', () => pm.expect(body.items).to.be.empty);",
+          "if (name === '200 Ban after ban') pm.test('Ban is persistent', () => pm.expect(body.items.map(item => item.subject_id)).to.include(pm.collectionVariables.get('subject_id')));",
+          "if (name === '201 Apply disciplinary action') pm.collectionVariables.set('discipline_id', body.disciplinary_action_id);",
+          "if (name === '201 Retry disciplinary action') pm.test('Discipline ID is stable', () => pm.expect(body.disciplinary_action_id).to.eql(pm.collectionVariables.get('discipline_id')));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Decision workflow",
+      "description": "Run this folder first against a fresh database. The demo fixture supplies a pinned rule that expects accept.",
+      "item": [
+        { "name": "200 Health", "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{moderation_url}}/healthz" } },
+        {
+          "name": "201 Submit decision",
+          "request": {
+            "method": "POST",
+            "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Verified demo application\"}" }
+          }
+        },
+        { "name": "200 List decisions", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions?limit=1" } },
+        { "name": "200 Read decision", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions/{{decision_id}}" } },
+        {
+          "name": "201 Retry decision with same key",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Verified demo application\"}" }
+          }
+        },
+        {
+          "name": "409 Changed body with same key",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"reject\",\"reason\":\"Changed request body\"}" }
+          },
+          "response": [{ "name": "Idempotency conflict", "originalRequest": { "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Conflict", "code": 409, "_postman_previewlanguage": "json", "body": "{\"code\":\"IDEMPOTENCY_CONFLICT\",\"message\":\"Key already used for another request\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+        },
+        {
+          "name": "409 Competing final decision",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Second final decision\"}" }
+          }
+        },
+        {
+          "name": "422 Invalid decision action",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"approve\",\"reason\":\"Invalid action\"}" }
+          },
+          "response": [{ "name": "Validation error", "originalRequest": { "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Unprocessable Entity", "code": 422, "_postman_previewlanguage": "json", "body": "{\"detail\":[{\"type\":\"enum\",\"loc\":[\"body\",\"action\"],\"msg\":\"Input should be 'accept', 'reject', 'flag' or 'ban'\"}]}" }]
+        },
+        {
+          "name": "403 Wrong player submits decision",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Not a participant\"}" }
+          }
+        },
+        { "name": "401 Read without token", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions", "auth": { "type": "noauth" } } }
+      ]
+    },
+    {
+      "name": "Admin and bans",
+      "description": "Run after Decision workflow. The Moderator demo token is not an administrator; the Admin demo token is not a shift participant.",
+      "item": [
+        {
+          "name": "200 Ban after decision",
+          "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/bans?subject_id={{subject_id}}", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] } }
+        },
+        { "name": "403 Moderator cannot list bans", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/bans" } },
+        {
+          "name": "201 Apply disciplinary action",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Idempotency-Key", "value": "{{discipline_key}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Lab demo discipline\",\"xp_penalty\":4}" }
+          }
+        },
+        {
+          "name": "201 Retry disciplinary action",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Idempotency-Key", "value": "{{discipline_key}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Lab demo discipline\",\"xp_penalty\":4}" }
+          }
+        },
+        {
+          "name": "422 Negative XP penalty",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Invalid penalty\",\"xp_penalty\":-1}" }
+          }
+        },
+        {
+          "name": "403 Moderator cannot discipline",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Not an admin\",\"xp_penalty\":1}" }
+          }
+        },
+        {
+          "name": "404 Unknown disciplinary target",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"player_id\":\"{{unknown_player_id}}\",\"reason\":\"Unknown fixture player\",\"xp_penalty\":1}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alternative ban flow",
+      "description": "Run this folder alone on a fresh database. Ban is intentionally wrong for the demo's expected accept result, but it must still be stored with its decision.",
+      "item": [
+        {
+          "name": "201 Submit ban instead",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"ban\",\"reason\":\"Manual ban demonstration\"}" }
+          }
+        },
+        { "name": "200 Ban after ban", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/bans?subject_id={{subject_id}}", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] } }
+        }
+      ]
+    },
+    {
+      "name": "Dependency failures",
+      "description": "Run this folder separately. From moderation-service, use MOCK_CONTRACT_FILE= docker compose -p moderation-postman-demo up -d --no-deps --force-recreate moderation. Leave SESSION_URL, PLAYER_URL, and their service tokens unset. Keep DATABASE_URL, JWT verification, and PostgreSQL configured. Missing upstream facts must return 503 without creating a decision or discipline.",
+      "item": [
+        {
+          "name": "503 Session context unavailable",
+          "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" },
+          "response": [{ "name": "Dependency unavailable", "originalRequest": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Service Unavailable", "code": 503, "_postman_previewlanguage": "json", "body": "{\"code\":\"DEPENDENCY_UNAVAILABLE\",\"message\":\"session is not configured\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+        },
+        {
+          "name": "503 Player lookup unavailable",
+          "request": {
+            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Unavailable player dependency\",\"xp_penalty\":1}" }
+          }
+        }
+      ]
+    }
+  ]
+}
