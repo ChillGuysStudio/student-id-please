@@ -1,0 +1,161 @@
+{
+  "info": {
+    "name": "Student ID Lab 1 - Discord DMs Service",
+    "description": "Run the current private Discord DMs dev branch with uv run python scripts/make_demo.py and docker compose -p dms-postman-demo up -d --build from discord-dms-service. Import this collection and set moderator_token, junior_token, and outsider_token in a local Postman environment from the ignored .local/*.token files. Never save tokens in this collection. The default IDs match the demo fixture. Run Channel access, Ticket workflow, and Errors and limits in that order. Run WebSocket manual checks within 30 seconds of its fresh ticket, then run After WebSocket send. Run Dependency failures separately without the fixture. Postman collection v2.1 and Newman do not export or execute WebSocket frames; the manual folder gives the exact URL, frames, and expected results.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "dms_url", "value": "http://127.0.0.1:8009" },
+    { "key": "dms_ws_url", "value": "ws://127.0.0.1:8009" },
+    { "key": "session_id", "value": "00000000-0000-4000-8000-000000000301" },
+    { "key": "moderator_id", "value": "00000000-0000-4000-8000-000000000302" },
+    { "key": "junior_id", "value": "00000000-0000-4000-8000-000000000303" },
+    { "key": "general_channel_id", "value": "" },
+    { "key": "enrollment_channel_id", "value": "" },
+    { "key": "faculty_channel_id", "value": "" },
+    { "key": "course_channel_id", "value": "" },
+    { "key": "ticket", "value": "" },
+    { "key": "ticket_key", "value": "" },
+    { "key": "junior_ticket", "value": "" },
+    { "key": "client_message_id", "value": "" },
+    { "key": "message_id", "value": "" },
+    { "key": "moderator_token", "value": "" },
+    { "key": "junior_token", "value": "" },
+    { "key": "outsider_token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{moderator_token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name = pm.info.requestName;",
+          "if (name === '201 Create ticket' || name === '201 Fresh ticket for WebSocket') pm.collectionVariables.set('ticket_key', pm.variables.replaceIn('{{$guid}}'));",
+          "if (name === '201 Fresh ticket for WebSocket') pm.collectionVariables.set('client_message_id', pm.variables.replaceIn('{{$guid}}'));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name = pm.info.requestName;",
+          "pm.test('HTTP status matches contract', () => pm.response.to.have.status(Number(name.slice(0, 3))));",
+          "const body = pm.response.json();",
+          "if (pm.response.code >= 400) pm.test('Validation or typed error', () => { if (pm.response.code === 422) pm.expect(body.detail).to.be.an('array'); else pm.expect(body).to.have.all.keys('code', 'message', 'request_id', 'details'); });",
+          "if (name === '200 Moderator channels') { pm.test('Moderator sees four channels', () => pm.expect(body.channels).to.have.length(4)); const names = {'#general-mod-chat':'general_channel_id','#enrollment-check':'enrollment_channel_id','#faculty-check':'faculty_channel_id','#course-registration':'course_channel_id'}; body.channels.forEach(channel => pm.collectionVariables.set(names[channel.name], channel.channel_id)); }",
+          "if (name === '200 Junior channels') pm.test('Junior sees assigned channels only', () => pm.expect(body.channels.map(channel => channel.name).sort()).to.eql(['#course-registration','#enrollment-check','#general-mod-chat'].sort()));",
+          "if (name === '200 General history') pm.test('History has page fields', () => { pm.expect(body.items).to.be.an('array'); pm.expect(body).to.have.property('next_cursor'); });",
+          "if (name === '201 Create ticket' || name === '201 Fresh ticket for WebSocket') { pm.collectionVariables.set('ticket', body.ticket); pm.test('Ticket expires and is opaque', () => { pm.expect(body.ticket).to.match(/^[a-f0-9]{64}$/); pm.expect(Date.parse(body.expires_at)).to.be.above(Date.now()); }); }",
+          "if (name === '201 Retry ticket with same key') pm.test('Retry preserves ticket', () => pm.expect(body.ticket).to.eql(pm.collectionVariables.get('ticket')));",
+          "if (name === '201 Junior ticket') pm.collectionVariables.set('junior_ticket', body.ticket);",
+          "if (name === '200 History after WebSocket send') { const message = body.items.find(item => item.client_message_id === pm.variables.get('client_message_id')); pm.test('Committed WebSocket message is in REST history', () => pm.expect(message).to.exist); if (message) pm.collectionVariables.set('message_id', message.message_id); }"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Channel access",
+      "description": "Run first. The demo Moderator can use every channel; the Junior Moderator has enrollment and course permissions but no faculty permission.",
+      "item": [
+        { "name": "200 Health", "request": { "method": "GET", "url": "{{dms_url}}/healthz", "auth": { "type": "noauth" } } },
+        { "name": "200 Moderator channels", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" } },
+        {
+          "name": "200 Junior channels",
+          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
+        },
+        { "name": "200 General history", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=50" } }
+      ]
+    },
+    {
+      "name": "Ticket workflow",
+      "description": "Tickets are bound to one player and session, expire after 30 seconds, and work once. A retry with the same key returns the original ticket without reactivating it.",
+      "item": [
+        {
+          "name": "201 Create ticket",
+          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+        },
+        {
+          "name": "201 Retry ticket with same key",
+          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+        },
+        {
+          "name": "201 Junior ticket",
+          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+        }
+      ]
+    },
+    {
+      "name": "Errors and limits",
+      "description": "Exercise missing authentication, missing shift participation, channel permissions, request validation, and pagination errors.",
+      "item": [
+        {
+          "name": "403 Outsider channels denied",
+          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] } },
+          "response": [{ "name": "Not a participant", "originalRequest": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Forbidden", "code": 403, "_postman_previewlanguage": "json", "body": "{\"code\":\"FORBIDDEN\",\"message\":\"Session participation not found\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+        },
+        { "name": "401 No token", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "noauth" } } },
+        {
+          "name": "403 Faculty history denied to Junior",
+          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{faculty_channel_id}}/messages", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
+        },
+        {
+          "name": "400 Invalid history cursor",
+          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?cursor=not-a-cursor" }
+        },
+        {
+          "name": "422 History limit out of range",
+          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=101" }
+        },
+        {
+          "name": "422 Ticket with extra field",
+          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"extra\":true}" } },
+          "response": [{ "name": "Validation error", "originalRequest": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets" }, "status": "Unprocessable Entity", "code": 422, "_postman_previewlanguage": "json", "body": "{\"detail\":[{\"type\":\"extra_forbidden\",\"loc\":[\"body\",\"extra\"],\"msg\":\"Extra inputs are not permitted\"}]}" }]
+        },
+        {
+          "name": "403 Outsider cannot get ticket",
+          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+        }
+      ]
+    },
+    {
+      "name": "WebSocket manual checks",
+      "description": "The exported Postman v2.1 format and Newman cannot run WebSocket frames. Run Channel access first. Execute Fresh ticket for WebSocket, then within 30 seconds open a new WebSocket request in Postman at {{dms_ws_url}}/api/v1/sessions/{{session_id}}/ws?ticket={{ticket}}. Save it in this collection so collection variables resolve, or paste the resolved values. Send {\"type\":\"message.send\",\"client_message_id\":\"{{client_message_id}}\",\"channel_id\":\"{{general_channel_id}}\",\"text\":\"Postman manual demo\"}. Expect message.ack with the same client_message_id and a message.created frame. Send the identical frame again: expect the same message_id in message.ack and no new message.created. Change only text with the same ID: expect error MESSAGE_CONFLICT. Close and reconnect with the consumed ticket: expect HTTP 401. Request a new ticket to reconnect. Run After WebSocket send to check durable history. For a permission failure, get a Junior ticket, connect with it, and send to {{faculty_channel_id}}: expect error FORBIDDEN. The Moderator can send to that channel.",
+      "item": [
+        {
+          "name": "201 Fresh ticket for WebSocket",
+          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+        }
+      ]
+    },
+    {
+      "name": "After WebSocket send",
+      "description": "Run after sending the exact client_message_id from WebSocket manual checks. A committed message must appear in REST history and survive a reconnect.",
+      "item": [
+        { "name": "200 History after WebSocket send", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100" } },
+        { "name": "200 Junior reads general history", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } } }
+      ]
+    },
+    {
+      "name": "Dependency failures",
+      "description": "Run separately with MOCK_CONTRACT_FILE empty and SESSION_URL and SESSION_SERVICE_TOKEN unset. Keep JWT verification, PostgreSQL, and Redis configured. A failed Session authorization lookup must return 503 and grant no channel, history, or ticket access. Use a separate container and override dms_url so the other demo stack can stay available.",
+      "item": [
+        {
+          "name": "503 Session unavailable for channels",
+          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" },
+          "response": [{ "name": "Dependency unavailable", "originalRequest": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Service Unavailable", "code": 503, "_postman_previewlanguage": "json", "body": "{\"code\":\"DEPENDENCY_UNAVAILABLE\",\"message\":\"session is not configured\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+        },
+        {
+          "name": "503 Session unavailable for tickets",
+          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+        }
+      ]
+    }
+  ]
+}
