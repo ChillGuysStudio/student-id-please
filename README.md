@@ -1094,15 +1094,14 @@ Reviewers check:
 
 The `rc.2` tag identifies the Lab 1 review build. Create the final Git release tag on `main` after the required reviews and merges.
 
-The pair requires Docker Engine with Linux containers, Docker Compose, and free local ports `8001` and `8002`. The configuration helper and verification scripts require Python 3.12. Docker supplies the application runtimes, two PostgreSQL databases, RabbitMQ, and Redis. Both database volumes and the signing-key volume persist across container recreation.
+Both images target Linux AMD64. Player needs a writable database and persistent signing-key path. Session needs its own writable database and a reachable Player API; Redis caches live views, and RabbitMQ delivers shift results to Player. The service READMEs describe the exact environment variables. A separate team PR will supply the common image-based deployment and persistent volumes.
 
-- [Run the pair and verify persistence](docs/lab1-running.md)
-- [Postman collection](postman/lab1.postman_collection.json)
-- [Image-based Compose deployment](compose.yaml)
-- [Team deployment override](compose.team.yaml)
+- [Run the service collections](docs/lab1-running.md)
+- [Player Postman collection](postman/player-service.json)
+- [Session Postman collection](postman/session-service.json)
 - [Lab 1 contract additions](docs/lab1-contract-additions.md)
 
-The team override requires the six teammate image names, container ports, environment files, and their storage configuration. Those details are not available yet. The default deployment runs the two implemented services with explicit mocks for the missing dependencies.
+The Session collection creates its Player team as fixture setup, then runs Session endpoints against typed mocks for unavailable teammate services. The Player collection tests its own endpoints and progression with authenticated event fixtures.
 
 ## Project board
 

@@ -1,6 +1,7 @@
 """Exercise PostgreSQL locking and event deduplication against the running pair."""
 import concurrent.futures
 import json
+import os
 import secrets
 import time
 import urllib.error
@@ -9,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def call(base, method, path, body=None, token=None, key=None, extra=None, expected=200):
@@ -28,9 +29,14 @@ def call(base, method, path, body=None, token=None, key=None, extra=None, expect
 
 
 def main():
-    config = dict(line.split("=", 1) for line in (ROOT / ".env").read_text().splitlines()
-                  if line and not line.startswith("#"))
-    player, session = "http://localhost:8001", "http://localhost:8002"
+    config_path = ROOT / ".env"
+    config = dict(line.split("=", 1) for line in config_path.read_text().splitlines()
+                  if line and not line.startswith("#") and "=" in line) if config_path.exists() else {}
+    moderation_token = os.environ.get("MODERATION_SERVICE_TOKEN") or config.get("MODERATION_SERVICE_TOKEN")
+    if not moderation_token:
+        raise SystemExit("Set MODERATION_SERVICE_TOKEN in the environment or ignored CPR .env.")
+    player = os.environ.get("PLAYER_URL", "http://localhost:8001")
+    session = os.environ.get("SESSION_URL", "http://localhost:8002")
     suffix = uuid4().hex[:12]
     actors = []
     for index in range(3):
@@ -62,7 +68,7 @@ def main():
              "occurred_at": datetime.now(timezone.utc).isoformat(), "producer": "moderation",
              "correlation_id": case_id, "payload": {"decision_id": str(uuid4()), "session_id": shift["session_id"],
              "case_id": case_id, "moderator_id": owner, "action": "accept", "correct": True, "score_delta": 10, "penalty": 0}}
-    credentials = {"X-Service-Name": "moderation", "X-Service-Token": config["MODERATION_SERVICE_TOKEN"]}
+    credentials = {"X-Service-Name": "moderation", "X-Service-Token": moderation_token}
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda _: call(session, "POST", "/internal/v1/events", event, extra=credentials), range(8)))
     assert sum(result["applied"] for result in results) == 1

@@ -1,7 +1,5 @@
 .env
 .env.*
-!.env.example
-team-env/
 data/
 *.pem
 __pycache__/

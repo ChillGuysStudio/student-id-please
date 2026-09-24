@@ -80,8 +80,8 @@ Player records `(consumer, event_id)` and the shift or disciplinary business ID 
 
 ## Storage and Lab 1 verification
 
-Player uses its own PostgreSQL database. The common [image-based deployment](../../compose.yaml) mounts a database volume and a separate volume for the RSA signing key. Redis and Session tables do not belong to Player. SQLite is available for isolated development.
+Player uses its own PostgreSQL database. Its database and RSA signing key need persistent storage in the team deployment, which will be added in a separate PR. Redis and Session tables do not belong to Player. SQLite is available for isolated development.
 
-The published Lab 1 review image is [`tirppy/student-id-player-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). Follow the [CPR demonstration guide](../lab1-running.md) to start the pair. The [Postman collection](../../postman/lab1.postman_collection.json) exercises registration, friendships, teams, and progression. The private repository README gives standalone source and container commands, which satisfy Lab 1 Grade 3.
+The published Lab 1 review image is [`tirppy/student-id-player-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). Follow the [private run guide](https://github.com/Tirppy/student-id-player-service/blob/feat/lab-1/player-service/docs/running.md) for standalone source or container setup. The [Player Postman collection](../../postman/player-service.json) exercises registration, friendships, teams, and progression. The private repository README gives the Lab 1 Grade 3 run instructions.
 
-Verification should cover password privacy, token rotation, friendship and team authorization, duplicate event delivery, and XP after a completed shift. The CPR persistence check verifies that Player records and its public signing key survive container recreation.
+Verification should cover password privacy, token rotation, friendship and team authorization, duplicate event delivery, and XP after a completed shift. The later team deployment must verify that Player records and its public signing key survive container recreation.

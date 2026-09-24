@@ -23,7 +23,7 @@ Internal HTTP requests use `X-Service-Name` and `X-Service-Token`. Each receiver
 
 Player's internal reads and Session's context endpoint also require the initiating player's Bearer token. Session requires the `player_id` query to match that token's subject. Events use producer credentials instead of a player token. The event producer must match the authenticated service.
 
-The local Compose deployment binds API ports to the loopback address. Internal event adapters are for service calls and lab fixtures. A future gateway must not expose `/internal/v1` paths.
+The Lab 1 demonstration should bind API ports to the loopback address when exposing them directly. Internal event adapters are for service calls and lab fixtures. A future gateway must not expose `/internal/v1` paths.
 
 ## End-shift behavior
 
