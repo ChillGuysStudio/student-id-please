@@ -74,6 +74,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+  mongodb:
+    image: mongo:8.0
+    command: [mongod, --replSet, rs0, --bind_ip_all]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --eval '
+          try { rs.status(); }
+          catch (e) { if (e.codeName === "NotYetInitialized") { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongodb:27017"}]}); } else { throw e; } }
+          if (!db.hello().isWritablePrimary) quit(1);'
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
   player:
     image: tirppy/student-id-player-service:${SERVICE_VERSION:-1.0.0-rc.2}
     environment:
@@ -147,9 +164,9 @@ services:
       JWT_AUDIENCE: student-id-players
       SESSION_URL: http://session:8002
       SESSION_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      APPLICANT_URL: http://applicant:8003
+      APPLICANT_URL: http://applicant:8081
       APPLICANT_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      CREDENTIAL_URL: http://credential:8004
+      CREDENTIAL_URL: http://credential:8082
       CREDENTIAL_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
       UNIVERSITY_URL: http://university-record:8006
       UNIVERSITY_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
@@ -219,6 +236,25 @@ services:
         condition: service_healthy
       session:
         condition: service_healthy
+  applicant:
+    image: mcittkmims/applicant-service:${APPLICANT_SERVICE_VERSION:-latest}
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
+    ports:
+      - '127.0.0.1:8081:8081'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+  credential:
+    image: mcittkmims/credential-service:${CREDENTIAL_SERVICE_VERSION:-latest}
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
+    ports:
+      - '127.0.0.1:8082:8082'
+    depends_on:
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
 volumes:
   player-data:
@@ -228,3 +264,4 @@ volumes:
   broker-data:
   player-keys:
   player-public-key:
+  mongo-data:
