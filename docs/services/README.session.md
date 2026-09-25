@@ -1,6 +1,6 @@
 # Server Moderation Session Service integration contract
 
-Session owns moderation shift lifecycle, participants and roles, case references, aggregate score, and penalties. The [CPR communication contract](../../README.md#communication-contract) defines the shared REST, event, and case-initialization rules. The [private Session repository](https://github.com/Tirppy/student-id-session-service) contains the implementation and its run instructions. This document describes the Lab 1 integration used by other services.
+Session owns moderation shift lifecycle, participants and roles, case references, aggregate score, and penalties. The [CPR communication contract](../../README.md#communication-contract) defines the shared REST, event, and case-initialization rules. The [private Session repository](https://github.com/Tirppy/student-id-session-service) contains the implementation and source run instructions. This page describes its integration and the published image's Lab 1 deployment.
 
 ## Responsibilities and lifecycle
 
@@ -25,6 +25,8 @@ The valid statuses are `lobby`, `active`, `ending`, and `ended`. The Lab 1 imple
 | Session polls all three case services | Keep a case pending until all local records are ready. |
 | Moderation sends `DecisionScored` | Update the current case and aggregate totals once. |
 | Session sends `ShiftEnded` to Player | Award persistent progression after the final result commits. |
+| Session uses PostgreSQL | Persist shifts, cases, idempotency records, and event inbox/outbox rows. |
+| Session uses Redis | Cache live views without making Redis the source of roles or scores. |
 
 Other services call Session's context endpoint to verify shift participation and roles. Session returns a snapshot ID, not hidden university data. It never copies applicant claims, credentials, rules, decisions, or chat messages into its own domain tables.
 
@@ -103,14 +105,44 @@ Session consumes `DecisionScored` from Moderation through RabbitMQ queue `sessio
 
 An unfinished case, including a scoring event still in transit, prevents shift end with `409`. After all accepted decisions are counted, Session commits `ended` and one `ShiftEnded` outbox event in the same PostgreSQL transaction. The worker publishes that event to Player. Retries do not create another final result or XP award. The [shared event table](../../README.md#rabbitmq-event-contract) defines the exact schema and routing keys.
 
-## Storage, mocks, and Lab 1 verification
+## Storage and Lab 1 deployment
 
-Session uses its own PostgreSQL database for shifts, cases, idempotency records, and event inbox/outbox entries. PostgreSQL transaction locks serialize concurrent writes. Redis caches live session views; it is not the authority for roles or scores. The later team deployment must persist Session's PostgreSQL data. SQLite supports isolated development.
+The published image is [`tirppy/student-id-session-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). It listens on container port `8002` and runs as a non-root user. Pin this version for the Lab 1 review. Session needs its own PostgreSQL database, real Player calls, Redis caching, and RabbitMQ result delivery. PostgreSQL transaction locks serialize concurrent writes; Redis is not the authority for roles or scores. SQLite supports isolated development.
 
-The published Lab 1 review image is [`tirppy/student-id-session-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). Follow the [private run guide](https://github.com/Tirppy/student-id-session-service/blob/dev/docs/running.md) for standalone source or container setup. Session calls real Player and uses typed mocks for the unavailable teammate services. Those mocks return a representative published ruleset, distributed permissions, a stable snapshot ID, deterministic case IDs, and readiness responses. They do not generate applicant facts or decide admission outcomes. The [Session Postman collection](../../postman/session-service.json) supplies a `DecisionScored` fixture and contains only Session requests.
+Set these values in a local `.env`. Do not commit `.env` or service tokens. URL-encode reserved characters in database and broker passwords.
 
-To run the collection in Postman, set `session_url`, `moderation_token`, `team_id`, `moderator_id`, `junior1_id`, `junior2_id`, and the three corresponding player tokens in a local environment. The default URL is `http://localhost:8002`. Start Player and Session first, with `PLAYER_MODE=http` and `EXTERNAL_SERVICES_MODE=mock` for Session. Session's outgoing service token must match Player's `session` token; its `SERVICE_TOKENS` map must include `moderation`. Keep token values out of Git.
+| Setting | Required value |
+| --- | --- |
+| `DATABASE_URL` | `postgresql+psycopg://session:<password>@session-db:5432/session_db` for the shared deployment. |
+| `PLAYER_MODE`, `PLAYER_URL`, `PLAYER_JWKS_URL` | `http`, `http://player:8001`, and `http://player:8001/.well-known/jwks.json`; Session uses Player's public key to verify access tokens. |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | `student-id-please` and `student-id-players`, matching Player's issued tokens. |
+| `OUTGOING_SERVICE_TOKEN`, `SERVICE_TOKENS` | The outgoing token must match Player's `session` entry. The JSON map needs a distinct `moderation` token for the internal event fixture. |
+| `REDIS_URL` | Reachable cache URL, for example `redis://redis:6379/0`. |
+| `RABBITMQ_URL`, `RABBITMQ_EXCHANGE` | Reachable broker URL, for example `amqp://studentid:<password>@rabbitmq:5672/`, and `student-id.events.v1`. |
+| `EXTERNAL_SERVICES_MODE` | `mock` while teammate services are unavailable; switch to `http` when their real APIs and credentials are connected. |
+| `RULES_URL`, `UNIVERSITY_RECORD_URL`, `APPLICANT_URL`, `CREDENTIAL_URL` | Reachable service URLs when `EXTERNAL_SERVICES_MODE=http`. |
 
-The Docker-based Newman runner creates the three-player team automatically. Set `MODERATION_SERVICE_TOKEN`, then run `python tools/session-service/run_postman.py` from the CPR root. Set `PLAYER_SETUP_URL` if Player is not reachable at `http://localhost:8001`. For a Docker network, set `POSTMAN_DOCKER_NETWORK` and `SESSION_URL`. To check concurrent case, scoring, and end requests with RabbitMQ running, use `python tools/session-service/check_concurrency.py`.
+The shared Compose deployment is a separate team task. Its current Session portion uses these containers on one network:
 
-Verification should cover start permissions, snapshot retries, each case initializer, pending readiness, duplicate decisions, one final outbox event, and concurrent end requests. The later team deployment must verify that shift totals, penalties, and snapshot IDs survive container recreation.
+| Container | Image and startup | Storage and access |
+| --- | --- | --- |
+| `session-db` | `postgres:17-alpine`; create database `session_db` and user `session`; wait for `pg_isready -U session -d session_db`. | Persist `/var/lib/postgresql/data`. Keep port `5432` private. |
+| `redis` | `redis:7.4-alpine`; wait for `redis-cli ping`. | Live cache entries may expire or be rebuilt; no durable volume is needed for Session data. |
+| `rabbitmq` | `rabbitmq:4.1-management-alpine`; configure broker credentials and wait for `rabbitmq-diagnostics -q ping`. | Persist `/var/lib/rabbitmq`. Keep broker ports private. |
+| `player` | Start the published Player image after its database and RabbitMQ are healthy. | Expose its API to Session on the deployment network. |
+| `session` | Run the versioned image after PostgreSQL, Redis, RabbitMQ, and Player are healthy. | Bind API port `8002` to `127.0.0.1:8002` for a local check. |
+
+To start the published image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put the values above in `.env`, then run from the directory containing it in PowerShell:
+
+```powershell
+docker pull tirppy/student-id-session-service:1.0.0-rc.2
+docker run --rm --network $env:TEAM_NETWORK --env-file .env -p 127.0.0.1:8002:8002 tirppy/student-id-session-service:1.0.0-rc.2
+```
+
+`GET /health` checks the API process. `GET /ready` checks configured dependencies. The [private run guide](https://github.com/Tirppy/student-id-session-service/blob/dev/docs/running.md) covers source and isolated SQLite setup. The shared deployment must confirm that Session totals, penalties, and snapshot IDs survive container recreation.
+
+With `EXTERNAL_SERVICES_MODE=mock`, Session calls real Player but supplies a published ruleset, distributed permissions, a stable snapshot ID, deterministic case IDs, and readiness responses through typed mocks. The mocks do not create applicant facts or decide admission outcomes. The [Session Postman collection](../../postman/session-service.json) supplies a `DecisionScored` fixture and contains only Session requests.
+
+To run the collection in Postman, set `session_url`, `moderation_token`, `team_id`, `moderator_id`, `junior1_id`, `junior2_id`, and the three corresponding player tokens in a local environment. Its default URL is `http://localhost:8002`. Start Player and Session first. The Docker-based Newman runner creates the three-player team automatically. Set `MODERATION_SERVICE_TOKEN`, then run `python tools/session-service/run_postman.py` from the CPR root. Set `PLAYER_SETUP_URL` if Player is not reachable at `http://localhost:8001`; for a Docker network, set `POSTMAN_DOCKER_NETWORK` and `SESSION_URL`.
+
+With RabbitMQ running, use `python tools/session-service/check_concurrency.py` to check concurrent case creation, scoring delivery, and end requests. Verify start permissions, snapshot retries, each case initializer, pending readiness, duplicate decisions, and one final outbox event. Keep all test credentials out of Git.

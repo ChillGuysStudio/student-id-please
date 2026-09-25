@@ -1,6 +1,6 @@
 # Player Service integration contract
 
-Player owns game accounts, profiles, friendships, moderation teams, and persistent XP. The [CPR communication contract](../../README.md#communication-contract) defines the shared REST and event rules. The [private Player repository](https://github.com/Tirppy/student-id-player-service) contains the implementation and its run instructions. This document describes the Lab 1 integration used by the other services.
+Player owns game accounts, profiles, friendships, moderation teams, and persistent XP. The [CPR communication contract](../../README.md#communication-contract) defines the shared REST and event rules. The [private Player repository](https://github.com/Tirppy/student-id-player-service) contains the implementation and source run instructions. This page describes its integration and the published image's Lab 1 deployment.
 
 ## Responsibilities and lifecycle
 
@@ -22,6 +22,8 @@ Player does not store applicants, credentials, session scores, server rules, or 
 | Session publishes `ShiftEnded` | Award XP to the shift participants. |
 | Moderation publishes `DisciplinaryActionApplied` | Deduct XP for a disciplinary action. |
 | Session and Moderation call the internal event adapter | Supply the same typed events when a broker producer is unavailable in Lab 1. |
+| Player uses PostgreSQL | Persist accounts, teams, idempotency records, event receipts, and XP. |
+| Player consumes RabbitMQ events | Apply completed-shift awards and disciplinary deductions. |
 
 Internal HTTP callers identify themselves with `X-Service-Name` and `X-Service-Token`. Internal player and team reads also require the initiating player's Bearer token. Player verifies the caller and player identity before returning data.
 
@@ -78,12 +80,37 @@ For each shift participant, `ShiftEnded` adds `max(0, score)` XP once per `sessi
 
 Player records `(consumer, event_id)` and the shift or disciplinary business ID before acknowledging delivery. Replayed events cannot apply XP twice. Conflicting payloads for the same ID are rejected. The HTTP event adapter uses the same progression handler as the RabbitMQ consumers.
 
-## Storage and Lab 1 verification
+## Storage and Lab 1 deployment
 
-Player uses its own PostgreSQL database. Its database and RSA signing key need persistent storage in the team deployment, which will be added in a separate PR. Redis and Session tables do not belong to Player. SQLite is available for isolated development.
+The published image is [`tirppy/student-id-player-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). It listens on container port `8001` and runs as a non-root user. Pin this version for the Lab 1 review. Player needs its own PostgreSQL database, a persistent RSA signing key, and RabbitMQ for shift and discipline events. SQLite and authenticated HTTP event fixtures support isolated checks. Redis and Session tables do not belong to Player.
 
-The published Lab 1 review image is [`tirppy/student-id-player-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). Follow the [private run guide](https://github.com/Tirppy/student-id-player-service/blob/dev/docs/running.md) for standalone source or container setup. The [Player Postman collection](../../postman/player-service.json) exercises registration, friendships, teams, and progression. Import it into Postman, set `player_url`, `session_token`, and `moderation_token` in a local environment, then run the whole collection in order. The default URL is `http://localhost:8001`. Player's `SERVICE_TOKENS` map must contain matching `session` and `moderation` entries. Keep token values out of Git.
+Set these values in a local `.env`. Do not commit `.env`, service tokens, or signing keys. URL-encode reserved characters in database and broker passwords.
 
-To use the Docker-based Newman runner, set `SESSION_SERVICE_TOKEN` and `MODERATION_SERVICE_TOKEN`, then run `python tools/player-service/run_postman.py` from the CPR root. The runner calls Player through `host.docker.internal:8001` by default. For a Docker network, set `POSTMAN_DOCKER_NETWORK` and `PLAYER_URL` to its network name and Player URL. The collection sends only Player requests and uses authenticated internal event fixtures to test XP and duplicate delivery.
+| Setting | Required value |
+| --- | --- |
+| `DATABASE_URL` | `postgresql+psycopg://player:<password>@player-db:5432/player_db` for the shared deployment. |
+| `JWT_PRIVATE_KEY_PATH` | `/app/data/player-private.pem`; keep `/app/data` on a named volume so existing tokens remain verifiable after recreation. |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | `student-id-please` and `student-id-players`. Session and other token consumers must use the same values. |
+| `SERVICE_TOKENS` | JSON map with distinct `session` and `moderation` credentials accepted by Player's internal endpoints. |
+| `RABBITMQ_URL`, `RABBITMQ_EXCHANGE` | Reachable broker URL, for example `amqp://studentid:<password>@rabbitmq:5672/`, and `student-id.events.v1`. |
 
-Verification should cover password privacy, token rotation, friendship and team authorization, duplicate event delivery, and XP after a completed shift. The later team deployment must verify that Player records and its public signing key survive container recreation.
+The shared Compose deployment is a separate team task. Its current Player portion uses these containers on one network:
+
+| Container | Image and startup | Storage and access |
+| --- | --- | --- |
+| `player-db` | `postgres:17-alpine`; create database `player_db` and user `player`; wait for `pg_isready -U player -d player_db`. | Persist `/var/lib/postgresql/data`. Keep port `5432` private. |
+| `rabbitmq` | `rabbitmq:4.1-management-alpine`; configure broker credentials and wait for `rabbitmq-diagnostics -q ping`. | Persist `/var/lib/rabbitmq`. Keep broker ports private. |
+| `player` | Run the versioned image after PostgreSQL and RabbitMQ are healthy. | Persist `/app/data` for the RSA key; bind API port `8001` to `127.0.0.1:8001` for a local check. |
+
+To start the published image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put the values above in `.env`, then run from the directory containing it in PowerShell:
+
+```powershell
+docker pull tirppy/student-id-player-service:1.0.0-rc.2
+docker run --rm --network $env:TEAM_NETWORK --env-file .env -v player-keys:/app/data -p 127.0.0.1:8001:8001 tirppy/student-id-player-service:1.0.0-rc.2
+```
+
+`GET /health` checks the API process. `GET /ready` checks configured dependencies. `GET /.well-known/jwks.json` exposes the public verification key. The [private run guide](https://github.com/Tirppy/student-id-player-service/blob/dev/docs/running.md) covers source and isolated SQLite setup. The shared deployment must confirm that PostgreSQL records and the verification key survive container recreation.
+
+The [Player Postman collection](../../postman/player-service.json) creates its test records, so it needs no seed data. Import it into Postman, set `player_url`, `session_token`, and `moderation_token` in a local environment, then run it in order. Its default URL is `http://localhost:8001`. Player's `SERVICE_TOKENS` map must contain the matching `session` and `moderation` values. The collection covers authentication, friendships, teams, XP fixtures, and duplicate event delivery.
+
+For the Docker-based Newman runner, set `SESSION_SERVICE_TOKEN` and `MODERATION_SERVICE_TOKEN`, then run `python tools/player-service/run_postman.py` from the CPR root. It calls Player through `host.docker.internal:8001` by default. If Player is on a Docker network, set `POSTMAN_DOCKER_NETWORK` and `PLAYER_URL` to that network and Player's URL. Keep all test credentials out of Git.
