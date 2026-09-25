@@ -2,7 +2,7 @@
 
 Student ID, please is a game about moderating a university Discord server. The Lab 0 design splits the game into the services listed below. Players compare applicants' claims and credentials with university records and the rules for the current shift.
 
-This README defines the shared service contracts. The Lab 1 Player and Server Moderation Session implementations run together with PostgreSQL, Redis, and RabbitMQ. Session uses contract-compatible mocks for the unavailable teammate services. See the [Player and Session Postman verification guide](docs/lab-1/postman-verification.md) for test setup.
+This README defines the shared service contracts. The Lab 1 Player and Server Moderation Session implementations run together with PostgreSQL, Redis, and RabbitMQ. Session uses contract-compatible mocks for the unavailable teammate services. Their [service READMEs](docs/services/) describe verification with the separate Postman collections.
 
 During a shift, Junior Moderators can inspect only their assigned records. They share their findings in WebSocket chat channels, and the Moderator decides whether to accept, reject, flag, or ban each applicant. Player progression carries across shifts.
 
@@ -1098,10 +1098,10 @@ Both images target Linux AMD64. Player needs a writable database and persistent 
 
 - [Player run instructions](https://github.com/Tirppy/student-id-player-service/blob/dev/docs/running.md)
 - [Session run instructions](https://github.com/Tirppy/student-id-session-service/blob/dev/docs/running.md)
-- [Player and Session Postman verification guide](docs/lab-1/postman-verification.md)
 - [Player Postman collection](postman/player-service.json)
 - [Session Postman collection](postman/session-service.json)
-- [Player and Session Lab 1 contract additions](docs/lab-1/player-session-contract-additions.md)
+- [Player integration and verification README](docs/services/README.player.md)
+- [Session integration and verification README](docs/services/README.session.md)
 
 The Session collection contains only Session endpoints. Its runner creates a Player team before Newman starts, then runs Session against typed mocks for unavailable teammate services. The Player collection tests its own endpoints and progression with authenticated event fixtures.
 
