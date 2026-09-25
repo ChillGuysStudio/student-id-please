@@ -43,7 +43,7 @@ Player-facing routes require an RS256 Bearer token. Mutations require a UUID `Id
 
 ## Storage and Lab 1 deployment
 
-The public, versioned image is [`sentientmoss/pad-moderation-service:0.1.1`](https://hub.docker.com/r/sentientmoss/pad-moderation-service/tags). It serves container port `8000`. Keep PostgreSQL data in a named volume. Add a broker volume in the shared deployment if confirmed events must survive broker recreation. PostgreSQL outbox rows remain pending until the broker confirms them. The API creates its tables on startup; the publisher must run as a separate process from the same image.
+The public, versioned image is [`sentientmoss/pad-moderation-service:0.1.2`](https://hub.docker.com/r/sentientmoss/pad-moderation-service/tags). It serves container port `8000`. Keep PostgreSQL data in a named volume. Add a broker volume in the shared deployment if confirmed events must survive broker recreation. PostgreSQL outbox rows remain pending until the broker confirms them. The API creates its tables on startup; the publisher must run as a separate process from the same image.
 
 Set these values in a local `.env`. Do not commit `.env`, tokens, or keys.
 
@@ -68,18 +68,18 @@ Set `JWT_ISSUER` and `JWT_AUDIENCE` to the claims in Player's issued access toke
 To start the published API against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put `.env` and `player-public.pem` in the current directory. Make the public key readable by the image's non-root user, UID `65532`. Set `MOCK_CONTRACT_FILE` to an empty value for real upstreams.
 
 ```sh
-docker pull sentientmoss/pad-moderation-service:0.1.1
+docker pull sentientmoss/pad-moderation-service:0.1.2
 docker run --rm --network "$TEAM_NETWORK" --env-file .env \
   -e JWT_PUBLIC_KEY_FILE=/run/secrets/player-public.pem \
   -v "$PWD/player-public.pem:/run/secrets/player-public.pem:ro" \
-  -p 127.0.0.1:8008:8000 sentientmoss/pad-moderation-service:0.1.1
+  -p 127.0.0.1:8008:8000 sentientmoss/pad-moderation-service:0.1.2
 ```
 
 Run the publisher in another terminal with the same `.env` and network:
 
 ```sh
 docker run --rm --network "$TEAM_NETWORK" --env-file .env \
-  sentientmoss/pad-moderation-service:0.1.1 python -m moderation.publisher
+  sentientmoss/pad-moderation-service:0.1.2 python -m moderation.publisher
 ```
 
 `curl -fsS http://127.0.0.1:8008/healthz` checks the API process, not upstream access or event consumption. Configure the six upstreams and RabbitMQ consumers before testing a live decision. The shared Compose file is a separate team task.
@@ -88,7 +88,7 @@ To seed an empty Moderation database, run the seed module shipped in the public 
 
 ```sh
 docker run --rm --network "$TEAM_NETWORK" --env-file .env \
-  sentientmoss/pad-moderation-service:0.1.1 python -m moderation.seed
+  sentientmoss/pad-moderation-service:0.1.2 python -m moderation.seed
 ```
 
 The seed command inserts one sample ban and leaves existing data unchanged. The [Moderation Postman collection](../../postman/moderation-service.json) tests decisions, bans, discipline, idempotency, and dependency failures. Supply valid local Bearer tokens in Postman; the collection contains none.
