@@ -1129,8 +1129,11 @@
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "const rows = JSON.parse(pm.collectionVariables.get('crud_queue'));",
-                  "const row = rows[Number(pm.collectionVariables.get('crud_index'))];",
+                  "let rows = [];",
+                  "try { rows = JSON.parse(pm.collectionVariables.get('crud_queue')) || []; } catch (ignore) { rows = []; }",
+                  "if (!Array.isArray(rows)) rows = [];",
+                  "const row = rows[Number(pm.collectionVariables.get('crud_index')) || 0];",
+                  "if (row) {",
                   "pm.collectionVariables.set('crud_id', row.reference_id);",
                   "pm.collectionVariables.set('crud_kind', row.kind);",
                   "const body = {kind: row.kind, subject_id: row.subject_id, data: row.data};",
@@ -1138,7 +1141,11 @@
                   "if (row.kind === 'course') body.data.title = 'Replaced course';",
                   "if (row.kind === 'fcim_message') body.data.text = 'Replaced message';",
                   "if (row.kind === 'enrollment') body.data.first_name = 'Larisa';",
-                  "pm.collectionVariables.set('crud_body', JSON.stringify(body));"
+                  "pm.collectionVariables.set('crud_body', JSON.stringify(body));",
+                  "} else {",
+                  "if (!pm.collectionVariables.get('crud_kind')) pm.collectionVariables.set('crud_kind', 'reference');",
+                  "console.log('No loop queue: using manually set crud_id ' + pm.collectionVariables.get('crud_id'));",
+                  "}"
                 ]
               }
             },
@@ -1146,12 +1153,12 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('GET ' + pm.collectionVariables.get('crud_kind'), () => pm.response.to.have.status(200));"
+                  "pm.test('GET ' + (pm.collectionVariables.get('crud_kind') || 'reference'), () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ],
-          "description": "Reads the current loop reference. Expects 200."
+          "description": "Reads the current loop reference. Expects 200. Standalone: set crud_id to any reference ID first."
         },
         {
           "name": "Replace each reference",
@@ -1182,14 +1189,16 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('PUT ' + pm.collectionVariables.get('crud_kind'), () => pm.response.to.have.status(200));",
-                  "pm.test('replacement data persisted', () => pm.expect(pm.response.json().data).to.deep.eql(JSON.parse(pm.collectionVariables.get('crud_body')).data));",
+                  "pm.test('PUT ' + (pm.collectionVariables.get('crud_kind') || 'reference'), () => pm.response.to.have.status(200));",
+                  "let expected = null;",
+                  "try { expected = JSON.parse(pm.collectionVariables.get('crud_body')).data; } catch (ignore) { expected = null; }",
+                  "if (expected !== null) pm.test('replacement data persisted', () => pm.expect(pm.response.json().data).to.deep.eql(expected));",
                   "pm.test('reference identity retained', () => pm.expect(pm.response.json().reference_id).to.eql(pm.collectionVariables.get('crud_id')));"
                 ]
               }
             }
           ],
-          "description": "Replaces the current loop reference. Expects 200 with persisted data and retained identity."
+          "description": "Replaces the current loop reference. Expects 200 with persisted data and retained identity. Standalone: set crud_id and crud_body (a full UniversityDataInput JSON) first."
         },
         {
           "name": "Delete each reference",
@@ -1212,13 +1221,13 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('DELETE ' + pm.collectionVariables.get('crud_kind'), () => pm.response.to.have.status(204));",
+                  "pm.test('DELETE ' + (pm.collectionVariables.get('crud_kind') || 'reference'), () => pm.response.to.have.status(204));",
                   "pm.test('empty delete result', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
           ],
-          "description": "Deletes the current loop reference. Expects an empty 204."
+          "description": "Deletes the current loop reference. Expects an empty 204. Standalone: set crud_id to any reference ID first."
         },
         {
           "name": "Confirm each reference was deleted",
@@ -1237,15 +1246,18 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('deleted ' + pm.collectionVariables.get('crud_kind') + ' is absent', () => pm.response.to.have.status(404));",
-                  "const index = Number(pm.collectionVariables.get('crud_index')) + 1;",
+                  "pm.test('deleted ' + (pm.collectionVariables.get('crud_kind') || 'reference') + ' is absent', () => pm.response.to.have.status(404));",
+                  "let queue = [];",
+                  "try { queue = JSON.parse(pm.collectionVariables.get('crud_queue')) || []; } catch (ignore) { queue = []; }",
+                  "if (!Array.isArray(queue)) queue = [];",
+                  "const index = (Number(pm.collectionVariables.get('crud_index')) || 0) + 1;",
                   "pm.collectionVariables.set('crud_index', index);",
-                  "if (index < JSON.parse(pm.collectionVariables.get('crud_queue')).length) pm.execution.setNextRequest('Read each reference');"
+                  "if (queue.length > 0 && index < queue.length && pm.execution) pm.execution.setNextRequest('Read each reference');"
                 ]
               }
             }
           ],
-          "description": "Reads back the deleted reference and advances the loop. Expects 404."
+          "description": "Reads back the deleted reference and advances the loop. Expects 404. Standalone: set crud_id to any reference ID first."
         },
         {
           "name": "Case remains immutable after reference deletion",
@@ -1273,7 +1285,7 @@
           "description": "Re-reads the case after all deletions. Expects the byte-for-byte identical record set."
         }
       ],
-      "description": "Loops read, replace, delete, and read-again over every reference kind, then proves the case is unchanged. Run the whole folder in the Runner; single requests depend on the collector."
+      "description": "Loops read, replace, delete, and read-again over every reference kind, then proves the case is unchanged. Run the whole folder in the Runner, or send requests individually after setting crud_id manually (Replace also needs crud_body)."
     }
   ]
 }
