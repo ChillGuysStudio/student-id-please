@@ -238,3 +238,23 @@ Transient consumer failures retry after 1, 5, and 30 seconds. The consumer then 
 - Person-record coverage includes staff nullability, alumni evidence, registration versus course existence, and duplicate subject identifiers.
 - Concurrency coverage reserves the same cohort and name at the same time. IDs remain unpadded and increasing. Emails use no suffix, then `1`, then `2`. No value is reused after deletion or failure.
 - Authorization and delivery coverage includes every record-kind permission, wrong-session requests, pending cases, duplicate events, and conflict quarantine.
+
+## Storage and Lab 1 deployment
+
+The public image is `maxnoragami/university-record-service:<version>` ([published tags](https://hub.docker.com/r/maxnoragami/university-record-service/tags)). To pin a release, set `IMAGE_TAG` in your shell, for example `export IMAGE_TAG=1.0.0`. Leave `IMAGE_TAG` unset to use `latest`, which changes with new releases.
+
+The API listens on container port `8080`. Bind it to `127.0.0.1:8080` for a local check. The service uses `mongo:7.0` as a single-node replica set named `rs0`, because reference writes, identity claims, and idempotency records commit in multi-document transactions, which require a replica set. The replica-set keyfile is container-local and regenerates on recreation; only `/data/db` needs a persistent volume. The Compose healthcheck initializes the replica set on first boot.
+
+Set these values in a local `.env`. Do not commit `.env` or tokens.
+
+| Setting | Required value |
+| --- | --- |
+| `MONGO_DATABASE`, `MONGO_PORT`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD` | Database name, host port, and root credentials for the local MongoDB. |
+| `ADMIN_TOKEN`, `SERVICE_TOKEN` | Static bearer tokens for admin routes and internal routes. Verified Player and service credentials replace them in a later lab. |
+
+The later shared deployment needs these containers on one network.
+
+| Container | Image and startup | Storage and access |
+| --- | --- | --- |
+| `mongodb` | `mongo:7.0` with `--replSet rs0`; wait for the healthcheck to report healthy (replica-set primary elected). | Persist `/data/db` in a named volume such as `mongodb-data`. Do not publish port `27017` to clients. |
+| `university-record-service` | Run the versioned image after MongoDB is healthy. | Container port `8080`, optionally bound to `127.0.0.1:8080`. |
