@@ -1,0 +1,756 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4789-abcd-ef0123456789",
+    "name": "Server Rules Service local workflow",
+    "description": "Creates a draft ruleset, checks CRUD and publication guards, evaluates the CPR baseline fixtures, and reads the current version. Designed for repeated runs against a live database.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "admin_token",
+      "value": "local-admin-token"
+    },
+    {
+      "key": "player_token",
+      "value": "local-player-token"
+    },
+    {
+      "key": "session_token",
+      "value": "local-session-token"
+    },
+    {
+      "key": "moderation_token",
+      "value": "local-moderation-token"
+    }
+  ],
+  "item": [
+    {
+      "name": "Draft rules",
+      "item": [
+        {
+          "name": "Create draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{draft_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rules\":[{\"rule_id\":\"{{rule_id}}\",\"priority\":5,\"kind\":\"major\",\"applies_to_roles\":[\"student\"],\"on_match\":\"reject\",\"allowed_channels\":[],\"condition\":{\"allowed_majors\":[\"FAF\"]}}],\"default_action\":\"reject\",\"default_channels\":[]}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('draft_key', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('rule_id', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('publish_key', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('missing_id', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('draft created', () => pm.response.to.have.status(201));",
+                  "pm.test('draft status', () => pm.expect(pm.response.json().status).to.eql('draft'));",
+                  "pm.collectionVariables.set('draft_id', pm.response.json().rule_version);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates a draft ruleset with one major rule. Expects 201 with status draft, and stores the rule version."
+        },
+        {
+          "name": "Replay draft creation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{draft_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rules\":[{\"rule_id\":\"{{rule_id}}\",\"priority\":5,\"kind\":\"major\",\"applies_to_roles\":[\"student\"],\"on_match\":\"reject\",\"allowed_channels\":[],\"condition\":{\"allowed_majors\":[\"FAF\"]}}],\"default_action\":\"reject\",\"default_channels\":[]}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('creation replayed', () => pm.response.to.have.status(201));",
+                  "pm.test('same version replayed', () => pm.expect(pm.response.json().rule_version).to.eql(pm.collectionVariables.get('draft_id')));"
+                ]
+              }
+            }
+          ],
+          "description": "Re-sends creation with the same idempotency key. Expects the original 201 and rule version."
+        },
+        {
+          "name": "Reject changed idempotent request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{draft_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rules\":[],\"default_action\":\"reject\",\"default_channels\":[]}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('idempotency conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('uses idempotency code', () => pm.expect(pm.response.json().code).to.eql('IDEMPOTENCY_CONFLICT'));"
+                ]
+              }
+            }
+          ],
+          "description": "Reuses the creation key with a different body. Expects 409 IDEMPOTENCY_CONFLICT."
+        },
+        {
+          "name": "Read draft as admin",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('draft read', () => pm.response.to.have.status(200));",
+                  "pm.test('identity preserved', () => pm.expect(pm.response.json().rule_version).to.eql(pm.collectionVariables.get('draft_id')));"
+                ]
+              }
+            }
+          ],
+          "description": "Reads the draft back. Expects 200 with the same rule version."
+        },
+        {
+          "name": "Reject draft read as player",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{player_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('draft hidden from players', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "description": "Players cannot read drafts. Expects 403."
+        },
+        {
+          "name": "Reject unauthenticated list",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/admin/rule-versions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('authentication required', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "description": "Lists without a token. Expects 401."
+        },
+        {
+          "name": "Read missing ruleset",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rule-versions/{{missing_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('missing ruleset', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "description": "Reads an unknown rule version. Expects 404."
+        },
+        {
+          "name": "List drafts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/rule-versions?limit=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('listed', () => pm.response.to.have.status(200));",
+                  "pm.test('contains draft', () => pm.expect(pm.response.json().items.some(item => item.rule_version === pm.collectionVariables.get('draft_id'))).to.be.true);",
+                  "pm.collectionVariables.set('list_cursor', pm.response.json().next_cursor || '');"
+                ]
+              }
+            }
+          ],
+          "description": "Lists rulesets with limit 10. Expects 200 containing the draft."
+        },
+        {
+          "name": "Reject invalid page limit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/rule-versions?limit=101"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('invalid limit rejected', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "description": "limit=101 is outside the 1-100 range. Expects 422."
+        },
+        {
+          "name": "Reject invalid ruleset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rules\":[{\"rule_id\":\"{{rule_id}}\",\"priority\":-1,\"kind\":\"major\",\"applies_to_roles\":[\"student\"],\"on_match\":\"reject\",\"allowed_channels\":[],\"condition\":{\"allowed_majors\":[\"FAF\"]}}],\"default_action\":\"reject\",\"default_channels\":[]}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('invalid ruleset rejected', () => pm.response.to.have.status(422));",
+                  "pm.test('uses ruleset code', () => pm.expect(pm.response.json().code).to.eql('INVALID_RULESET'));"
+                ]
+              }
+            }
+          ],
+          "description": "A negative priority violates the contract bounds. Expects 422 INVALID_RULESET."
+        },
+        {
+          "name": "Replace draft",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rules\":[{\"rule_id\":\"{{rule_id}}\",\"priority\":5,\"kind\":\"major\",\"applies_to_roles\":[\"student\"],\"on_match\":\"reject\",\"allowed_channels\":[],\"condition\":{\"allowed_majors\":[\"FAF\"]}}],\"default_action\":\"accept\",\"default_channels\":[\"general\"]}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('draft replaced', () => pm.response.to.have.status(200));",
+                  "pm.test('default updated', () => pm.expect(pm.response.json().default_action).to.eql('accept'));"
+                ]
+              }
+            }
+          ],
+          "description": "Fully replaces the draft default. Expects 200 with the updated default."
+        },
+        {
+          "name": "Publish draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{publish_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}/publish"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('published', () => pm.response.to.have.status(200));",
+                  "pm.test('published status', () => pm.expect(pm.response.json().status).to.eql('published'));"
+                ]
+              }
+            }
+          ],
+          "description": "Publishes the draft with an empty object. Expects 200 with status published."
+        },
+        {
+          "name": "Replay publication",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{publish_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}/publish"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('publication replayed', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "description": "Replays publication with the original key. Expects the original 200."
+        },
+        {
+          "name": "Reject republish with new key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}/publish"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('republish rejected', () => pm.response.to.have.status(409));",
+                  "pm.test('uses published code', () => pm.expect(pm.response.json().code).to.eql('RULE_VERSION_ALREADY_PUBLISHED'));"
+                ]
+              }
+            }
+          ],
+          "description": "Publishes an already published version with a fresh key. Expects 409 RULE_VERSION_ALREADY_PUBLISHED."
+        },
+        {
+          "name": "Reject published replacement",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rules\":[],\"default_action\":\"reject\",\"default_channels\":[]}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('published replacement rejected', () => pm.response.to.have.status(409));",
+                  "pm.test('uses immutable code', () => pm.expect(pm.response.json().code).to.eql('RULE_VERSION_IMMUTABLE'));"
+                ]
+              }
+            }
+          ],
+          "description": "Replaces a published version. Expects 409 RULE_VERSION_IMMUTABLE."
+        },
+        {
+          "name": "Reject published deletion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('published deletion rejected', () => pm.response.to.have.status(409));",
+                  "pm.test('uses immutable code', () => pm.expect(pm.response.json().code).to.eql('RULE_VERSION_IMMUTABLE'));"
+                ]
+              }
+            }
+          ],
+          "description": "Deletes a published version. Expects 409 RULE_VERSION_IMMUTABLE."
+        },
+        {
+          "name": "Read published version as player",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{player_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rule-versions/{{draft_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('published visible to players', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "description": "Published versions are visible to players. Expects 200."
+        },
+        {
+          "name": "Delete disposable draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rules\":[],\"default_action\":\"reject\",\"default_channels\":[]}"
+            },
+            "url": "{{base_url}}/api/v1/rule-versions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('disposable draft created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('disposable_id', pm.response.json().rule_version);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates a throwaway draft for the delete flow. Expects 201 and stores its ID."
+        },
+        {
+          "name": "Confirm disposable deletion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{delete_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rule-versions/{{disposable_id}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('delete_key', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('draft deleted', () => pm.response.to.have.status(204));",
+                  "pm.test('delete body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ],
+          "description": "Deletes the throwaway draft. Expects an empty 204."
+        },
+        {
+          "name": "Replay disposable deletion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{delete_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/rule-versions/{{disposable_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('delete replayed', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "description": "Replays the delete with the original key. Expects 204."
+        }
+      ],
+      "description": "Draft lifecycle: create, read, replace, publish, and their guards."
+    },
+    {
+      "name": "Read current version",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{session_token}}"
+          }
+        ],
+        "url": "{{base_url}}/internal/v1/rule-versions/current"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('current version read', () => pm.response.to.have.status(200));",
+              "pm.test('current is published', () => pm.expect(pm.response.json().status).to.eql('published'));",
+              "pm.collectionVariables.set('current_id', pm.response.json().rule_version);"
+            ]
+          }
+        }
+      ],
+      "description": "Reads the current published ruleset as Session. Expects 200 with status published."
+    },
+    {
+      "name": "Evaluate FAF year 2 case",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{moderation_token}}"
+          },
+          {
+            "key": "X-Player-Id",
+            "value": "33333333-3333-4333-8333-333333333333"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"session_id\":\"11111111-1111-4111-8111-111111111111\",\"case_id\":\"22222222-2222-4222-8222-222222222222\",\"rule_version\":\"88888888-8888-4888-8888-888888888888\",\"claims\":{\"first_name\":\"Eliza\",\"last_name\":\"Caraman\",\"student_id\":\"{{major}}-25-1\",\"major\":\"{{major}}\",\"year\":2,\"university_status\":\"active\",\"courses\":[],\"role\":\"student\",\"email\":\"eliza.caraman@isa.utm.md\"},\"subject_id\":\"{{subject_id}}\",\"reference_at\":\"2026-09-10T10:00:00Z\",\"credentials\":[{\"credential_id\":\"{{credential_id}}\",\"case_id\":\"22222222-2222-4222-8222-222222222222\",\"kind\":\"enrollment_confirmation\",\"holder_first_name\":\"Eliza\",\"holder_last_name\":\"Caraman\",\"student_id\":\"{{major}}-25-1\",\"issuer\":\"SIM-REGISTRY\",\"issued_at\":\"2026-09-01T00:00:00Z\",\"expires_at\":null,\"data\":{\"major\":\"{{major}}\",\"year\":2,\"status\":\"active\",\"role\":\"student\",\"enrolled_since\":\"2025-09-01T00:00:00Z\",\"academic_year\":\"2026-2027\",\"confirmation_number\":\"CONF-1\"}}],\"validations\":[{\"credential_id\":\"{{credential_id}}\",\"structurally_valid\":true,\"authentic\":true,\"expired\":false,\"issues\":[],\"checked_at\":\"2026-09-10T10:00:00Z\"}],\"university_records\":[{\"record_id\":\"{{enrollment_id}}\",\"case_id\":\"22222222-2222-4222-8222-222222222222\",\"kind\":\"enrollment\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"student_id\":\"{{major}}-25-1\",\"first_name\":\"Eliza\",\"last_name\":\"Caraman\",\"major\":\"{{major}}\",\"year\":2,\"status\":\"active\",\"enrolled_since\":\"2025-09-01T00:00:00Z\",\"role\":\"student\"}},{\"record_id\":\"{{outlook_id}}\",\"case_id\":\"22222222-2222-4222-8222-222222222222\",\"kind\":\"outlook_group\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"email\":\"eliza.caraman@isa.utm.md\",\"group_name\":\"students\",\"member\":true}},{\"record_id\":\"{{year_id}}\",\"case_id\":\"22222222-2222-4222-8222-222222222222\",\"kind\":\"academic_year\",\"subject_id\":null,\"data\":{\"label\":\"2026-2027\",\"starts_at\":\"2026-09-01T00:00:00Z\",\"ends_at\":\"2027-09-01T00:00:00Z\"}}],\"active_bans\":[],\"prior_decisions\":[]}"
+        },
+        "url": "{{base_url}}/internal/v1/policy/evaluations"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const major = 'P' + Math.random().toString(36).slice(2, 5).toUpperCase().replace(/[^A-Z]/g, 'A');",
+              "pm.collectionVariables.set('major', major.slice(0, 4));",
+              "pm.collectionVariables.set('subject_id', pm.variables.replaceIn('{{$guid}}'));",
+              "pm.collectionVariables.set('credential_id', pm.variables.replaceIn('{{$guid}}'));",
+              "pm.collectionVariables.set('enrollment_id', pm.variables.replaceIn('{{$guid}}'));",
+              "pm.collectionVariables.set('outlook_id', pm.variables.replaceIn('{{$guid}}'));",
+              "pm.collectionVariables.set('year_id', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('evaluation returned', () => pm.response.to.have.status(200));",
+              "pm.test('non-FAF major rejected', () => pm.expect(pm.response.json().expected_action).to.eql('reject'));",
+              "pm.test('major requirement cited', () => pm.expect(pm.response.json().reasons).to.include('MAJOR_REQUIREMENT'));"
+            ]
+          }
+        }
+      ],
+      "description": "Evaluates evidence against the pinned baseline rules. The random non-FAF major fails its requirement, so it expects 200 with reject and MAJOR_REQUIREMENT."
+    }
+  ]
+}
