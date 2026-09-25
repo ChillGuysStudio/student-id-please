@@ -1087,12 +1087,12 @@ Reviewers check:
 
 ## Lab 1 delivery
 
-| Service | Versioned public Docker Hub image | HTTP port |
+| Service | Docker Hub image for team deployment | HTTP port |
 | --- | --- | --- |
-| Player | [`tirppy/student-id-player-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-player-service) | `8001` |
-| Server Moderation Session | [`tirppy/student-id-session-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
+| Player | [`tirppy/student-id-player-service:latest`](https://hub.docker.com/r/tirppy/student-id-player-service) | `8001` |
+| Server Moderation Session | [`tirppy/student-id-session-service:latest`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
 
-The `rc.2` tag identifies the Lab 1 review build. Create the final Git release tag on `main` after the required reviews and merges.
+The team will use the `latest` image tags. Publish both tags before pulling the images. Create the final Git release tag on `main` after the required reviews and merges.
 
 Both images target Linux AMD64. Player needs a writable database and persistent signing-key path. Session needs its own writable database and a reachable Player API; Redis caches live views, and RabbitMQ delivers shift results to Player. The service READMEs describe the exact environment variables. A separate team PR will supply the common image-based deployment and persistent volumes.
 

@@ -107,7 +107,7 @@ An unfinished case, including a scoring event still in transit, prevents shift e
 
 ## Storage and Lab 1 deployment
 
-The published image is [`tirppy/student-id-session-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). It listens on container port `8002` and runs as a non-root user. Pin this version for the Lab 1 review. Session needs its own PostgreSQL database, real Player calls, Redis caching, and RabbitMQ result delivery. PostgreSQL transaction locks serialize concurrent writes; Redis is not the authority for roles or scores. SQLite supports isolated development.
+The team deployment uses [`tirppy/student-id-session-service:latest`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). The image listens on container port `8002` and runs as a non-root user. Publish the `latest` tag before pulling it. Session needs its own PostgreSQL database, real Player calls, Redis caching, and RabbitMQ result delivery. PostgreSQL transaction locks serialize concurrent writes; Redis is not the authority for roles or scores. SQLite supports isolated development.
 
 Set these values in a local `.env`. Do not commit `.env` or service tokens. URL-encode reserved characters in database and broker passwords.
 
@@ -130,13 +130,13 @@ The shared Compose deployment is a separate team task. Its current Session porti
 | `redis` | `redis:7.4-alpine`; wait for `redis-cli ping`. | Live cache entries may expire or be rebuilt; no durable volume is needed for Session data. |
 | `rabbitmq` | `rabbitmq:4.1-management-alpine`; configure broker credentials and wait for `rabbitmq-diagnostics -q ping`. | Persist `/var/lib/rabbitmq`. Keep broker ports private. |
 | `player` | Start the published Player image after its database and RabbitMQ are healthy. | Expose its API to Session on the deployment network. |
-| `session` | Run the versioned image after PostgreSQL, Redis, RabbitMQ, and Player are healthy. | Bind API port `8002` to `127.0.0.1:8002` for a local check. |
+| `session` | Run the image after PostgreSQL, Redis, RabbitMQ, and Player are healthy. | Bind API port `8002` to `127.0.0.1:8002` for a local check. |
 
-To start the published image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put the values above in `.env`, then run from the directory containing it in PowerShell:
+To start the image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put the values above in `.env`, then run from the directory containing it in PowerShell:
 
 ```powershell
-docker pull tirppy/student-id-session-service:1.0.0-rc.2
-docker run --rm --network $env:TEAM_NETWORK --env-file .env -p 127.0.0.1:8002:8002 tirppy/student-id-session-service:1.0.0-rc.2
+docker pull tirppy/student-id-session-service:latest
+docker run --rm --network $env:TEAM_NETWORK --env-file .env -p 127.0.0.1:8002:8002 tirppy/student-id-session-service:latest
 ```
 
 `GET /health` checks the API process. `GET /ready` checks configured dependencies. The [private run guide](https://github.com/Tirppy/student-id-session-service/blob/dev/docs/running.md) covers source and isolated SQLite setup. The shared deployment must confirm that Session totals, penalties, and snapshot IDs survive container recreation.

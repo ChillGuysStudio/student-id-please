@@ -82,7 +82,7 @@ Player records `(consumer, event_id)` and the shift or disciplinary business ID 
 
 ## Storage and Lab 1 deployment
 
-The published image is [`tirppy/student-id-player-service:1.0.0-rc.2`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). It listens on container port `8001` and runs as a non-root user. Pin this version for the Lab 1 review. Player needs its own PostgreSQL database, a persistent RSA signing key, and RabbitMQ for shift and discipline events. SQLite and authenticated HTTP event fixtures support isolated checks. Redis and Session tables do not belong to Player.
+The team deployment uses [`tirppy/student-id-player-service:latest`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). The image listens on container port `8001` and runs as a non-root user. Publish the `latest` tag before pulling it. Player needs its own PostgreSQL database, a persistent RSA signing key, and RabbitMQ for shift and discipline events. SQLite and authenticated HTTP event fixtures support isolated checks. Redis and Session tables do not belong to Player.
 
 Set these values in a local `.env`. Do not commit `.env`, service tokens, or signing keys. URL-encode reserved characters in database and broker passwords.
 
@@ -100,13 +100,13 @@ The shared Compose deployment is a separate team task. Its current Player portio
 | --- | --- | --- |
 | `player-db` | `postgres:17-alpine`; create database `player_db` and user `player`; wait for `pg_isready -U player -d player_db`. | Persist `/var/lib/postgresql/data`. Keep port `5432` private. |
 | `rabbitmq` | `rabbitmq:4.1-management-alpine`; configure broker credentials and wait for `rabbitmq-diagnostics -q ping`. | Persist `/var/lib/rabbitmq`. Keep broker ports private. |
-| `player` | Run the versioned image after PostgreSQL and RabbitMQ are healthy. | Persist `/app/data` for the RSA key; bind API port `8001` to `127.0.0.1:8001` for a local check. |
+| `player` | Run the image after PostgreSQL and RabbitMQ are healthy. | Persist `/app/data` for the RSA key; bind API port `8001` to `127.0.0.1:8001` for a local check. |
 
-To start the published image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put the values above in `.env`, then run from the directory containing it in PowerShell:
+To start the image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put the values above in `.env`, then run from the directory containing it in PowerShell:
 
 ```powershell
-docker pull tirppy/student-id-player-service:1.0.0-rc.2
-docker run --rm --network $env:TEAM_NETWORK --env-file .env -v player-keys:/app/data -p 127.0.0.1:8001:8001 tirppy/student-id-player-service:1.0.0-rc.2
+docker pull tirppy/student-id-player-service:latest
+docker run --rm --network $env:TEAM_NETWORK --env-file .env -v player-keys:/app/data -p 127.0.0.1:8001:8001 tirppy/student-id-player-service:latest
 ```
 
 `GET /health` checks the API process. `GET /ready` checks configured dependencies. `GET /.well-known/jwks.json` exposes the public verification key. The [private run guide](https://github.com/Tirppy/student-id-player-service/blob/dev/docs/running.md) covers source and isolated SQLite setup. The shared deployment must confirm that PostgreSQL records and the verification key survive container recreation.
