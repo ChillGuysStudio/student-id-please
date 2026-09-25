@@ -1,0 +1,400 @@
+{
+  "info": {
+    "name": "Student ID Lab 1 - Session Service",
+    "description": "Session API tests with a preconfigured Player team and mock external dependencies. The service runner creates the Player fixtures and passes team/player IDs and tokens to Newman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "session_url",
+      "value": "http://localhost:8002"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{moderator_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name = pm.info.requestName;",
+          "if (!['GET', 'HEAD'].includes(pm.request.method)) pm.request.headers.upsert({key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}')});",
+          "if (name === '200 Score current case') {",
+          "  pm.collectionVariables.set('score_event', JSON.stringify({event_id: pm.variables.replaceIn('{{$guid}}'), event_type: 'DecisionScored', schema_version: 1, occurred_at: new Date().toISOString(), producer: 'moderation', correlation_id: pm.collectionVariables.get('case_id'), payload: {decision_id: pm.variables.replaceIn('{{$guid}}'), session_id: pm.collectionVariables.get('session_id'), case_id: pm.collectionVariables.get('case_id'), moderator_id: pm.variables.get('moderator_id'), action: 'accept', correct: true, score_delta: 10, penalty: 0}}));",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name = pm.info.requestName;",
+          "pm.test('HTTP status matches contract', () => pm.response.to.have.status(Number(name.slice(0, 3))));",
+          "pm.test('Request ID is present', () => pm.expect(pm.response.headers.get('X-Request-ID')).to.be.a('string'));",
+          "if (pm.response.code !== 204) {",
+          "  const body = pm.response.json();",
+          "  const save = {'201 Create session': ['session_id', 'session_id'], '202 Create applicant case': ['case_id', 'case_id'], '201 Create disposable lobby': ['lobby_id', 'session_id']};",
+          "  if (save[name] && pm.response.code < 300) pm.collectionVariables.set(save[name][0], body[save[name][1]]);",
+          "  if (name === '200 Start shift') { pm.collectionVariables.set('university_snapshot_id', body.university_snapshot_id); pm.test('University snapshot is pinned', () => pm.expect(body.university_snapshot_id).to.match(/^[0-9a-f-]{36}$/)); }",
+          "  if (name === '200 Case readiness') pm.test('All three case owners are ready', () => pm.expect(body.ready_services).to.have.length(3));",
+          "  if (name === '200 Internal context') pm.test('Context uses the pinned snapshot', () => pm.expect(body.session.university_snapshot_id).to.eql(pm.collectionVariables.get('university_snapshot_id')));",
+          "  if (name === '200 Score current case') pm.test('Event applied', () => pm.expect(body.applied).to.eql(true));",
+          "  if (name === '200 Replay scoring event') pm.test('Duplicate ignored', () => pm.expect(body.applied).to.eql(false));",
+          "  if (name === '200 End shift') pm.test('Shift totals are correct', () => {pm.expect(body.status).to.eql('ended'); pm.expect(body.score).to.eql(10); pm.expect(body.processed_count).to.eql(1);});",
+          "  if (pm.response.code >= 400) pm.test('Typed error response', () => pm.expect(body).to.have.all.keys('code', 'message', 'request_id', 'details'));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Session lifecycle and scoring",
+      "item": [
+        {
+          "name": "200 Session health",
+          "request": {
+            "method": "GET",
+            "url": "{{session_url}}/health"
+          }
+        },
+        {
+          "name": "200 Session readiness",
+          "request": {
+            "method": "GET",
+            "url": "{{session_url}}/ready"
+          }
+        },
+        {
+          "name": "201 Create session",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"team_id\":\"{{team_id}}\"}"
+            }
+          }
+        },
+        {
+          "name": "409 Reject understaffed shift",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/start",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "200 Join junior1",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/participants",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{junior1_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "200 Join junior2",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/participants",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{junior2_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "200 Assign roles",
+          "request": {
+            "method": "PUT",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/roles",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"participants\":[{\"player_id\":\"{{moderator_id}}\",\"role\":\"moderator\"},{\"player_id\":\"{{junior1_id}}\",\"role\":\"junior_moderator\"},{\"player_id\":\"{{junior2_id}}\",\"role\":\"junior_moderator\"}]}"
+            }
+          }
+        },
+        {
+          "name": "200 List sessions",
+          "request": {
+            "method": "GET",
+            "url": "{{session_url}}/api/v1/sessions"
+          }
+        },
+        {
+          "name": "200 Read session",
+          "request": {
+            "method": "GET",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}"
+          }
+        },
+        {
+          "name": "200 Start shift",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/start",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "403 Reject Junior Moderator case creation",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/cases",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{junior1_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entry_service\":\"applicant\"}"
+            }
+          }
+        },
+        {
+          "name": "202 Create applicant case",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/cases",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entry_service\":\"applicant\"}"
+            }
+          }
+        },
+        {
+          "name": "409 Reject premature end",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/end",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "200 Case readiness",
+          "request": {
+            "method": "GET",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/cases/{{case_id}}/status"
+          }
+        },
+        {
+          "name": "200 Internal context",
+          "request": {
+            "method": "GET",
+            "url": "{{session_url}}/internal/v1/sessions/{{session_id}}/context?player_id={{moderator_id}}",
+            "header": [
+              {
+                "key": "X-Service-Name",
+                "value": "moderation"
+              },
+              {
+                "key": "X-Service-Token",
+                "value": "{{moderation_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "200 Score current case",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/internal/v1/events",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Service-Name",
+                "value": "moderation"
+              },
+              {
+                "key": "X-Service-Token",
+                "value": "{{moderation_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{score_event}}"
+            }
+          }
+        },
+        {
+          "name": "200 Replay scoring event",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/internal/v1/events",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Service-Name",
+                "value": "moderation"
+              },
+              {
+                "key": "X-Service-Token",
+                "value": "{{moderation_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{score_event}}"
+            }
+          }
+        },
+        {
+          "name": "200 End shift",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/end",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "201 Create disposable lobby",
+          "request": {
+            "method": "POST",
+            "url": "{{session_url}}/api/v1/sessions",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"team_id\":\"{{team_id}}\"}"
+            }
+          }
+        },
+        {
+          "name": "204 Delete lobby",
+          "request": {
+            "method": "DELETE",
+            "url": "{{session_url}}/api/v1/sessions/{{lobby_id}}"
+          }
+        }
+      ]
+    }
+  ]
+}
