@@ -1,0 +1,361 @@
+name: student-id-lab1
+services:
+  player-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: player_db
+      POSTGRES_USER: player
+      POSTGRES_PASSWORD: ${PLAYER_DB_PASSWORD:?Set PLAYER_DB_PASSWORD in .env}
+    volumes:
+      - player-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U player -d player_db']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  session-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: session_db
+      POSTGRES_USER: session
+      POSTGRES_PASSWORD: ${SESSION_DB_PASSWORD:?Set SESSION_DB_PASSWORD in .env}
+    volumes:
+      - session-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U session -d session_db']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  moderation-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: moderation
+      POSTGRES_USER: moderation
+      POSTGRES_PASSWORD: ${MODERATION_DB_PASSWORD:?Set MODERATION_DB_PASSWORD in .env}
+    volumes:
+      - moderation-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U moderation -d moderation']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  dms-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: discord_dms
+      POSTGRES_USER: discord_dms
+      POSTGRES_PASSWORD: ${DMS_DB_PASSWORD:?Set DMS_DB_PASSWORD in .env}
+    volumes:
+      - dms-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U discord_dms -d discord_dms']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: studentid
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+    volumes:
+      - broker-data:/var/lib/rabbitmq
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7.4-alpine
+    command: [redis-server, --requirepass, '${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    healthcheck:
+      test: [CMD-SHELL, 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  mongodb:
+    # Pinned to 7.0: MongoDB 8.x refuses to start on Linux kernel 6.19+ (SERVER-121912).
+    image: mongo:7.0
+    command: [mongod, --replSet, rs0, --bind_ip_all]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --eval '
+          try { rs.status(); }
+          catch (e) { if (e.codeName === "NotYetInitialized") { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongodb:27017"}]}); } else { throw e; } }
+          if (!db.hello().isWritablePrimary) quit(1);'
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+  player:
+    image: tirppy/student-id-player-service:${SERVICE_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
+      JWT_PRIVATE_KEY_PATH: /app/data/player-private.pem
+      SERVICE_TOKENS: '{"session":"${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}","moderation":"${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}"}'
+      RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    ports:
+      - '127.0.0.1:8001:8001'
+    volumes:
+      - player-keys:/app/data
+    depends_on:
+      player-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+  session:
+    image: tirppy/student-id-session-service:${SERVICE_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
+      PLAYER_URL: http://player:8001
+      PLAYER_JWKS_URL: http://player:8001/.well-known/jwks.json
+      PLAYER_MODE: http
+      EXTERNAL_SERVICES_MODE: mock
+      OUTGOING_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
+      SERVICE_TOKENS: '{"moderation":"${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}","dms":"${DISCORD_DMS_SERVICE_TOKEN:?Set DISCORD_DMS_SERVICE_TOKEN in .env}"}'
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    ports:
+      - '127.0.0.1:8002:8002'
+    depends_on:
+      session-db:
+        condition: service_healthy
+      player:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  player-public-key:
+    image: tirppy/student-id-player-service:${SERVICE_VERSION:-latest}
+    user: root
+    entrypoint: [python, -c]
+    command:
+      - |
+        import json
+        import urllib.request
+        from pathlib import Path
+        import jwt
+        from cryptography.hazmat.primitives import serialization
+        jwks = json.load(urllib.request.urlopen("http://player:8001/.well-known/jwks.json"))
+        key = jwt.algorithms.RSAAlgorithm.from_jwk(jwks["keys"][0])
+        target = Path("/keys/player-public.pem")
+        target.write_bytes(key.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+        target.chmod(0o444)
+    volumes:
+      - player-public-key:/keys
+    depends_on:
+      player:
+        condition: service_healthy
+    restart: 'no'
+  moderation:
+    image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
+      RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
+      JWT_PUBLIC_KEY_FILE: /run/secrets/player-public.pem
+      JWT_ISSUER: student-id-please
+      JWT_AUDIENCE: student-id-players
+      SESSION_URL: http://session:8002
+      SESSION_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
+      APPLICANT_URL: http://applicant:8081
+      APPLICANT_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
+      CREDENTIAL_URL: http://credential:8082
+      CREDENTIAL_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
+      UNIVERSITY_URL: http://university-record:8006
+      UNIVERSITY_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
+      RULES_URL: http://server-rules:8005
+      RULES_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
+      PLAYER_URL: http://player:8001
+      PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
+    ports:
+      - '127.0.0.1:8008:8000'
+    volumes:
+      - player-public-key:/run/secrets:ro
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      moderation-db:
+        condition: service_healthy
+      player-public-key:
+        condition: service_completed_successfully
+      session:
+        condition: service_healthy
+    restart: unless-stopped
+  moderation-publisher:
+    image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
+    command: [python, -m, moderation.publisher]
+    environment:
+      DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
+      RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
+    depends_on:
+      moderation:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+  discord-dms:
+    image: sentientmoss/pad-discord-dms-service:${DISCORD_DMS_VERSION:-latest}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CHAT_TICKET_SECRET: ${CHAT_TICKET_SECRET:?Set CHAT_TICKET_SECRET in .env}
+      JWT_PUBLIC_KEY_FILE: /run/secrets/player-public.pem
+      JWT_ISSUER: student-id-please
+      JWT_AUDIENCE: student-id-players
+      SESSION_URL: http://session:8002
+      SESSION_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
+      UNIVERSITY_URL: http://university-record:8006
+      UNIVERSITY_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
+    ports:
+      - '127.0.0.1:8009:8000'
+    volumes:
+      - player-public-key:/run/secrets:ro
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      dms-db:
+        condition: service_healthy
+      player-public-key:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      session:
+        condition: service_healthy
+  applicant:
+    image: mcittkmims/applicant-service:${APPLICANT_SERVICE_VERSION:-latest}
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
+    ports:
+      - '127.0.0.1:8081:8081'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+  credential:
+    image: mcittkmims/credential-service:${CREDENTIAL_SERVICE_VERSION:-latest}
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
+    ports:
+      - '127.0.0.1:8082:8082'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+  university-mongodb:
+    image: mongo:7.0
+    restart: unless-stopped
+    entrypoint:
+      - bash
+      - -c
+      - |
+        keyfile=/data/configdb/replica-set.key
+        if [ ! -f "$$keyfile" ]; then
+          openssl rand -base64 756 > "$$keyfile"
+          chown mongodb:mongodb "$$keyfile"
+          chmod 400 "$$keyfile"
+        fi
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+      - --
+    command: ["mongod", "--replSet", "rs0", "--keyFile", "/data/configdb/replica-set.key", "--bind_ip_all"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: university_record_service
+      MONGO_INITDB_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
+    volumes:
+      - university-mongo-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet
+          --host 127.0.0.1
+          --username "$${MONGO_INITDB_ROOT_USERNAME}"
+          --password "$${MONGO_INITDB_ROOT_PASSWORD}"
+          --authenticationDatabase admin
+          --eval 'try { quit(rs.status().ok === 1 ? 0 : 1) } catch (error) { quit(rs.initiate({_id:"rs0",members:[{_id:0,host:"university-mongodb:27017"}]}).ok === 1 ? 0 : 1) }'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  university-record:
+    image: maxnoragami/university-record-service:${UNIVERSITY_RECORD_VERSION:-latest}
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_MONGODB_HOST: university-mongodb
+      MONGO_DATABASE: university_records
+      MONGO_ROOT_USERNAME: university_record_service
+      MONGO_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
+      SERVER_PORT: 8006
+      ADMIN_TOKEN: ${UNIVERSITY_ADMIN_TOKEN:?Set UNIVERSITY_ADMIN_TOKEN in .env}
+      APP_AUTH_SERVICECALLERS_MODERATION: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
+      APP_AUTH_SERVICECALLERS_SESSION: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
+    ports:
+      - '127.0.0.1:8006:8006'
+    depends_on:
+      university-mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+  rules-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: server_rules
+      POSTGRES_USER: server_rules
+      POSTGRES_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
+    volumes:
+      - rules-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready
+          --username "$${POSTGRES_USER}"
+          --dbname "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+  server-rules:
+    image: maxnoragami/server-rules-service:${SERVER_RULES_VERSION:-latest}
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://rules-db:5432/server_rules
+      SPRING_DATASOURCE_USERNAME: server_rules
+      SPRING_DATASOURCE_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
+      SERVER_PORT: 8005
+      ADMIN_TOKEN: ${RULES_ADMIN_TOKEN:?Set RULES_ADMIN_TOKEN in .env}
+      PLAYER_TOKEN: ${RULES_PLAYER_TOKEN:?Set RULES_PLAYER_TOKEN in .env}
+      SESSION_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
+      MODERATION_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
+      CURSOR_SECRET: ${RULES_CURSOR_SECRET:?Set RULES_CURSOR_SECRET in .env}
+    ports:
+      - '127.0.0.1:8005:8005'
+    depends_on:
+      rules-db:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  player-data:
+  session-data:
+  moderation-data:
+  dms-data:
+  broker-data:
+  player-keys:
+  player-public-key:
+  mongo-data:
+  university-mongo-data:
+  rules-data:
