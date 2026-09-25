@@ -4,6 +4,7 @@
 **/.codegraph/
 **/**/.idea/
 **/**/.DS_Store
+/.env
 **/**/node_modules/
 **/**/dist/
 **/**/workspace.local/**
