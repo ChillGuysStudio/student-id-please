@@ -1085,30 +1085,6 @@ Reviewers check:
 4. Update local `main`: `git fetch origin && git switch main && git pull --ff-only`. Do not tag the task branch or `dev`.
 5. Create and push the release tag: `git tag -a vX.0.0 -m "Lab X completion" && git push origin vX.0.0`.
 
-## Lab 1 delivery
-
-| Service | Docker Hub image for team deployment | HTTP port |
-| --- | --- | --- |
-| Player | [`tirppy/student-id-player-service:latest`](https://hub.docker.com/r/tirppy/student-id-player-service) | `8001` |
-| Server Moderation Session | [`tirppy/student-id-session-service:latest`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
-| University Record | [`maxnoragami/university-record-service:latest`](https://hub.docker.com/r/maxnoragami/university-record-service) | `8080` |
-| Server Rules | [`maxnoragami/server-rules-service:latest`](https://hub.docker.com/r/maxnoragami/server-rules-service) | `8081` |
-
-The team will use the `latest` image tags. Publish both tags before pulling the images. Create the final Git release tag on `main` after the required reviews and merges.
-
-Both images target Linux AMD64. Player needs a writable database and persistent signing-key path. Session needs its own writable database and a reachable Player API; Redis caches live views, and RabbitMQ delivers shift results to Player. The service READMEs describe the exact environment variables. A separate team PR will supply the common image-based deployment and persistent volumes.
-
-- [Player run instructions](https://github.com/Tirppy/student-id-player-service/blob/dev/docs/running.md)
-- [Session run instructions](https://github.com/Tirppy/student-id-session-service/blob/dev/docs/running.md)
-- [Player Postman collection](postman/player-service.json)
-- [Session Postman collection](postman/session-service.json)
-- [Player integration and verification README](docs/services/README.player.md)
-- [Session integration and verification README](docs/services/README.session.md)
-
-The Session collection contains only Session endpoints. Its runner creates a Player team before Newman starts, then runs Session against typed mocks for unavailable teammate services. The Player collection tests its own endpoints and progression with authenticated event fixtures.
-
-The Lab 1 implementations also expose `GET /health` and `GET /ready`. Player publishes verification keys at `GET /.well-known/jwks.json`. Player and Session accept authenticated `POST /internal/v1/events` fixtures for their documented event types while producers are unavailable. Session allows its owner to `DELETE /api/v1/sessions/{session_id}` while the session is a lobby; active and historical shifts return `409`. These adapters remain internal and must not be exposed through the future gateway.
-
 ## Project board
 
 The [GitHub project board](https://github.com/orgs/ChillGuysStudio/projects/2) tracks lab tasks, issues, and status.
