@@ -258,3 +258,13 @@ The later shared deployment needs these containers on one network.
 | --- | --- | --- |
 | `mongodb` | `mongo:7.0` with `--replSet rs0`; wait for the healthcheck to report healthy (replica-set primary elected). | Persist `/data/db` in a named volume such as `mongodb-data`. Do not publish port `27017` to clients. |
 | `university-record-service` | Run the versioned image after MongoDB is healthy. | Container port `8080`, optionally bound to `127.0.0.1:8080`. |
+
+To start the published image against a running database, set `TEAM_NETWORK` to their Docker network name and pass the same settings through the container environment:
+
+```sh
+docker pull "maxnoragami/university-record-service:${IMAGE_TAG:-latest}"
+docker run --rm --network "$TEAM_NETWORK" --env-file .env \
+  -p 127.0.0.1:8080:8080 "maxnoragami/university-record-service:${IMAGE_TAG:-latest}"
+```
+
+`curl -fsS http://127.0.0.1:8080/api/v1/admin/university-data` returns `401` without a token, which checks the API process. `CaseInitialized` events are captured in the MongoDB outbox collection in this lab; broker delivery is a later step. Reference data is created through the admin CRUD. The [University Record Postman collection](../../postman/university-record-service.json) covers all eight kinds, snapshots, cases, idempotency, and dependency failures. Set its `admin_token` and `service_token` to match the deployment. The shared Compose file is a separate team task.
