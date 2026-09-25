@@ -1093,8 +1093,12 @@ Reviewers check:
 | Server Moderation Session | [`tirppy/student-id-session-service:latest`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
 | University Record | [`maxnoragami/university-record-service:latest`](https://hub.docker.com/r/maxnoragami/university-record-service) | `8080` |
 | Server Rules | [`maxnoragami/server-rules-service:latest`](https://hub.docker.com/r/maxnoragami/server-rules-service) | `8081` |
+| Applicant | [`mcittkmims/applicant-service:latest`](https://hub.docker.com/r/mcittkmims/applicant-service) | `8081` |
+| Credential | [`mcittkmims/credential-service:latest`](https://hub.docker.com/r/mcittkmims/credential-service) | `8082` |
 
 The team will use the `latest` image tags. Publish both tags before pulling the images. Create the final Git release tag on `main` after the required reviews and merges.
+
+Applicant and Server Rules both use container port `8081`. The common Compose deployment must assign different host-port mappings when it exposes both services.
 
 Both images target Linux AMD64. Player needs a writable database and persistent signing-key path. Session needs its own writable database and a reachable Player API; Redis caches live views, and RabbitMQ delivers shift results to Player. The service READMEs describe the exact environment variables. A separate team PR will supply the common image-based deployment and persistent volumes.
 
