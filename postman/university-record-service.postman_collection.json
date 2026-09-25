@@ -1,0 +1,1291 @@
+{
+  "info": {
+    "_postman_id": "5f420a87-0c85-466b-8880-a4f85b5df5ad",
+    "name": "University Record Service local workflow",
+    "description": "Creates all eight university reference kinds, checks CRUD and dependency protection, pins a snapshot, initializes a University-owned case, and reads its status and records.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "admin_token",
+      "value": "local-admin-token"
+    },
+    {
+      "key": "service_token",
+      "value": "local-service-token"
+    }
+  ],
+  "item": [
+    {
+      "name": "Reference data",
+      "item": [
+        {
+          "name": "Create program",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{program_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\n    \"code\": \"{{major}}\",\n    \"name\": \"Postman Program\",\n    \"study_years\": 4\n  }\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const suffix = Math.random().toString(36).slice(2, 5).toUpperCase().replace(/[^A-Z]/g, 'A');",
+                  "const major = ('P' + suffix).slice(0, 4);",
+                  "const startYear = 2030 + Math.floor(Math.random() * 60);",
+                  "pm.collectionVariables.set('major', major);",
+                  "pm.collectionVariables.set('course_id', major + '-API');",
+                  "pm.collectionVariables.set('subject_id', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('session_id', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('program_key', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('replace_key', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('delete_key', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('missing_ref', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('academic_label', startYear + '-' + (startYear + 1));",
+                  "pm.collectionVariables.set('academic_start', startYear + '-09-01T00:00:00Z');",
+                  "pm.collectionVariables.set('autumn_end', (startYear + 1) + '-02-01T00:00:00Z');",
+                  "pm.collectionVariables.set('academic_end', (startYear + 1) + '-09-01T00:00:00Z');",
+                  "pm.collectionVariables.set('reference_at', startYear + '-09-10T10:00:00Z');",
+                  "pm.collectionVariables.set('student_yy', String(startYear).slice(-2));",
+                  "pm.collectionVariables.set('email', 'eliza.caraman' + Math.floor(1 + Math.random() * 1000000) + '@isa.utm.md');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('program_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates a program reference with a random major code. Expects 201 and stores the reference ID."
+        },
+        {
+          "name": "Replay program creation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{program_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\n    \"code\": \"{{major}}\",\n    \"name\": \"Postman Program\",\n    \"study_years\": 4\n  }\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('replay returns created', () => pm.response.to.have.status(201));",
+                  "pm.test('replay preserves reference', () => pm.expect(pm.response.json().reference_id).to.eql(pm.collectionVariables.get('program_ref')));"
+                ]
+              }
+            }
+          ],
+          "description": "Re-sends creation with the same idempotency key. Expects the original 201 and reference ID."
+        },
+        {
+          "name": "Reject changed idempotent request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{program_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\"code\": \"{{major}}\", \"name\": \"Changed request\", \"study_years\": 4}\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('idempotency conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('uses idempotency code', () => pm.expect(pm.response.json().code).to.eql('IDEMPOTENCY_CONFLICT'));"
+                ]
+              }
+            }
+          ],
+          "description": "Reuses the creation key with a changed body. Expects 409 IDEMPOTENCY_CONFLICT."
+        },
+        {
+          "name": "Read program",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{program_ref}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('reference read', () => pm.response.to.have.status(200));",
+                  "pm.test('read preserves reference', () => pm.expect(pm.response.json().reference_id).to.eql(pm.collectionVariables.get('program_ref')));"
+                ]
+              }
+            }
+          ],
+          "description": "Reads the program back. Expects 200 with the same reference ID."
+        },
+        {
+          "name": "Reject unauthenticated list",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('authentication required', () => pm.response.to.have.status(401));",
+                  "pm.test('uses auth code', () => pm.expect(pm.response.json().code).to.eql('UNAUTHENTICATED'));"
+                ]
+              }
+            }
+          ],
+          "description": "Lists without a token. Expects 401."
+        },
+        {
+          "name": "Read missing reference",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{missing_ref}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('missing reference', () => pm.response.to.have.status(404));",
+                  "pm.test('uses not found code', () => pm.expect(pm.response.json().code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ],
+          "description": "Reads an unknown reference ID. Expects 404."
+        },
+        {
+          "name": "Create academic year",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"academic_year\",\n  \"subject_id\": null,\n  \"data\": {\n    \"label\": \"{{academic_label}}\",\n    \"starts_at\": \"{{academic_start}}\",\n    \"ends_at\": \"{{academic_end}}\"\n  }\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('year_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates the academic year containing the reference time. Expects 201."
+        },
+        {
+          "name": "Create course",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"course\",\n  \"subject_id\": null,\n  \"data\": {\n    \"course_id\": \"{{course_id}}\",\n    \"title\": \"API Design\",\n    \"major\": \"{{major}}\",\n    \"year\": 1,\n    \"semester\": \"autumn\"\n  }\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('course_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates a course in the new program. Expects 201."
+        },
+        {
+          "name": "Create schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"schedule\",\n  \"subject_id\": null,\n  \"data\": {\n    \"semester\": \"autumn\",\n    \"course_id\": \"{{course_id}}\",\n    \"starts_at\": \"{{academic_start}}\",\n    \"ends_at\": \"{{autumn_end}}\"\n  }\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('schedule_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates the autumn schedule for the course. Expects 201."
+        },
+        {
+          "name": "Create enrollment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"enrollment\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\n    \"student_id\": \"{{major}}-{{student_yy}}-1\",\n    \"first_name\": \"Eliza\",\n    \"last_name\": \"Caraman\",\n    \"major\": \"{{major}}\",\n    \"year\": 1,\n    \"status\": \"active\",\n    \"enrolled_since\": \"{{academic_start}}\",\n    \"role\": \"student\"\n  }\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('enrollment_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates the subject enrollment. Expects 201."
+        },
+        {
+          "name": "Create registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"registration\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"course_id\": \"{{course_id}}\"}\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('registration_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Registers the subject for the course. Expects 201."
+        },
+        {
+          "name": "Create Outlook membership",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"outlook_group\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"email\": \"{{email}}\", \"group_name\": \"students\", \"member\": true}\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('outlook_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates the students-group membership. Expects 201."
+        },
+        {
+          "name": "Create major Outlook membership",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"major:{{major}}\",\"member\":true}}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('major membership created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "description": "Creates the major-group membership for the same mailbox. Expects 201."
+        },
+        {
+          "name": "Create year Outlook membership",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"year:1\",\"member\":true}}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('year membership created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "description": "Creates the year-group membership for the same mailbox. Expects 201."
+        },
+        {
+          "name": "Create FCIM message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"fcim_message\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"author_first_name\": \"Eliza\", \"author_last_name\": \"Caraman\", \"channel\": \"general\", \"text\": \"Postman verification\", \"sent_at\": \"{{reference_at}}\"}\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('message_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates a message from the subject. Expects 201."
+        },
+        {
+          "name": "List courses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data?kind=course&limit=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('listed', () => pm.response.to.have.status(200));",
+                  "pm.test('contains course', () => pm.expect(pm.response.json().items.some(item => item.data.course_id === pm.collectionVariables.get('course_id'))).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "description": "Lists with kind filter and limit 10. Expects 200 containing the course."
+        },
+        {
+          "name": "Filter references by subject",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data?subject_id={{subject_id}}&limit=100"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('subject filter listed', () => pm.response.to.have.status(200));",
+                  "pm.test('all rows belong to subject', () => pm.expect(pm.response.json().items.every(item => item.subject_id === pm.collectionVariables.get('subject_id'))).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "description": "Lists with a subject filter. Expects 200 with only that subject's rows."
+        },
+        {
+          "name": "Reject invalid page limit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data?limit=101"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('invalid limit rejected', () => pm.response.to.have.status(422));",
+                  "pm.test('uses invalid fields code', () => pm.expect(pm.response.json().code).to.eql('INVALID_FIELDS'));"
+                ]
+              }
+            }
+          ],
+          "description": "limit=101 is outside the 1-100 range. Expects 422."
+        },
+        {
+          "name": "Reject non-contract enum casing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"kind\":\"PROGRAM\",\"subject_id\":null,\"data\":{\"code\":\"UP\",\"name\":\"Uppercase\",\"study_years\":4}}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('enum casing rejected', () => pm.response.to.have.status(422));",
+                  "pm.test('uses invalid fields code', () => pm.expect(pm.response.json().code).to.eql('INVALID_FIELDS'));"
+                ]
+              }
+            }
+          ],
+          "description": "Uppercase kind values are not contract wire values. Expects 422."
+        },
+        {
+          "name": "Reject unknown request field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"kind\":\"program\",\"subject_id\":null,\"extra\":true,\"data\":{\"code\":\"EX\",\"name\":\"Extra field\",\"study_years\":4}}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('unknown field rejected', () => pm.response.to.have.status(422));",
+                  "pm.test('uses invalid fields code', () => pm.expect(pm.response.json().code).to.eql('INVALID_FIELDS'));"
+                ]
+              }
+            }
+          ],
+          "description": "Extra top-level fields are rejected. Expects 422."
+        },
+        {
+          "name": "Replace program",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{replace_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\"code\": \"{{major}}\", \"name\": \"Updated Postman Program\", \"study_years\": 4}\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data/{{program_ref}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('replaced', () => pm.response.to.have.status(200));",
+                  "pm.test('identity preserved', () => pm.expect(pm.response.json().reference_id).to.eql(pm.collectionVariables.get('program_ref')));"
+                ]
+              }
+            }
+          ],
+          "description": "Fully replaces the program name. Expects 200 with the same reference ID."
+        },
+        {
+          "name": "Replay program replacement",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{replace_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\"code\": \"{{major}}\", \"name\": \"Updated Postman Program\", \"study_years\": 4}\n}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data/{{program_ref}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('replacement replayed', () => pm.response.to.have.status(200));",
+                  "pm.test('replacement replay preserves identity', () => pm.expect(pm.response.json().reference_id).to.eql(pm.collectionVariables.get('program_ref')));"
+                ]
+              }
+            }
+          ],
+          "description": "Replays the replacement with the original key. Expects the original 200."
+        },
+        {
+          "name": "Reject course deletion while in use",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{conflict_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{course_ref}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('conflict_key', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('dependency protected', () => pm.response.to.have.status(409));",
+                  "pm.test('uses contract code', () => pm.expect(pm.response.json().code).to.eql('REFERENCE_IN_USE'));"
+                ]
+              }
+            }
+          ],
+          "description": "Deletes a course that has schedules and registrations. Expects 409 REFERENCE_IN_USE."
+        },
+        {
+          "name": "Replay failed course deletion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{conflict_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{course_ref}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('failed deletion replayed', () => pm.response.to.have.status(409));",
+                  "pm.test('original failure preserved', () => pm.expect(pm.response.json().code).to.eql('REFERENCE_IN_USE'));"
+                ]
+              }
+            }
+          ],
+          "description": "Replays the failed delete with the original key. Expects the original 409."
+        },
+        {
+          "name": "Create disposable FCIM message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"kind\":\"fcim_message\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"author_first_name\":\"Eliza\",\"author_last_name\":\"Caraman\",\"channel\":\"temporary\",\"text\":\"Delete me\",\"sent_at\":\"{{reference_at}}\"}}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('disposable reference created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('disposable_ref', pm.response.json().reference_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Creates a throwaway message for the delete flow. Expects 201."
+        },
+        {
+          "name": "Delete disposable reference",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{delete_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{disposable_ref}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('reference deleted', () => pm.response.to.have.status(204));",
+                  "pm.test('delete body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ],
+          "description": "Deletes the throwaway message. Expects an empty 204."
+        },
+        {
+          "name": "Replay reference deletion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{delete_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{disposable_ref}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('delete replayed', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "description": "Replays the delete with the original key. Expects 204."
+        }
+      ],
+      "description": "Reference CRUD across all eight kinds, plus idempotency, auth, and pagination checks."
+    },
+    {
+      "name": "Snapshot and case",
+      "item": [
+        {
+          "name": "Create snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{service_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\":\"{{session_id}}\",\"reference_at\":\"{{reference_at}}\"}"
+            },
+            "url": "{{base_url}}/internal/v1/university-snapshots"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('snapshot created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('snapshot_id', pm.response.json().snapshot_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Pins an immutable snapshot for the session. Expects 201."
+        },
+        {
+          "name": "Initialize existing-subject case",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{service_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"session_id\":\"{{session_id}}\",\"scenario\":\"eligible\",\"seed\":\"postman-case\",\"subject_id\":\"{{subject_id}}\"}"
+            },
+            "url": "{{base_url}}/internal/v1/university-record/cases"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('case accepted', () => pm.response.to.have.status(202));",
+                  "pm.test('initial response is pending', () => pm.expect(pm.response.json().state).to.eql('pending'));",
+                  "pm.collectionVariables.set('case_id', pm.response.json().case_id);"
+                ]
+              }
+            }
+          ],
+          "description": "Initializes a University-owned case for the subject. Expects 202 with state pending."
+        },
+        {
+          "name": "Read case status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{service_token}}"
+              }
+            ],
+            "url": "{{base_url}}/internal/v1/university-record/cases/{{case_id}}/status"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('case ready', () => pm.response.to.have.status(200));",
+                  "pm.test('state is ready', () => pm.expect(pm.response.json().state).to.eql('ready'));"
+                ]
+              }
+            }
+          ],
+          "description": "Reads the local case state. Expects 200 with state ready."
+        },
+        {
+          "name": "Read complete university records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{service_token}}"
+              }
+            ],
+            "url": "{{base_url}}/internal/v1/cases/{{case_id}}/university-records?session_id={{session_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('records returned', () => pm.response.to.have.status(200));",
+                  "pm.test('records are non-empty', () => pm.expect(pm.response.json().records.length).to.be.above(0));",
+                  "pm.test('subject retained', () => pm.expect(pm.response.json().subject_id).to.eql(pm.collectionVariables.get('subject_id')));",
+                  "pm.collectionVariables.set('original_case', pm.response.text());"
+                ]
+              }
+            }
+          ],
+          "description": "Reads the full case records for Moderation. Expects 200 with the subject's records."
+        }
+      ],
+      "description": "Snapshot pinning, University case initialization, and complete record reads."
+    },
+    {
+      "name": "Read replace and delete every kind",
+      "item": [
+        {
+          "name": "Collect this run's references",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data?limit=100"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('list available', () => pm.response.to.have.status(200));",
+                  "const subject = pm.collectionVariables.get('subject_id');",
+                  "const ids = ['program_ref', 'course_ref', 'schedule_ref', 'year_ref'].map(k => pm.collectionVariables.get(k));",
+                  "const order = ['fcim_message', 'registration', 'outlook_group', 'schedule', 'enrollment', 'course', 'academic_year', 'program'];",
+                  "const rows = pm.response.json().items.filter(r => r.subject_id === subject || ids.includes(r.reference_id)).sort((a,b) => order.indexOf(a.kind) - order.indexOf(b.kind));",
+                  "pm.test('all eight kinds selected', () => pm.expect(new Set(rows.map(r => r.kind)).size).to.eql(8));",
+                  "pm.collectionVariables.set('crud_queue', JSON.stringify(rows));",
+                  "pm.collectionVariables.set('crud_index', 0);"
+                ]
+              }
+            }
+          ],
+          "description": "Selects this run's references into the loop queue. Expects 200 with all eight kinds."
+        },
+        {
+          "name": "Read each reference",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{crud_id}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "let rows = [];",
+                  "try { rows = JSON.parse(pm.collectionVariables.get('crud_queue')) || []; } catch (ignore) { rows = []; }",
+                  "if (!Array.isArray(rows)) rows = [];",
+                  "const row = rows[Number(pm.collectionVariables.get('crud_index')) || 0];",
+                  "if (row) {",
+                  "pm.collectionVariables.set('crud_id', row.reference_id);",
+                  "pm.collectionVariables.set('crud_kind', row.kind);",
+                  "const body = {kind: row.kind, subject_id: row.subject_id, data: row.data};",
+                  "if (row.kind === 'program') body.data.name = 'Replaced program';",
+                  "if (row.kind === 'course') body.data.title = 'Replaced course';",
+                  "if (row.kind === 'fcim_message') body.data.text = 'Replaced message';",
+                  "if (row.kind === 'enrollment') body.data.first_name = 'Larisa';",
+                  "pm.collectionVariables.set('crud_body', JSON.stringify(body));",
+                  "} else {",
+                  "if (!pm.collectionVariables.get('crud_kind')) pm.collectionVariables.set('crud_kind', 'reference');",
+                  "console.log('No loop queue: using manually set crud_id ' + pm.collectionVariables.get('crud_id'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('GET ' + (pm.collectionVariables.get('crud_kind') || 'reference'), () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "description": "Reads the current loop reference. Expects 200. Standalone: set crud_id to any reference ID first."
+        },
+        {
+          "name": "Replace each reference",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{crud_body}}"
+            },
+            "url": "{{base_url}}/api/v1/admin/university-data/{{crud_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('PUT ' + (pm.collectionVariables.get('crud_kind') || 'reference'), () => pm.response.to.have.status(200));",
+                  "let expected = null;",
+                  "try { expected = JSON.parse(pm.collectionVariables.get('crud_body')).data; } catch (ignore) { expected = null; }",
+                  "if (expected !== null) pm.test('replacement data persisted', () => pm.expect(pm.response.json().data).to.deep.eql(expected));",
+                  "pm.test('reference identity retained', () => pm.expect(pm.response.json().reference_id).to.eql(pm.collectionVariables.get('crud_id')));"
+                ]
+              }
+            }
+          ],
+          "description": "Replaces the current loop reference. Expects 200 with persisted data and retained identity. Standalone: set crud_id and crud_body (a full UniversityDataInput JSON) first."
+        },
+        {
+          "name": "Delete each reference",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{crud_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('DELETE ' + (pm.collectionVariables.get('crud_kind') || 'reference'), () => pm.response.to.have.status(204));",
+                  "pm.test('empty delete result', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ],
+          "description": "Deletes the current loop reference. Expects an empty 204. Standalone: set crud_id to any reference ID first."
+        },
+        {
+          "name": "Confirm each reference was deleted",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/university-data/{{crud_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('deleted ' + (pm.collectionVariables.get('crud_kind') || 'reference') + ' is absent', () => pm.response.to.have.status(404));",
+                  "let queue = [];",
+                  "try { queue = JSON.parse(pm.collectionVariables.get('crud_queue')) || []; } catch (ignore) { queue = []; }",
+                  "if (!Array.isArray(queue)) queue = [];",
+                  "const index = (Number(pm.collectionVariables.get('crud_index')) || 0) + 1;",
+                  "pm.collectionVariables.set('crud_index', index);",
+                  "if (queue.length > 0 && index < queue.length && pm.execution) pm.execution.setNextRequest('Read each reference');"
+                ]
+              }
+            }
+          ],
+          "description": "Reads back the deleted reference and advances the loop. Expects 404. Standalone: set crud_id to any reference ID first."
+        },
+        {
+          "name": "Case remains immutable after reference deletion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{service_token}}"
+              }
+            ],
+            "url": "{{base_url}}/internal/v1/cases/{{case_id}}/university-records?session_id={{session_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('case remains available', () => pm.response.to.have.status(200));",
+                  "pm.test('case is byte-for-byte unchanged', () => pm.expect(pm.response.text()).to.eql(pm.collectionVariables.get('original_case')));"
+                ]
+              }
+            }
+          ],
+          "description": "Re-reads the case after all deletions. Expects the byte-for-byte identical record set."
+        }
+      ],
+      "description": "Loops read, replace, delete, and read-again over every reference kind, then proves the case is unchanged. Run the whole folder in the Runner, or send requests individually after setting crud_id manually (Replace also needs crud_body)."
+    }
+  ]
+}
