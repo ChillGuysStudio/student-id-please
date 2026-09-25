@@ -93,7 +93,7 @@ services:
       retries: 30
       start_period: 5s
   player:
-    image: tirppy/student-id-player-service:${SERVICE_VERSION:-1.0.0-rc.2}
+    image: tirppy/student-id-player-service:${SERVICE_VERSION:-latest}
     environment:
       DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
       JWT_PRIVATE_KEY_PATH: /app/data/player-private.pem
@@ -110,7 +110,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   session:
-    image: tirppy/student-id-session-service:${SERVICE_VERSION:-1.0.0-rc.2}
+    image: tirppy/student-id-session-service:${SERVICE_VERSION:-latest}
     environment:
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
       PLAYER_URL: http://player:8001
@@ -134,7 +134,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   player-public-key:
-    image: tirppy/student-id-player-service:${SERVICE_VERSION:-1.0.0-rc.2}
+    image: tirppy/student-id-player-service:${SERVICE_VERSION:-latest}
     user: root
     entrypoint: [python, -c]
     command:
