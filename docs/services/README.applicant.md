@@ -169,3 +169,34 @@ Transient consumer failures retry after 1, 5, and 30 seconds. After those retrie
 - Identity coverage includes staff and alumni nullability, unpadded student sequences, email suffix collisions, and a newly added university program or course.
 - Outsider coverage includes a Credential-first case that still creates a ready Applicant profile.
 - Dependency coverage delays University snapshot access. Applicant creates no fallback, reports no premature readiness, and exposes no hidden data in errors.
+
+## Storage and Lab 1 deployment
+
+The public image is `mcittkmims/applicant-service:<version>` ([published tags](https://hub.docker.com/r/mcittkmims/applicant-service/tags)). Set `IMAGE_TAG` to pin a release, for example `export IMAGE_TAG=1.0.0`. Leave it unset to use `latest`, which points to the most recently published release.
+
+The API listens on container port `8081`. Applicant uses MongoDB as a single-member replica set named `rs0`, because its idempotency and case operations use multi-document transactions. Persist MongoDB's `/data/db` directory in a named volume. The healthcheck initializes the replica set on first startup.
+
+Set these values in a local `.env`. Do not commit `.env` or deployment credentials.
+
+| Setting | Required value |
+| --- | --- |
+| `MONGODB_URI` | Replica-set URI for the `applicant` database. In the shared network, use `mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true`. |
+| `SERVER_ADDRESS` | Bind address. The image sets `0.0.0.0`; use the default unless a different container address is needed. |
+| `SERVER_PORT` | Service port. Defaults to `8081`. |
+
+The shared deployment needs these containers on one network.
+
+| Container | Image and startup | Storage and access |
+| --- | --- | --- |
+| `mongodb` | `mongo:8.0` with `--replSet rs0`; wait for the healthcheck to report a writable primary. | Persist `/data/db` in a named volume such as `mongo-data`. Do not publish port `27017` to clients. |
+| `applicant` | Run the published Applicant image after MongoDB is healthy. | Container port `8081`, optionally bound to `127.0.0.1:8081`. |
+
+To start the published image against MongoDB on a Docker network, set `TEAM_NETWORK` to that network name and provide the URI through `.env`:
+
+```sh
+docker pull "mcittkmims/applicant-service:${IMAGE_TAG:-latest}"
+docker run --rm --network "$TEAM_NETWORK" --env-file .env \
+  -p 127.0.0.1:8081:8081 "mcittkmims/applicant-service:${IMAGE_TAG:-latest}"
+```
+
+The [Applicant Postman collection](../../postman/applicant-service.json) covers every implemented endpoint. It uses local port `8081`. The shared Compose file is a separate team task.
