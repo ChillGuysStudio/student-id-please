@@ -40,7 +40,9 @@ A client sends `{type: "message.send", client_message_id, channel_id, text}` ove
 
 ## Storage and Lab 1 deployment
 
-The public, versioned image is [`sentientmoss/pad-discord-dms-service:0.1.2`](https://hub.docker.com/r/sentientmoss/pad-discord-dms-service/tags). It serves container port `8000`; bind it to `127.0.0.1:8009` for a local check. Persist PostgreSQL's data directory. Redis tickets expire in 30 seconds and Pub/Sub retains no messages, so Redis does not need a disk volume for chat history. After Redis restarts, clients must request new tickets. Keep `CHAT_TICKET_SECRET` stable across API replicas and restarts so they can validate each other's tickets.
+The public image is `sentientmoss/pad-discord-dms-service:<version>` ([published tags](https://hub.docker.com/r/sentientmoss/pad-discord-dms-service/tags)). To pin a release, set `IMAGE_TAG` in your shell, for example `export IMAGE_TAG=0.1.2`. Leave `IMAGE_TAG` unset to use `latest`, which changes with new releases.
+
+The API listens on container port `8000`. Bind it to `127.0.0.1:8009` for a local check. Persist PostgreSQL's data directory. Redis tickets expire in 30 seconds and Pub/Sub retains no messages, so Redis does not need a disk volume for chat history. After Redis restarts, clients must request new tickets. Keep `CHAT_TICKET_SECRET` stable across API replicas and restarts so they can validate each other's tickets.
 
 Set these values in a local `.env`. Do not commit `.env`, tokens, or keys.
 
@@ -65,12 +67,12 @@ The later shared deployment needs these containers on one network. The listed na
 To start the published image against running dependencies, set `TEAM_NETWORK` to their Docker network name. Put `.env` and `player-public.pem` in the current directory. Make the public key readable by the image's non-root user, UID `65532`. Set `MOCK_CONTRACT_FILE` to an empty value for real upstreams.
 
 ```sh
-docker pull sentientmoss/pad-discord-dms-service:0.1.2
+docker pull "sentientmoss/pad-discord-dms-service:${IMAGE_TAG:-latest}"
 docker run --rm --network "$TEAM_NETWORK" --env-file .env \
   -e JWT_PUBLIC_KEY_FILE=/run/secrets/player-public.pem \
   -e MOCK_CONTRACT_FILE= \
   -v "$PWD/player-public.pem:/run/secrets/player-public.pem:ro" \
-  -p 127.0.0.1:8009:8000 sentientmoss/pad-discord-dms-service:0.1.2
+  -p 127.0.0.1:8009:8000 "sentientmoss/pad-discord-dms-service:${IMAGE_TAG:-latest}"
 ```
 
 `curl -fsS http://127.0.0.1:8009/healthz` checks the API process, not access to Session or University Record. A gateway must forward WebSocket upgrades, allow long-lived connections, and redact ticket query values in its logs. Keep the PostgreSQL and Redis ports off the public network. The shared Compose file is a separate team task.
@@ -79,7 +81,7 @@ To seed an empty Discord DMs database, run the seed module shipped in the public
 
 ```sh
 docker run --rm --network "$TEAM_NETWORK" --env-file .env \
-  sentientmoss/pad-discord-dms-service:0.1.2 python -m discord_dms.seed
+  "sentientmoss/pad-discord-dms-service:${IMAGE_TAG:-latest}" python -m discord_dms.seed
 ```
 
 The seed command adds a demo session, channels, and one message. It leaves existing data unchanged. Session and University Record still need matching roles and permissions for players to read those records. The [Discord DMs Postman collection](../../postman/discord-dms-service.json) tests channels, history, tickets, and errors. Set its IDs and Bearer tokens to match your deployment. It also lists manual WebSocket checks that Newman cannot run.
