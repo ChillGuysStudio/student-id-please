@@ -256,6 +256,97 @@ services:
       mongodb:
         condition: service_healthy
     restart: unless-stopped
+  university-mongodb:
+    image: mongo:7.0
+    restart: unless-stopped
+    entrypoint:
+      - bash
+      - -c
+      - |
+        keyfile=/data/configdb/replica-set.key
+        if [ ! -f "$$keyfile" ]; then
+          openssl rand -base64 756 > "$$keyfile"
+          chown mongodb:mongodb "$$keyfile"
+          chmod 400 "$$keyfile"
+        fi
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+      - --
+    command: ["mongod", "--replSet", "rs0", "--keyFile", "/data/configdb/replica-set.key", "--bind_ip_all"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: university_record_service
+      MONGO_INITDB_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
+    volumes:
+      - university-mongo-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet
+          --host 127.0.0.1
+          --username "$${MONGO_INITDB_ROOT_USERNAME}"
+          --password "$${MONGO_INITDB_ROOT_PASSWORD}"
+          --authenticationDatabase admin
+          --eval 'try { quit(rs.status().ok === 1 ? 0 : 1) } catch (error) { quit(rs.initiate({_id:"rs0",members:[{_id:0,host:"university-mongodb:27017"}]}).ok === 1 ? 0 : 1) }'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  university-record:
+    image: maxnoragami/university-record-service:${UNIVERSITY_RECORD_VERSION:-latest}
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_MONGODB_HOST: university-mongodb
+      MONGO_DATABASE: university_records
+      MONGO_ROOT_USERNAME: university_record_service
+      MONGO_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
+      SERVER_PORT: 8006
+      ADMIN_TOKEN: ${UNIVERSITY_ADMIN_TOKEN:?Set UNIVERSITY_ADMIN_TOKEN in .env}
+      APP_AUTH_SERVICECALLERS_MODERATION: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
+      APP_AUTH_SERVICECALLERS_SESSION: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
+    ports:
+      - '127.0.0.1:8006:8006'
+    depends_on:
+      university-mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+  rules-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: server_rules
+      POSTGRES_USER: server_rules
+      POSTGRES_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
+    volumes:
+      - rules-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready
+          --username "$${POSTGRES_USER}"
+          --dbname "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+  server-rules:
+    image: maxnoragami/server-rules-service:${SERVER_RULES_VERSION:-latest}
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://rules-db:5432/server_rules
+      SPRING_DATASOURCE_USERNAME: server_rules
+      SPRING_DATASOURCE_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
+      SERVER_PORT: 8005
+      ADMIN_TOKEN: ${RULES_ADMIN_TOKEN:?Set RULES_ADMIN_TOKEN in .env}
+      PLAYER_TOKEN: ${RULES_PLAYER_TOKEN:?Set RULES_PLAYER_TOKEN in .env}
+      SESSION_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
+      MODERATION_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
+      CURSOR_SECRET: ${RULES_CURSOR_SECRET:?Set RULES_CURSOR_SECRET in .env}
+    ports:
+      - '127.0.0.1:8005:8005'
+    depends_on:
+      rules-db:
+        condition: service_healthy
+    restart: unless-stopped
 volumes:
   player-data:
   session-data:
@@ -265,3 +356,5 @@ volumes:
   player-keys:
   player-public-key:
   mongo-data:
+  university-mongo-data:
+  rules-data:
