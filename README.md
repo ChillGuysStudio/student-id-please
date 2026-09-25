@@ -2,7 +2,7 @@
 
 Student ID, please is a game about moderating a university Discord server. The Lab 0 design splits the game into the services listed below. Players compare applicants' claims and credentials with university records and the rules for the current shift.
 
-This README defines the Lab 0 design that the team plans to implement in later labs. The services do not run yet.
+This README defines the Lab 0 design and the contract used by later labs. Implementation is in progress. Applicant and Credential services currently run independently with their administrative reference-data CRUD subsets. Service READMEs report which subsets exist; this contract remains the source of truth.
 
 During a shift, Junior Moderators can inspect only their assigned records. They share their findings in WebSocket chat channels, and the Moderator decides whether to accept, reject, flag, or ban each applicant. Player progression carries across shifts.
 
@@ -259,9 +259,9 @@ Internal calls use service credentials that identify the caller, receiver, and p
 
 #### Idempotency
 
-Every REST request that changes data includes `Idempotency-Key: <UUID>`. When the same caller retries with the same key, endpoint, and body, the service returns the original status and body. Reusing the key with a different body returns `409`.
+Every REST request that changes data includes `Idempotency-Key: <UUID>`. After a request commits a mutation and retains its result, the same caller can retry with the same key, endpoint, and body to receive the original status and body. Malformed requests, validation failures, state conflicts that commit no mutation, and dependency failures do not reserve the key. Reusing a retained key with a different body returns `409`.
 
-Services retain keys and results for the lifetime of the related case or shift. Authentication and administrative reference-data CRUD retain them for 24 hours. This period includes a delete result after resource removal, and clients must retry within it. Published-version commands retain results with the version. A replay still requires valid authorization. To retry a case-start request, the client uses the same entry service and key. The service rejects a retry sent to another entry service.
+Services retain committed keys and results for the lifetime of the related case or shift. Authentication and administrative reference-data CRUD retain them for 24 hours. This period includes a delete result after resource removal, and clients must retry within it. Published-version commands retain results with the version. A replay still requires valid authorization. To retry a case-start request, the client uses the same entry service and key. The service rejects a retry sent to another entry service.
 
 #### Pagination
 
