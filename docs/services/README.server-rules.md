@@ -174,3 +174,35 @@ Errors use `{code, message, request_id, details: [{field, reason}]}`. Invalid in
 - Evidence coverage distinguishes a missing required document from a missing validation. It also includes separate first-name and last-name mismatches, null staff fields, inactive enrollment, and calendar-month boundaries.
 - Precedence coverage includes ban-before-mismatch order, equal-priority UUID order, null-subject ban conversion, and empty channels for non-accept results.
 - Determinism coverage retries evaluations after time passes. A Session outage produces an error, never a changed admission result.
+
+## Storage and Lab 1 deployment
+
+The public image is `maxnoragami/server-rules-service:<version>` ([published tags](https://hub.docker.com/r/maxnoragami/server-rules-service/tags)). To pin a release, set `IMAGE_TAG` in your shell, for example `export IMAGE_TAG=1.0.0`. Leave `IMAGE_TAG` unset to use `latest`, which changes with new releases.
+
+The API listens on container port `8081`. Bind it to `127.0.0.1:8081` for a local check. On first startup with an empty database, the service seeds the CPR baseline rules as one published version and never overwrites admin data afterward.
+
+Set these values in a local `.env`. Do not commit `.env` or tokens.
+
+| Setting | Required value |
+| --- | --- |
+| `POSTGRES_DATABASE`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Database name, host port, user, and password for the local PostgreSQL. |
+| `SERVER_PORT` | Service port, defaults to `8081`. |
+| `ADMIN_TOKEN`, `PLAYER_TOKEN`, `SESSION_TOKEN`, `MODERATION_TOKEN` | Static bearer tokens per caller role. Verified Player and service credentials replace them in a later lab. |
+| `CURSOR_SECRET` | Secret for signing pagination cursors, at least 32 characters. Rotating it invalidates outstanding cursors. |
+
+The later shared deployment needs these containers on one network.
+
+| Container | Image and startup | Storage and access |
+| --- | --- | --- |
+| `postgres` | `postgres:18-alpine`; create the database and user; wait for `pg_isready`. | Persist `/var/lib/postgresql` in a named volume such as `postgres-data`. Do not publish port `5432` to clients. |
+| `server-rules-service` | Run the versioned image after PostgreSQL is healthy. | Container port `8081`, optionally bound to `127.0.0.1:8081`. |
+
+To start the published image against a running database, set `TEAM_NETWORK` to their Docker network name and pass the same settings through the container environment:
+
+```sh
+docker pull "maxnoragami/server-rules-service:${IMAGE_TAG:-latest}"
+docker run --rm --network "$TEAM_NETWORK" --env-file .env \
+  -p 127.0.0.1:8081:8081 "maxnoragami/server-rules-service:${IMAGE_TAG:-latest}"
+```
+
+Session context for evaluations comes from the service's configured mock sessions in this lab; no Session service is required. The [Server Rules Postman collection](../../postman/server-rules-service.json) covers draft CRUD, publication guards, and baseline evaluations. Set its tokens to match the deployment. The shared Compose file is a separate team task.

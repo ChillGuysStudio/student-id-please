@@ -1091,6 +1091,8 @@ Reviewers check:
 | --- | --- | --- |
 | Player | [`tirppy/student-id-player-service:latest`](https://hub.docker.com/r/tirppy/student-id-player-service) | `8001` |
 | Server Moderation Session | [`tirppy/student-id-session-service:latest`](https://hub.docker.com/r/tirppy/student-id-session-service) | `8002` |
+| University Record | [`maxnoragami/university-record-service:latest`](https://hub.docker.com/r/maxnoragami/university-record-service) | `8080` |
+| Server Rules | [`maxnoragami/server-rules-service:latest`](https://hub.docker.com/r/maxnoragami/server-rules-service) | `8081` |
 
 The team will use the `latest` image tags. Publish both tags before pulling the images. Create the final Git release tag on `main` after the required reviews and merges.
 
