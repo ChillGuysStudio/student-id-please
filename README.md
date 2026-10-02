@@ -957,9 +957,11 @@ For independent Lab 1 work, mock missing Session and snapshot dependencies with 
 
 ## Contribution and workflow guidelines
 
+Branch names, commit messages, PR titles, and PR descriptions must follow the conventions below only when a PR merges. During development, departures from these conventions do not count as violations. A PR closed without merging does not need to comply with them.
+
 ### Branching model
 
-The repository uses `main`, `dev`, and short-lived task branches:
+The repository uses `main`, `dev`, and task branches. The diagram shows the standard integration workflow:
 
 ```text
 main (stable production releases)
@@ -973,6 +975,8 @@ main (stable production releases)
 #### Naming conventions
 
 `main` holds production-ready releases and receives merges only from `dev` at lab completion. `dev` is the integration branch for the current lab.
+
+Before a task branch merges, it can have any name and branch from any other branch. You can create as many task branches as you need. Task branch names must match the following patterns when their PRs merge into `dev`:
 
 | Task | Branch pattern | Example |
 | --- | --- | --- |
@@ -1008,7 +1012,7 @@ When you include a commit scope, prefer the changed component. A PR scope must u
 | Task branch | `dev` | Squash and Merge | Keep a linear history of completed tasks |
 | `dev` | `main` | Rebase and Merge | Preserve milestone history at final lab evaluation |
 
-Delete task branches after merging their PRs into `dev`. Keep `main` and `dev` as permanent branches.
+You may keep or delete task branches, including after their PRs merge into `dev`. Branch deletion is optional. Keep `main` and `dev` as permanent branches.
 
 ### Versioning strategy
 
@@ -1035,7 +1039,7 @@ Examples:
 
 #### PR description template
 
-Every PR into `dev` or `main` uses this template:
+At merge time, every PR into `dev` or `main` must use this description template:
 
 ```markdown
 ## Why?
@@ -1059,7 +1063,7 @@ All required CI checks must pass. Tests must pass only when they exist and run i
 
 Keep linear history on `main` and `dev`, and do not delete either branch. Force pushes are allowed on every branch except `main`. Use squash merges for `dev` and rebase merges for `main`.
 
-On branches other than `dev` and `main`, temporary departures from these guidelines do not count as violations. You may amend commits, edit changes, rebase, force push, etc. The final changes, commit history, and PR should only comply with the applicable guidelines when the PR closes, when merged only.
+On branches other than `dev` and `main`, you may amend commits, edit changes, rebase, and force push during development. Before merging, bring the final changes, commit messages, branch name, PR title, and PR description into compliance with the applicable guidelines.
 
 Reviewers must check the following items where they apply:
 
@@ -1074,19 +1078,22 @@ Reviewers do not have to write a review comment. If they write an approval or ch
 
 #### 1. Task development
 
+This example starts a task branch from `origin/dev` with its final name. During development, you can use any branch name and start from any other branch.
+
 1. Fetch `origin`: `git fetch origin`.
 2. Create the task branch from `origin/dev`: `git switch -c <type>/lab-X/<description> origin/dev`.
 3. Commit the change: `git commit -m "<type>(<scope>): <summary>"`.
 4. Push the branch and open a PR into `dev`.
 
-You can omit the scope in step 3: `git commit -m "<type>: <summary>"`. You can revise the task branch's commits before the PR closes.
+You can omit the scope in step 3: `git commit -m "<type>: <summary>"`. Commit messages, PR titles, and PR descriptions can differ from the conventions during development. Revise them before merging.
 
 #### 2. Peer review and integration
 
 1. For a CPR PR, request at least one peer approval.
 2. Check the required CI results, submodule pointers, and changed files for secrets. Check test results if tests exist and only if they were set up to run in GitHub Actions, which is optional.
 3. Resolve every review thread.
-4. Squash the PR into `dev`.
+4. Check that the branch name, commit messages, PR title, and PR description follow the conventions.
+5. Squash the PR into `dev`.
 
 #### 3. Lab completion and release
 
