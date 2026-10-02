@@ -1091,9 +1091,8 @@ You can omit the scope in step 3: `git commit -m "<type>: <summary>"`. Commit me
 
 1. For a CPR PR, request at least one peer approval.
 2. Check the required CI results, submodule pointers, and changed files for secrets. Check test results if tests exist and only if they were set up to run in GitHub Actions, which is optional.
-3. Resolve every review thread.
-4. Check that the branch name, commit messages, PR title, and PR description follow the conventions.
-5. Squash the PR into `dev`.
+3. Check that the branch name, commit messages, PR title, and PR description follow the conventions.
+4. Squash the PR into `dev`.
 
 #### 3. Lab completion and release
 
