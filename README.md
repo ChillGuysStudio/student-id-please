@@ -1061,9 +1061,9 @@ Changes enter `main` and `dev` only through PRs. In the Common Project Repositor
 
 All required CI checks must pass. Tests must pass only when they exist and run in the GitHub Actions CI pipeline.
 
-Keep linear history on `main` and `dev`, and do not delete either branch. Force pushes are allowed on every branch except `main`. Use squash merges for `dev` and rebase merges for `main`.
+Keep linear history on `main` and `dev`, and do not delete either branch. Force pushes are allowed on `dev` and task branches at any time, provided `main` and `dev` still follow the applicable guidelines. Never force push to `main`. Use squash merges for `dev` and rebase merges for `main`.
 
-On branches other than `dev` and `main`, you may amend commits, edit changes, rebase, and force push during development. Before merging, bring the final changes, commit messages, branch name, PR title, and PR description into compliance with the applicable guidelines.
+On branches other than `dev` and `main`, you may amend commits, edit changes, and rebase during development. Before merging, bring the final changes, commit messages, branch name, PR title, and PR description into compliance with the applicable guidelines.
 
 Reviewers must check the following items where they apply:
 
