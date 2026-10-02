@@ -983,11 +983,13 @@ main (stable production releases)
 
 ### Commit conventions
 
-Use [Conventional Commits v1.0.0](https://www.conventionalcommits.org/) for every commit:
+The commit naming convention is based on [Conventional Commits v1.0.0](https://www.conventionalcommits.org/):
 
 `<type>(<scope>): <short summary in imperative mood>`
 
-Use the changed component as the commit scope. Reserve the lab scope for PR titles.
+The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short summary in imperative mood>`.
+
+When you include a scope, prefer the changed component for commits and the lab for PR titles.
 
 | Type | Use for | Example |
 | --- | --- | --- |
@@ -1019,14 +1021,17 @@ Create version tags only on `main`:
 
 #### PR naming convention
 
-PR titles must use the lab as the Conventional Commits scope:
+The PR naming convention is also based on Conventional Commits:
 
-`<type>(lab-X): <short imperative summary>`
+`<type>(<scope>): <short imperative summary>`
+
+The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short imperative summary>`. When you include a scope, prefer `lab-X` for the current lab.
 
 Examples:
 
 - `docs(lab-0): define architecture diagram and workflow rules`
 - `feat(lab-1): implement JWT authentication in player service`
+- `docs: clarify contribution and workflow guidelines`
 
 #### PR description template
 
@@ -1048,18 +1053,26 @@ Every PR into `dev` or `main` uses this template:
 
 #### PR review process
 
-Changes enter `main` and `dev` only through PRs. The latest changes need at least one peer approval. Only CPR approvals count. Reviewers must resolve every review thread. All required CI checks and tests must pass. Both branches require linear history and block force pushes and branch deletion. Repository administrators have no configured bypass. Use squash merges for `dev` and rebase merges for `main`.
+Changes enter `main` and `dev` only through PRs. In the Common Project Repository (CPR), the latest changes need at least one peer approval. Service-repository PRs do not require approval.
+
+All required CI checks must pass. Tests must pass only when they exist and run in the GitHub Actions CI pipeline.
+
+Keep linear history on `main` and `dev`, and do not delete either branch. Force pushes are allowed on every branch except `main`. Use squash merges for `dev` and rebase merges for `main`.
+
+On branches other than `dev` and `main`, temporary departures from these guidelines do not count as violations. You may amend commits, edit changes, rebase, force push, etc. The final changes, commit history, and PR should only comply with the applicable guidelines when the PR closes, when merged only.
 
 The required `PR policy` check validates the PR title, source branch, target branch, and description sections. A PR into `main` must come from this repository's `dev` branch. A task PR targets `dev`.
 
 The Lab 0 workflow does not set a coverage target because Lab 0 has no service code. For Lab 1, the professor waived the build/run script, database seed script, and 80% unit-test coverage criteria. The team still tests business rules, authorization boundaries, and the main contract flows. The Player and Session CI workflows run tests and build their Docker images without a coverage threshold.
 
-Reviewers check:
+Reviewers must check the following items where they apply:
 
 - Code quality, readability, and modularity
 - Branch and commit naming
 - Test coverage and endpoint functionality
 - Security and secret protection
+
+Reviewers do not have to write a review comment. If they write an approval or changes-requested comment, they do not have to repeat this checklist or report each check.
 
 ### Example lab workflow
 
@@ -1070,17 +1083,19 @@ Reviewers check:
 3. Commit the change: `git commit -m "<type>(<scope>): <summary>"`.
 4. Push the branch and open a PR into `dev`.
 
+You can omit the scope in step 3: `git commit -m "<type>: <summary>"`. You can revise the task branch's commits before the PR closes.
+
 #### 2. Peer review and integration
 
-1. Request at least one peer approval.
-2. Check the CI results, submodule pointers, and changed files for secrets.
+1. For a CPR PR, request at least one peer approval.
+2. Check the required CI results, submodule pointers, and changed files for secrets. Check test results if tests exist and only if they were set up to run in GitHub Actions, which is optional.
 3. Resolve every review thread.
 4. Squash the PR into `dev`.
 
 #### 3. Lab completion and release
 
 1. After the team completes the lab requirements, open a PR from `dev` to `main`.
-2. Run the final tests and verify the submission files.
+2. Check that the required CI checks pass, including tests if they exist and were set up to run in GitHub Actions, which is optional. Verify the submission files.
 3. Rebase the PR into `main`.
 4. Update local `main`: `git fetch origin && git switch main && git pull --ff-only`. Do not tag the task branch or `dev`.
 5. Create and push the release tag: `git tag -a vX.0.0 -m "Lab X completion" && git push origin vX.0.0`.
