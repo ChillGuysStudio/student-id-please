@@ -957,9 +957,11 @@ For independent Lab 1 work, mock missing Session and snapshot dependencies with 
 
 ## Contribution and workflow guidelines
 
+Branch names, commit messages, PR titles, and PR descriptions must follow the conventions below only when a PR merges. During development, departures from these conventions do not count as violations. A PR closed without merging does not need to comply with them.
+
 ### Branching model
 
-The repository uses `main`, `dev`, and short-lived task branches:
+The repository uses `main`, `dev`, and task branches. The diagram shows the standard integration workflow:
 
 ```text
 main (stable production releases)
@@ -974,6 +976,8 @@ main (stable production releases)
 
 `main` holds production-ready releases and receives merges only from `dev` at lab completion. `dev` is the integration branch for the current lab.
 
+Before a task branch merges, it can have any name and branch from any other branch. You can create as many task branches as you need. Task branch names must match the following patterns when their PRs merge into `dev`:
+
 | Task | Branch pattern | Example |
 | --- | --- | --- |
 | Feature | `feat/lab-X/service-or-feature` | `feat/lab-1/player-auth` |
@@ -983,11 +987,13 @@ main (stable production releases)
 
 ### Commit conventions
 
-Use [Conventional Commits v1.0.0](https://www.conventionalcommits.org/) for every commit:
+The commit naming convention is based on [Conventional Commits v1.0.0](https://www.conventionalcommits.org/):
 
 `<type>(<scope>): <short summary in imperative mood>`
 
-Use the changed component as the commit scope. Reserve the lab scope for PR titles.
+The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short summary in imperative mood>`.
+
+When you include a commit scope, prefer the changed component.
 
 | Type | Use for | Example |
 | --- | --- | --- |
@@ -1006,7 +1012,7 @@ Use the changed component as the commit scope. Reserve the lab scope for PR titl
 | Task branch | `dev` | Squash and Merge | Keep a linear history of completed tasks |
 | `dev` | `main` | Rebase and Merge | Preserve milestone history at final lab evaluation |
 
-Delete task branches after merging their PRs into `dev`. Keep `main` and `dev` as permanent branches.
+You may keep or delete task branches, including after their PRs merge into `dev`. Branch deletion is optional. Keep `main` and `dev` as permanent branches.
 
 ### Versioning strategy
 
@@ -1019,18 +1025,21 @@ Create version tags only on `main`:
 
 #### PR naming convention
 
-PR titles must use the lab as the Conventional Commits scope:
+The PR naming convention is also based on Conventional Commits:
 
 `<type>(lab-X): <short imperative summary>`
+
+The scope and its parentheses are required. The scope must identify only the current lab, using `lab-X`, where `X` is the lab number.
 
 Examples:
 
 - `docs(lab-0): define architecture diagram and workflow rules`
 - `feat(lab-1): implement JWT authentication in player service`
+- `docs(lab-1): clarify contribution and workflow guidelines`
 
 #### PR description template
 
-Every PR into `dev` or `main` uses this template:
+At merge time, every PR into `dev` or `main` must use this description template:
 
 ```markdown
 ## Why?
@@ -1048,39 +1057,47 @@ Every PR into `dev` or `main` uses this template:
 
 #### PR review process
 
-Changes enter `main` and `dev` only through PRs. The latest changes need at least one peer approval. Only CPR approvals count. Reviewers must resolve every review thread. All required CI checks and tests must pass. Both branches require linear history and block force pushes and branch deletion. Repository administrators have no configured bypass. Use squash merges for `dev` and rebase merges for `main`.
+Changes enter `main` and `dev` only through PRs. In the Common Project Repository (CPR), the latest changes need at least one peer approval. Service-repository PRs do not require approval.
 
-The required `PR policy` check validates the PR title, source branch, target branch, and description sections. A PR into `main` must come from this repository's `dev` branch. A task PR targets `dev`.
+All required CI checks must pass. Tests must pass only when they exist and run in the GitHub Actions CI pipeline.
 
-The Lab 0 workflow does not set a coverage target because Lab 0 has no service code. For Lab 1, the professor waived the build/run script, database seed script, and 80% unit-test coverage criteria. The team still tests business rules, authorization boundaries, and the main contract flows. The Player and Session CI workflows run tests and build their Docker images without a coverage threshold.
+Keep linear history on `main` and `dev`, and do not delete either branch. Force pushes are allowed on `dev` and task branches at any time, provided `main` and `dev` still follow the applicable guidelines. Never force push to `main`. Use squash merges for `dev` and rebase merges for `main`.
 
-Reviewers check:
+On branches other than `dev` and `main`, you may amend commits, edit changes, and rebase during development. Before merging, bring the final changes, commit messages, branch name, PR title, and PR description into compliance with the applicable guidelines.
+
+Reviewers must check the following items where they apply:
 
 - Code quality, readability, and modularity
 - Branch and commit naming
 - Test coverage and endpoint functionality
 - Security and secret protection
 
+Reviewers do not have to write a review comment. If they write an approval or changes-requested comment, they do not have to repeat this checklist or report each check.
+
 ### Example lab workflow
 
 #### 1. Task development
+
+This example starts a task branch from `origin/dev` with its final name. During development, you can use any branch name and start from any other branch.
 
 1. Fetch `origin`: `git fetch origin`.
 2. Create the task branch from `origin/dev`: `git switch -c <type>/lab-X/<description> origin/dev`.
 3. Commit the change: `git commit -m "<type>(<scope>): <summary>"`.
 4. Push the branch and open a PR into `dev`.
 
+You can omit the scope in step 3: `git commit -m "<type>: <summary>"`. Commit messages, PR titles, and PR descriptions can differ from the conventions during development. Revise them before merging.
+
 #### 2. Peer review and integration
 
-1. Request at least one peer approval.
-2. Check the CI results, submodule pointers, and changed files for secrets.
-3. Resolve every review thread.
+1. For a CPR PR, request at least one peer approval.
+2. Check the required CI results, submodule pointers, and changed files for secrets. Check test results if tests exist and only if they were set up to run in GitHub Actions, which is optional.
+3. Check that the branch name, commit messages, PR title, and PR description follow the conventions.
 4. Squash the PR into `dev`.
 
 #### 3. Lab completion and release
 
 1. After the team completes the lab requirements, open a PR from `dev` to `main`.
-2. Run the final tests and verify the submission files.
+2. Check that the required CI checks pass, including tests if they exist and were set up to run in GitHub Actions, which is optional. Verify the submission files.
 3. Rebase the PR into `main`.
 4. Update local `main`: `git fetch origin && git switch main && git pull --ff-only`. Do not tag the task branch or `dev`.
 5. Create and push the release tag: `git tag -a vX.0.0 -m "Lab X completion" && git push origin vX.0.0`.
