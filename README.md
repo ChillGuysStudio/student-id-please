@@ -993,7 +993,7 @@ The commit naming convention is based on [Conventional Commits v1.0.0](https://w
 
 The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short summary in imperative mood>`.
 
-When you include a commit scope, prefer the changed component. A PR scope must use `lab-X` for the current lab.
+When you include a commit scope, prefer the changed component.
 
 | Type | Use for | Example |
 | --- | --- | --- |
@@ -1027,15 +1027,15 @@ Create version tags only on `main`:
 
 The PR naming convention is also based on Conventional Commits:
 
-`<type>(<scope>): <short imperative summary>`
+`<type>(lab-X): <short imperative summary>`
 
-The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short imperative summary>`. When you include a scope, it must be `lab-X` for the current lab.
+The scope and its parentheses are required. The scope must identify only the current lab, using `lab-X`, where `X` is the lab number.
 
 Examples:
 
 - `docs(lab-0): define architecture diagram and workflow rules`
 - `feat(lab-1): implement JWT authentication in player service`
-- `docs: clarify contribution and workflow guidelines`
+- `docs(lab-1): clarify contribution and workflow guidelines`
 
 #### PR description template
 
