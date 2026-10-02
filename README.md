@@ -989,7 +989,7 @@ The commit naming convention is based on [Conventional Commits v1.0.0](https://w
 
 The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short summary in imperative mood>`.
 
-When you include a scope, prefer the changed component for commits and the lab for PR titles.
+When you include a commit scope, prefer the changed component. A PR scope must use `lab-X` for the current lab.
 
 | Type | Use for | Example |
 | --- | --- | --- |
@@ -1025,7 +1025,7 @@ The PR naming convention is also based on Conventional Commits:
 
 `<type>(<scope>): <short imperative summary>`
 
-The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short imperative summary>`. When you include a scope, prefer `lab-X` for the current lab.
+The `<scope>` and its parentheses are optional. Without a scope, the format is `<type>: <short imperative summary>`. When you include a scope, it must be `lab-X` for the current lab.
 
 Examples:
 
@@ -1060,10 +1060,6 @@ All required CI checks must pass. Tests must pass only when they exist and run i
 Keep linear history on `main` and `dev`, and do not delete either branch. Force pushes are allowed on every branch except `main`. Use squash merges for `dev` and rebase merges for `main`.
 
 On branches other than `dev` and `main`, temporary departures from these guidelines do not count as violations. You may amend commits, edit changes, rebase, force push, etc. The final changes, commit history, and PR should only comply with the applicable guidelines when the PR closes, when merged only.
-
-The required `PR policy` check validates the PR title, source branch, target branch, and description sections. A PR into `main` must come from this repository's `dev` branch. A task PR targets `dev`.
-
-The Lab 0 workflow does not set a coverage target because Lab 0 has no service code. For Lab 1, the professor waived the build/run script, database seed script, and 80% unit-test coverage criteria. The team still tests business rules, authorization boundaries, and the main contract flows. The Player and Session CI workflows run tests and build their Docker images without a coverage threshold.
 
 Reviewers must check the following items where they apply:
 
