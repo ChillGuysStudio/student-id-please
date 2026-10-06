@@ -13,7 +13,7 @@ Configure the `main` ruleset to:
 - Block branch deletion and force pushes.
 - Leave the bypass list empty.
 
-The PR validator accepts only this repository's `dev` as the release source. It requires a version-scoped title.
+For release PRs, the validator requires `dev` to target `main` within the same repository and a version-scoped title. The `PR policy` job checks that the version is unused and greater than that repository's existing release tags.
 
 ## Configure dev
 
@@ -26,3 +26,5 @@ Keep the Sync App's always-on bypass on `dev` so the sync workflow can update th
 `pr-policy.yml` and `repository-checks.yml` run through `pull_request` with read-only tokens, no deployment secrets, and no private submodule checkout. PR CI and local hooks use the same proposed validators.
 
 A required check name does not prevent someone from weakening its script. Review validator and workflow changes before approving the PR. Local hooks do not validate approvals or repository settings.
+
+`release.yml` runs on pushes to `main` with `contents: write` and `pull-requests: read`. GitHub supplies its token automatically. The workflow creates annotated tags and GitHub releases without checking out private submodules. Its DockerHub steps are commented out because CPR has no container image.
