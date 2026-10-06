@@ -51,6 +51,8 @@ chore(v1.0.0): release lab 1
 
 Use the same allowed types as commit messages. Lab numbers are non-negative integers. Release versions use `vX.Y.Z`. The validator does not infer the current lab or require the branch name to match the title.
 
+Release versions must be unused and greater than the existing release tags. After the rebase merge, the Release workflow creates the annotated tag and GitHub release from the version scope. It sets the release text to `Lab X completion` for a lab release or `Lab X hotfix` for a hotfix, then marks the release as latest.
+
 ## PR descriptions and review
 
 Complete `Why?`, `Changes`, and `How to Test?` in the [PR template](.github/pull_request_template.md). Replace the template instructions with your own text. State the commands you ran and their results. Use `Not run` with a reason when a check cannot run.
@@ -63,7 +65,11 @@ Reviewers check the changed contracts, service pointers, verification results, a
 
 Service repositories must remain private. Public container images are allowed.
 
-Each service repository documents its own workflow. Every update to its `main` branch must publish an image for the new HEAD, including documentation-only updates. Publishing only after a version bump does not meet this requirement.
+Each service repository documents its own workflow. Every update to its `main` branch must publish an image for the new HEAD, including documentation-only updates. Run publication on every `main` update rather than only on tag pushes.
+
+For PR-driven service releases, the workflow reads the exact version from the `dev`-to-`main` PR title. A title such as `chore(v2.0.0): release lab 2` produces the Git tag and GitHub release `v2.0.0`. The workflow publishes the DockerHub image as `2.0.0` and `latest`, then marks the GitHub release as latest. Use a new version for each release, including documentation-only releases.
+
+The [release procedure](docs/releases.md) describes the shared process and the three service repository secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `DOCKERHUB_REPOSITORY`. CPR creates only the GitHub release and tag, so its release workflow does not need DockerHub secrets.
 
 When changing a service pointer, identify the source SHA and the matching public image in the PR. Leave services you cannot access uninitialized. Do not require private-source checkout to run CPR checks.
 
