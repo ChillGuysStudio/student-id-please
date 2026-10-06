@@ -7,6 +7,7 @@ import re
 import sys
 
 from check_commits import validate_subject
+from release import version_from_title
 
 
 TYPES = r"(?:feat|fix|docs|style|refactor|test|chore)"
@@ -57,10 +58,7 @@ def check_policy(pr):
             and head_repo.get("full_name") == base_repo.get("full_name"),
             "Release PR must use this repository's dev branch.",
         )
-        require(
-            re.fullmatch(TYPES + r"\(v\d+\.\d+\.\d+\): \S(?:[^\r\n]*\S)?", title),
-            "Release title must use <type>(vX.Y.Z): <summary>.",
-        )
+        version_from_title(title)
     else:
         require(base == "dev", "Task PRs must target dev.")
         require(
