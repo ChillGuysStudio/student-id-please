@@ -22,3 +22,6 @@
 [submodule "session-service"]
 	path = session-service
 	url = https://github.com/Tirppy/student-id-session-service.git
+[submodule "gateway-service"]
+	path = gateway-service
+	url = git@github.com:ChillGuysStudio/gateway-service.git
