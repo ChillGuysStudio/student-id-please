@@ -105,6 +105,7 @@ class PRTests(unittest.TestCase):
             {"title": "chore(lab-1): release"}, {"title": "chore(v1.0): release"},
             {"title": "chore(v1.0.0)!: release"},
             {"title": "chore(v1.0.0)?: release"},
+            {"title": "chore(v01.0.0): release"},
             {"head": {"ref": "task", "repo": {"full_name": "team/project"}}},
             {"head": {"ref": "dev", "repo": {"full_name": "fork/project"}}},
             {"head": {"ref": "dev", "repo": None}},
