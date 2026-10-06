@@ -8,9 +8,9 @@ These rules apply to the Common Project Repository. Each private service reposit
 - Open task PRs into `dev`. Squash those PRs.
 - Open release PRs from this repository's `dev` into `main`. Rebase those PRs.
 - Keep both branches free of merge commits.
-- Force pushes are allowed on task branches and `dev`. Use `--force-with-lease`.
+- Force pushes are allowed on task branches and `dev` at any time. Use `--force-with-lease`.
 - Never force push to `main`. Changes enter `main` through release PRs only.
-- Coordinate a rewrite of `dev` with the team. A direct rewrite of `dev` is an exception to the task PR workflow.
+- The Sync App automatically resets `dev` to `main` after each `main` update.
 
 Branch names are recommendations, not checks. Prefer `<type>/lab-X/<description>`. You may keep or delete task branches after merge.
 
@@ -88,4 +88,4 @@ python3 .github/scripts/check_docs.py
 
 Keep `.env`, access tokens, private keys, and local test credentials out of commits. Share configuration names and placeholders through `.env.example`.
 
-Follow the [release procedure](docs/releases.md) to tag `main` and reconcile `dev` after a release.
+Follow the [release procedure](docs/releases.md) to tag `main`.

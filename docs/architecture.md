@@ -80,4 +80,3 @@ Applicant, Credential, Server Rules, and University Record use Java and Spring B
 PostgreSQL fits relational state and transaction constraints. MongoDB fits the varied evidence and reference record types. Both stores still enforce the shared contract.
 
 REST provides an immediate response to reads and commands. RabbitMQ carries results that consumers can process later and retry. Discord DMs uses WebSockets for live messages, then REST history to recover missed delivery. Redis Pub/Sub does not retain messages.
-

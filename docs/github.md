@@ -17,17 +17,12 @@ The PR validator accepts only this repository's `dev` as the release source. It 
 
 ## Configure dev
 
-Configure ordinary task PRs to require the same approvals and checks. Allow squash merges only. Block branch deletion and require linear history.
+Require the same approvals and checks as `main`. Allow squash merges only, require linear history, block deletion, and allow force pushes.
 
-Remove the non-fast-forward restriction if you allow force pushes. GitHub's PR requirement still blocks direct rewrites unless the caller has a bypass. Give the team a `dev`-only bypass if team members must perform those rewrites. Never give that bypass access to the `main` ruleset.
-
-A bypass can skip `dev` checks. Hooks check local pushes, but contributors can disable hooks. The required release PR checks on `main` validate every introduced commit again. This is the enforcement limit of allowing direct `dev` rewrites.
-
-Limit `dev` bypass access to the people who coordinate branch rewrites. Remove unused bypass actors.
+Keep the Sync App's always-on bypass on `dev` so the sync workflow can update the branch. Do not give it a bypass on `main`. Developers without a `dev` bypass still need PRs.
 
 ## Check workflow changes
 
-Both workflows run through `pull_request` with read-only tokens, no deployment secrets, and no private submodule checkout. PR CI and local hooks use the same proposed validators.
+`pr-policy.yml` and `repository-checks.yml` run through `pull_request` with read-only tokens, no deployment secrets, and no private submodule checkout. PR CI and local hooks use the same proposed validators.
 
 A required check name does not prevent someone from weakening its script. Review validator and workflow changes before approving the PR. Local hooks do not validate approvals or repository settings.
-

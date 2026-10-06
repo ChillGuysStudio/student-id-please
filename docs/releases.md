@@ -21,24 +21,9 @@
 
 Use `vX.0.0` for a completed lab and `vX.0.Y` for a hotfix. The release PR scope and tag must identify the same version.
 
-## Reconcile dev without deleting work
+## Automatic dev sync
 
-Rebase merging can change commit SHAs, so `main` and `dev` may contain the same work with different history.
-
-Before resetting `dev`, fetch both branches and compare their trees:
-
-```sh
-git fetch --no-recurse-submodules origin main dev
-git diff --exit-code origin/main origin/dev
-```
-
-If the diff is empty and the team has no unmerged work on `dev`, reconcile the branch with:
-
-```sh
-git push --force-with-lease=refs/heads/dev:$(git rev-parse origin/dev) origin origin/main:refs/heads/dev
-```
-
-If the trees differ, do not reset `dev` to `main`. Preserve the integration commits and coordinate a rebase with the team.
+After each push to `main`, the Sync Dev with Main workflow uses the Sync App to reset `dev` to `main`. No manual sync is needed. The workflow can also be run from GitHub Actions.
 
 ## Update a service pointer
 
