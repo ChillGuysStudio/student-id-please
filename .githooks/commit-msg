@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel)
+export PYTHONDONTWRITEBYTECODE=1
+exec python3 "$root/.github/scripts/check_commits.py" --message-file "$1"
