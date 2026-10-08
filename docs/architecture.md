@@ -2,7 +2,15 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The [architecture diagram](architecture.jpg) shows the Lab 2 target connections, not a verified deployment. Its [editable source](architecture.drawio) retains the embedded Mermaid definition and the drawio layout. [Rendering instructions](architecture-rendering.md) reproduce the JPEG without the team's shared browser. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The [legacy architecture diagram](architecture.jpg) and its [editable source](architecture.drawio) remain unchanged while the humans prepare the Lab 2 diagram. The legacy figure does not show the target topology described below. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+
+## Human diagram handoff
+
+The humans own the diagram update and rendering for [issue #74](https://github.com/ChillGuysStudio/student-id-please/issues/74). This prose change does not complete that issue's rendered-diagram acceptance.
+
+The pending human-authored figure must show all client-to-service REST through the public gateway and all service-to-service REST through the internal gateway. Inter-service REST must include the physical gateway hop, rather than direct connections explained by a legend. Realtime negotiation and chat-ticket REST also use the gateway. Only the subsequent WebSocket upgrade and live frames connect directly from the client to Discord DMs.
+
+The figure must identify the gateway as shared Go infrastructure. RabbitMQ events and service-owned storage connections are not REST proxy paths. Session Redis holds cached live views; PostgreSQL owns shift state, history, and locks. The legacy figure's relay, direct REST edges, and Session storage labels await these corrections. Keep the drawio nodes, edges, embedded Mermaid, and rendered image consistent when the humans deliver the update.
 
 ## Service ownership
 
@@ -17,7 +25,7 @@ The [architecture diagram](architecture.jpg) shows the Lab 2 target connections,
 | Moderation        | Final decisions, policy snapshots, subject bans, decision scores, and administrator disciplinary actions  | Source evidence, rule definitions, aggregate shift scores, or XP       |
 | Discord DMs       | Channels, membership, messages, chat tickets, and live delivery                                           | Accounts, shift roles, record permissions, or the truth of a message   |
 
-The gateway is shared Go infrastructure, not a ninth domain service. In the Lab 2 target, its public listener routes client REST requests and realtime negotiation. Its internal listener routes service-to-service REST calls and is not publicly exposed. Services retain business authorization after the gateway verifies identity. Internal endpoints are not public routes.
+The gateway is shared Go infrastructure, not a ninth domain service. In the Lab 2 target, its public listener routes all client-to-service REST, including realtime negotiation. Its internal listener routes all service-to-service REST and is not publicly exposed. Services retain business authorization after the gateway verifies identity. Internal endpoints are not public routes.
 
 REST negotiation returns a direct Discord DMs WebSocket URL. The client sends the upgrade and subsequent chat frames directly to Discord DMs. The gateway does not relay frames or hold the live data connection. Discord DMs owns ticket consumption, permission checks, message persistence, and live delivery.
 
@@ -58,16 +66,16 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 | Client through public gateway         | Public services                          | Public REST commands and permitted reads, including Player authentication          |
 | Client through public gateway         | Discord DMs                              | REST realtime negotiation, chat tickets, channels, and history                     |
 | Client directly                       | Discord DMs                              | WebSocket upgrade and live chat frames after negotiation                           |
-| Session                               | Player                                   | Check players and team membership                                                  |
-| Session                               | Server Rules, University Record          | Pin policy, validate permission distribution, and create a reference snapshot      |
-| Session                               | Applicant, Credential, University Record | Select one initializer and poll all three owners for readiness                     |
-| Moderation                            | Session                                  | Check the active shift, assigned Moderator, current case, aggregate readiness, and pinned configuration |
-| Moderation                            | Applicant, Credential, University Record | Read complete case evidence                                                        |
-| Moderation                            | Server Rules                             | Evaluate evidence, existing subject bans, and prior history                        |
-| Moderation                            | Player                                   | Check a disciplinary action's target                                               |
-| Evidence services, Rules, Discord DMs | Session                                  | Check participation, roles, and lifecycle                                          |
-| Discord DMs                           | University Record                        | Check record-derived channel access                                                |
-| Applicant, Credential                 | University Record                        | Read a snapshot and reserve or read an identity                                    |
+| Session through internal gateway      | Player                                   | Check players and team membership over REST                                        |
+| Session through internal gateway      | Server Rules, University Record          | Pin policy, validate permission distribution, and create a reference snapshot over REST |
+| Session through internal gateway      | Applicant, Credential, University Record | Select one initializer and poll all three owners for readiness over REST            |
+| Moderation through internal gateway   | Session                                  | Check the active shift, assigned Moderator, current case, aggregate readiness, and pinned configuration over REST |
+| Moderation through internal gateway   | Applicant, Credential, University Record | Read complete case evidence over REST                                               |
+| Moderation through internal gateway   | Server Rules                             | Evaluate evidence, existing subject bans, and prior history over REST                |
+| Moderation through internal gateway   | Player                                   | Check a disciplinary action's target over REST                                      |
+| Evidence services, Rules, Discord DMs through internal gateway | Session                  | Check participation, roles, and lifecycle over REST                                  |
+| Discord DMs through internal gateway  | University Record                        | Check record-derived channel access over REST                                       |
+| Applicant, Credential through internal gateway | University Record                  | Read a snapshot and reserve or read an identity over REST                            |
 | One case initializer                  | Other case owners                        | Derive owned records from `CaseInitialized`                                        |
 | Moderation                            | Session                                  | Apply `DecisionScored` once                                                        |
 | Session                               | Player                                   | Apply `ShiftEnded` once                                                            |
@@ -75,7 +83,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 
 [HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details.
 
-This map describes the Lab 2 target. Every service-to-service REST row uses the internal gateway while retaining the named logical caller and receiver. The diagram's purple service REST edges use that same convention. RabbitMQ events and direct WebSocket frames do not pass through the gateway. These paths remain unverified as a complete deployment.
+This map describes the Lab 2 target, not the legacy figure. All client-to-service REST uses the public gateway, and all service-to-service REST uses the internal gateway. The final four rows are RabbitMQ event delivery, not REST calls. Broker events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway. These paths remain unverified as a complete deployment.
 
 ## Data and consistency
 

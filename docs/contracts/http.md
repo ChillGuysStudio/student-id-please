@@ -4,7 +4,7 @@ These conventions apply to service calls in mocked and integrated deployments. [
 
 ## Paths and data types
 
-Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. In the Lab 2 target, the internal gateway listener routes service-to-service REST. Each endpoint belongs to the service named in its section.
+Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. In the Lab 2 target, all client-to-service REST uses the public gateway listener and all service-to-service REST uses the internal gateway listener. Each endpoint belongs to the service named in its section.
 
 Realtime negotiation uses gateway REST. The returned direct Discord DMs URL carries the WebSocket upgrade and frames, even though its path starts with `/api/v1`. See the [target interaction map and delivery status](../architecture.md).
 
