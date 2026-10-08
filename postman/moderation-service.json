@@ -5,7 +5,9 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "moderation_url", "value": "http://127.0.0.1:8008" },
+    { "key": "gateway_public_url", "value": "http://localhost:8080" },
+    { "key": "gateway_internal_url", "value": "http://localhost:8083" },
+    { "key": "moderation_ops_url", "value": "http://127.0.0.1:8008" },
     { "key": "session_id", "value": "00000000-0000-4000-8000-000000000201" },
     { "key": "case_id", "value": "00000000-0000-4000-8000-000000000202" },
     { "key": "moderator_id", "value": "00000000-0000-4000-8000-000000000203" },
@@ -60,22 +62,22 @@
       "name": "Decision workflow",
       "description": "Run this folder first against a fresh database. The demo fixture supplies a pinned rule that expects accept.",
       "item": [
-        { "name": "200 Health", "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{moderation_url}}/healthz" } },
+        { "name": "200 Health", "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{moderation_ops_url}}/healthz" } },
         {
           "name": "201 Submit decision",
           "request": {
             "method": "POST",
-            "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions",
             "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Verified demo application\"}" }
           }
         },
-        { "name": "200 List decisions", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions?limit=1" } },
-        { "name": "200 Read decision", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions/{{decision_id}}" } },
+        { "name": "200 List decisions", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions?limit=1" } },
+        { "name": "200 Read decision", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions/{{decision_id}}" } },
         {
           "name": "201 Retry decision with same key",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions",
             "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Verified demo application\"}" }
           }
@@ -83,16 +85,16 @@
         {
           "name": "409 Changed body with same key",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions",
             "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"reject\",\"reason\":\"Changed request body\"}" }
           },
-          "response": [{ "name": "Idempotency conflict", "originalRequest": { "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Conflict", "code": 409, "_postman_previewlanguage": "json", "body": "{\"code\":\"IDEMPOTENCY_CONFLICT\",\"message\":\"Key already used for another request\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+          "response": [{ "name": "Idempotency conflict", "originalRequest": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Conflict", "code": 409, "_postman_previewlanguage": "json", "body": "{\"code\":\"IDEMPOTENCY_CONFLICT\",\"message\":\"Key already used for another request\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
         },
         {
           "name": "409 Competing final decision",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions",
             "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Second final decision\"}" }
           }
@@ -100,22 +102,22 @@
         {
           "name": "422 Invalid decision action",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions",
             "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"approve\",\"reason\":\"Invalid action\"}" }
           },
-          "response": [{ "name": "Validation error", "originalRequest": { "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Unprocessable Entity", "code": 422, "_postman_previewlanguage": "json", "body": "{\"detail\":[{\"type\":\"enum\",\"loc\":[\"body\",\"action\"],\"msg\":\"Input should be 'accept', 'reject', 'flag' or 'ban'\"}]}" }]
+          "response": [{ "name": "Validation error", "originalRequest": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Unprocessable Entity", "code": 422, "_postman_previewlanguage": "json", "body": "{\"detail\":[{\"type\":\"enum\",\"loc\":[\"body\",\"action\"],\"msg\":\"Input should be 'accept', 'reject', 'flag' or 'ban'\"}]}" }]
         },
         {
           "name": "403 Wrong player submits decision",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions",
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
             "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"accept\",\"reason\":\"Not a participant\"}" }
           }
         },
-        { "name": "401 Read without token", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions", "auth": { "type": "noauth" } } }
+        { "name": "401 Read without token", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions", "auth": { "type": "noauth" } } }
       ]
     },
     {
@@ -124,13 +126,13 @@
       "item": [
         {
           "name": "200 Ban after decision",
-          "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/bans?subject_id={{subject_id}}", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] } }
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/bans?subject_id={{subject_id}}", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] } }
         },
-        { "name": "403 Moderator cannot list bans", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/bans" } },
+        { "name": "403 Moderator cannot list bans", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/bans" } },
         {
           "name": "201 Apply disciplinary action",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/disciplinary-actions",
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
             "header": [{ "key": "Idempotency-Key", "value": "{{discipline_key}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Lab demo discipline\",\"xp_penalty\":4}" }
@@ -139,7 +141,7 @@
         {
           "name": "201 Retry disciplinary action",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/disciplinary-actions",
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
             "header": [{ "key": "Idempotency-Key", "value": "{{discipline_key}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Lab demo discipline\",\"xp_penalty\":4}" }
@@ -148,7 +150,7 @@
         {
           "name": "422 Negative XP penalty",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/disciplinary-actions",
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
             "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Invalid penalty\",\"xp_penalty\":-1}" }
@@ -157,7 +159,7 @@
         {
           "name": "403 Moderator cannot discipline",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/disciplinary-actions",
             "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Not an admin\",\"xp_penalty\":1}" }
           }
@@ -165,7 +167,7 @@
         {
           "name": "404 Unknown disciplinary target",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/disciplinary-actions",
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
             "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"player_id\":\"{{unknown_player_id}}\",\"reason\":\"Unknown fixture player\",\"xp_penalty\":1}" }
@@ -180,12 +182,12 @@
         {
           "name": "201 Submit ban instead",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions",
             "header": [{ "key": "Idempotency-Key", "value": "{{decision_key}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"case_id\":\"{{case_id}}\",\"action\":\"ban\",\"reason\":\"Manual ban demonstration\"}" }
           }
         },
-        { "name": "200 Ban after ban", "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/bans?subject_id={{subject_id}}", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] } }
+        { "name": "200 Ban after ban", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/bans?subject_id={{subject_id}}", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] } }
         }
       ]
     },
@@ -195,13 +197,13 @@
       "item": [
         {
           "name": "503 Session context unavailable",
-          "request": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" },
-          "response": [{ "name": "Dependency unavailable", "originalRequest": { "method": "GET", "url": "{{moderation_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Service Unavailable", "code": 503, "_postman_previewlanguage": "json", "body": "{\"code\":\"DEPENDENCY_UNAVAILABLE\",\"message\":\"session is not configured\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions" },
+          "response": [{ "name": "Dependency unavailable", "originalRequest": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/decisions" }, "status": "Service Unavailable", "code": 503, "_postman_previewlanguage": "json", "body": "{\"code\":\"DEPENDENCY_UNAVAILABLE\",\"message\":\"session is not configured\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
         },
         {
           "name": "503 Player lookup unavailable",
           "request": {
-            "method": "POST", "url": "{{moderation_url}}/api/v1/disciplinary-actions",
+            "method": "POST", "url": "{{gateway_public_url}}/api/v1/disciplinary-actions",
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}", "type": "string" }] },
             "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Unavailable player dependency\",\"xp_penalty\":1}" }
