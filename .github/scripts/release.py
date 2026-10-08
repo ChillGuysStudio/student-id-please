@@ -53,7 +53,7 @@ def _existing_versions(tags):
     if gaps:
         raise ValueError(
             "Existing release tags contain a gap: " + ", ".join(sorted(gaps))
-            + ". Tags are immutable; publish the missing version next."
+            + ". Tags are immutable; reconcile tags with merged release PRs before publishing another version."
         )
     return versions
 

@@ -122,7 +122,7 @@ class ReleaseGitTests(unittest.TestCase):
                 sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
                 subprocess.run(["git", "tag", "v2.0.0"], check=True)
                 subprocess.run(["git", "tag", "v2.0.2"], check=True)
-                with self.assertRaisesRegex(ValueError, "gap"):
+                with self.assertRaisesRegex(ValueError, "reconcile tags with merged release PRs"):
                     release.validate_version("v2.0.3", sha)
                 subprocess.run(["git", "tag", "v2.1.0"], check=True)
                 with self.assertRaisesRegex(ValueError, "Nonconforming"):

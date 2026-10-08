@@ -49,9 +49,9 @@ A release PR from `dev` into `main` requires a version scope:
 chore(v1.0.0): release lab 1 service package
 ```
 
-Use the same allowed types as commit messages. Lab numbers are non-negative integers. Release versions use `vX.Y.Z`. The validator does not infer the current lab or require the branch name to match the title.
+Use the same allowed types as commit messages. Lab numbers are non-negative integers. Release versions use `vX.0.Y`. The validator does not infer the current lab or require the branch name to match the title.
 
-Release versions use `vX.0.Y`: the first service package release for lab `X` is `vX.0.0`, and each later release or hotfix increments `Y` exactly one. The middle component must remain zero. The validator rejects gaps, invalid prior `v` tags, and reuse for another commit. Existing tags are immutable; nonconforming history is reported for manual remediation rather than retagged. After the rebase merge, the Release workflow creates the annotated tag and GitHub release from the version scope. It describes `vX.0.0` as `Lab X service package release` and later versions as `Lab X service package hotfix`, without claiming unverified full-lab completion, then marks the release as latest.
+Release versions use `vX.0.Y`: the first service package release for lab `X` is `vX.0.0`, and each later release or hotfix increments `Y` exactly one. The middle component must remain zero. The validator rejects gaps, invalid prior `v` tags, and reuse for another commit. Existing tags are immutable; a gap fails closed and requires manual reconciliation of tags against merged release PRs before another version is published. After the rebase merge, the Release workflow creates the annotated tag and GitHub release from the version scope. It describes `vX.0.0` as `Lab X service package release` and later versions as `Lab X service package hotfix`, without claiming unverified full-lab completion, then marks the release as latest.
 
 ## PR descriptions and review
 

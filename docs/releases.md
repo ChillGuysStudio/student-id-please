@@ -12,7 +12,7 @@ To release CPR:
 4. Rebase the PR into `main`.
 5. Wait for the Release and Sync Dev with Main workflows to finish.
 
-Use the canonical `vX.0.Y` form. The first release for lab `X` is `vX.0.0`; every subsequent release for that lab increments `Y` exactly one. The middle component is always zero. PR checks reject gaps, invalid prior `v` tags, and versions already used for another commit. Existing tags remain immutable: nonconforming history is reported instead of being retagged.
+Use the canonical `vX.0.Y` form. The first release for lab `X` is `vX.0.0`; every subsequent release for that lab increments `Y` exactly one. The middle component is always zero. PR checks reject gaps, invalid prior `v` tags, and versions already used for another commit. Existing tags remain immutable: a gap fails closed and requires manual reconciliation against merged release PRs before another version is published; history is never retagged.
 
 ## Automatic releases
 
