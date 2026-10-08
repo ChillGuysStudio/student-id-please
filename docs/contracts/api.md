@@ -285,6 +285,8 @@ When different idempotency keys submit decisions at the same time, the first dec
 
 ## Discord DMs Service endpoints and WebSocket frames
 
+In the Lab 2 target, REST requests use the gateway, including realtime negotiation and chat-ticket issuance. Negotiation returns a direct Discord DMs WebSocket URL. The upgrade endpoint below is on that direct service connection, and the gateway does not relay frames. [Gateway delivery status](../architecture.md#gateway-delivery-status) records the pending integration. The negotiation response schema remains under owner coordination.
+
 ```text
 Channel = {channel_id: Id, session_id: Id, name: string, member_ids: Id[]}
 Message = {message_id: Id, client_message_id: Id, channel_id: Id,

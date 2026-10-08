@@ -11,4 +11,6 @@
 | Moderation | `sentientmoss/pad-moderation-service` | `8008` | [Moderation](README.moderation.md) |
 | Discord DMs | `sentientmoss/pad-discord-dms-service` | `8009` | [Discord DMs](README.discord-dms.md) |
 
-The [Compose configuration](../../compose.yaml) binds these ports to localhost. Database and broker ports stay on the container network. The gateway is separate infrastructure.
+The current [Compose configuration](../../compose.yaml) binds these service ports to localhost and does not yet wire the gateway. Database and broker ports stay on the container network.
+
+The Lab 2 target uses shared Go gateway infrastructure for public REST, REST realtime negotiation, and internal service-to-service REST. After negotiation, clients connect directly to Discord DMs for the WebSocket upgrade and frames. The gateway owns no domain data. The [interaction map](../architecture.md#communication) shows logical callers and receivers, and [gateway delivery status](../architecture.md#gateway-delivery-status) distinguishes the approved foundation from pending integration and image verification.

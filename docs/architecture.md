@@ -2,7 +2,7 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The [architecture diagram](architecture.jpg) shows the main connections. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The [architecture diagram](architecture.jpg) shows the Lab 2 target connections, not a verified deployment. Its [editable source](architecture.drawio) retains the embedded Mermaid definition and the drawio layout. [Rendering instructions](architecture-rendering.md) reproduce the JPEG without the team's shared browser. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
 
 ## Service ownership
 
@@ -17,7 +17,22 @@ The [architecture diagram](architecture.jpg) shows the main connections. [Game f
 | Moderation        | Final decisions, policy snapshots, subject bans, decision scores, and administrator disciplinary actions  | Source evidence, rule definitions, aggregate shift scores, or XP       |
 | Discord DMs       | Channels, membership, messages, chat tickets, and live delivery                                           | Accounts, shift roles, record permissions, or the truth of a message   |
 
-The gateway routes public REST requests and WebSocket upgrades. It is infrastructure, not a ninth domain service. Services still authorize requests after the gateway checks authentication. Internal endpoints are not public routes.
+The gateway is shared Go infrastructure, not a ninth domain service. In the Lab 2 target, its public listener routes client REST requests and realtime negotiation. Its internal listener routes service-to-service REST calls and is not publicly exposed. Services retain business authorization after the gateway verifies identity. Internal endpoints are not public routes.
+
+REST negotiation returns a direct Discord DMs WebSocket URL. The client sends the upgrade and subsequent chat frames directly to Discord DMs. The gateway does not relay frames or hold the live data connection. Discord DMs owns ticket consumption, permission checks, message persistence, and live delivery.
+
+## Gateway delivery status
+
+[Foundation PR #2](https://github.com/ChillGuysStudio/gateway-service/pull/2) at `9d298ab9c161bb039196317466ed362e2817aafb` has MaxNoragami's formal approval and is squash-merged to gateway `dev` at `03c4dcf99b1b619f96ee52aaa6a43650cfb856c3`. It adds public and internal listeners, process health, JSON errors, request IDs, HTTP transport limits, graceful shutdown, and a static non-root container. Unknown application routes fail closed. Process health does not prove peer readiness.
+
+The target topology still depends on separately owned work:
+
+- Tirppy owns [identity and delegation](https://github.com/ChillGuysStudio/student-id-please/issues/88), with caller and receiver owners agreeing the exact contract before migration.
+- mcittkmims is the proposed owner of the separate [routing module](https://github.com/ChillGuysStudio/student-id-please/issues/75). Owner acknowledgement is still pending.
+- MaxNoragami owns [application task limits and native image publication](https://github.com/ChillGuysStudio/student-id-please/issues/87).
+- andyp1xe1 owns the foundation and Discord DMs integration for [realtime negotiation](https://github.com/ChillGuysStudio/student-id-please/issues/78).
+
+The foundation approval does not verify these integrations, a published gateway image, or a running full stack. The current [Compose configuration](../compose.yaml) still exposes localhost service APIs without gateway wiring. Existing service authentication contracts describe the direct-mode baseline. The Lab 2 target validates client tokens at the gateway and removes raw downstream `Authorization`; the exact assertion and delegation schema remains under owner coordination.
 
 ## Storage
 
@@ -40,8 +55,9 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 
 | Caller or producer                    | Receiver or consumer                     | Purpose                                                                            |
 | ------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
-| Client through gateway                | Public services                          | Authenticated commands and permitted reads over REST                               |
-| Client through gateway                | Discord DMs                              | WebSocket chat                                                                     |
+| Client through public gateway         | Public services                          | Public REST commands and permitted reads, including Player authentication          |
+| Client through public gateway         | Discord DMs                              | REST realtime negotiation, chat tickets, channels, and history                     |
+| Client directly                       | Discord DMs                              | WebSocket upgrade and live chat frames after negotiation                           |
 | Session                               | Player                                   | Check players and team membership                                                  |
 | Session                               | Server Rules, University Record          | Pin policy, validate permission distribution, and create a reference snapshot      |
 | Session                               | Applicant, Credential, University Record | Select one initializer and poll all three owners for readiness                     |
@@ -58,6 +74,8 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 | Moderation                            | Player                                   | Apply `DisciplinaryActionApplied` once                                             |
 
 [HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details.
+
+This map describes the Lab 2 target. Every service-to-service REST row uses the internal gateway while retaining the named logical caller and receiver. The diagram's purple service REST edges use that same convention. RabbitMQ events and direct WebSocket frames do not pass through the gateway. These paths remain unverified as a complete deployment.
 
 ## Data and consistency
 
@@ -76,6 +94,8 @@ Reusable reference data and presets can change through administrative CRUD. Shif
 Player, Session, Moderation, and Discord DMs use Python and FastAPI. Their work is mostly HTTP, storage, or live delivery. Blocking clients must not run on the WebSocket event loop.
 
 Applicant, Credential, Server Rules, and University Record use Java and Spring Boot. Typed models and validation fit their evidence and policy operations. Maintaining two stacks adds tooling, but the coursework requires two languages.
+
+The shared gateway uses Go for HTTP listeners, request routing, identity verification, and task admission. It owns no domain database.
 
 PostgreSQL fits relational state and transaction constraints. MongoDB fits the varied evidence and reference record types. Both stores still enforce the shared contract.
 

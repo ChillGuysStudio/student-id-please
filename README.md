@@ -6,11 +6,19 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 ## Architecture
 
-Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway routes client requests and does not own game data.
+Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The diagram shows the Lab 2 target topology.
 
 <img src="docs/architecture.jpg" alt="Architecture diagram" width="1080"/>
 
 [Architecture](docs/architecture.md) explains ownership and technology choices. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
+
+## Gateway
+
+The selected gateway is shared Go infrastructure, separate from the eight domain services. In the Lab 2 target, clients send public REST requests through its public listener. Service-to-service REST uses its internal listener, which is not publicly exposed. The gateway validates client identity, routes requests, and bounds task duration and concurrency. Domain services retain business authorization and data ownership.
+
+Realtime negotiation uses REST through the gateway and returns a direct Discord DMs WebSocket URL. Clients connect to Discord DMs for the upgrade and chat frames. The gateway does not relay frames. Chat tickets, permissions, Redis delivery, and stored history belong to Discord DMs.
+
+[Gateway foundation PR #2](https://github.com/ChillGuysStudio/gateway-service/pull/2) at `9d298ab` has MaxNoragami's formal approval for listeners, process health, transport limits, graceful shutdown, and the container foundation. Identity and routing have separate owners, and application limits, realtime integration, and image publication remain follow-up work. A published gateway image and a running full stack are not yet verified. [Gateway delivery status](docs/architecture.md#gateway-delivery-status) records the scope and dependencies.
 
 ## Team and services
 
