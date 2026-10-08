@@ -10,7 +10,7 @@ Source code is in the [private repository](https://github.com/MaxNoragami/server
 
 ## Dependencies
 
-The service needs postgreSQL, verified Session context, and complete case evidence from Moderation.
+The service needs PostgreSQL, verified Session context, and complete case evidence from Moderation.
 
 A published ruleset stays immutable. Session pins one published version for a shift.
 

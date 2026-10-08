@@ -10,7 +10,7 @@ Source code is in the [private repository](https://github.com/andyp1xe1/pad-mode
 
 ## Dependencies
 
-The service needs postgreSQL, the evidence and policy services, verified Player tokens, and RabbitMQ.
+The service needs PostgreSQL, the evidence and policy services, verified Player tokens, and RabbitMQ.
 
 The API and `moderation-publisher` share the same database. The publisher runs `python -m moderation.publisher` from the same image.
 

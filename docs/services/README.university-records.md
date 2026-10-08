@@ -10,7 +10,7 @@ Source code is in the [private repository](https://github.com/MaxNoragami/univer
 
 ## Dependencies
 
-The service needs mongoDB with a replica set, verified Session context, and initialization event delivery.
+The service needs MongoDB with a replica set, verified Session context, and initialization event delivery.
 
 Reference CRUD changes future snapshots. Case records and pinned snapshots remain immutable.
 

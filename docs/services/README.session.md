@@ -10,7 +10,7 @@ Source code is in the [private repository](https://github.com/Tirppy/student-id-
 
 ## Dependencies
 
-The service needs postgreSQL, Player identity, Redis caching, and decision/result event delivery.
+The service needs PostgreSQL, Player identity, Redis caching, and decision/result event delivery.
 
 PostgreSQL is the source of roles, state, and scores. Redis caches rebuildable views.
 

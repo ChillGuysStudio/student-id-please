@@ -65,17 +65,13 @@ Reviewers check the changed contracts, service pointers, verification results, a
 
 Service repositories must remain private. Public container images are allowed.
 
-Each service repository documents its own workflow. Every update to its `main` branch must publish an image for the new HEAD, including documentation-only updates. Run publication on every `main` update rather than only on tag pushes.
-
-For PR-driven service releases, the workflow reads the exact version from the `dev`-to-`main` PR title. A title such as `chore(v2.0.0): release lab 2` produces the Git tag and GitHub release `v2.0.0`. The workflow publishes the DockerHub image as `2.0.0` and `latest`, then marks the GitHub release as latest. Use a new version for each release, including documentation-only releases.
-
-The [release procedure](docs/releases.md) describes the shared process and the three service repository secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `DOCKERHUB_REPOSITORY`. CPR creates only the GitHub release and tag, so its release workflow does not need DockerHub secrets.
+Each service repository documents its own workflow. Every update to its `main` branch must publish a public DockerHub image built from the new HEAD, including documentation-only updates. The `latest` tag must point to that image.
 
 When changing a service pointer, identify the source SHA and the matching public image in the PR. Leave services you cannot access uninitialized. Do not require private-source checkout to run CPR checks.
 
 ## Checks and hooks
 
-The required PR checks are `PR policy`, `Commit policy`, and `Repository checks`. The [GitHub setup guide](docs/github.md) describes the branch settings that enforce them.
+The required PR checks are `PR policy`, `Commit policy`, and `Repository checks`. They test CPR workflow tools, not service code. The [GitHub setup guide](docs/github.md) describes the branch settings that enforce them.
 
 Install the local hooks with:
 
@@ -94,4 +90,4 @@ python3 .github/scripts/check_docs.py
 
 Keep `.env`, access tokens, private keys, and local test credentials out of commits. Share configuration names and placeholders through `.env.example`.
 
-Follow the [release procedure](docs/releases.md) to tag `main`.
+Follow the [release procedure](docs/releases.md) to release CPR.

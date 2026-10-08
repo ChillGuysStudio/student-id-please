@@ -10,7 +10,7 @@ Source code is in the [private repository](https://github.com/Tirppy/student-id-
 
 ## Dependencies
 
-The service needs postgreSQL, a persistent RSA signing key, and progression event consumers.
+The service needs PostgreSQL, a persistent RSA signing key, and progression event consumers.
 
 Player issues the access tokens that peer services verify. The public key endpoint is `/.well-known/jwks.json`.
 

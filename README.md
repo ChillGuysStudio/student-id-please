@@ -37,5 +37,6 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for CPR rules. Follow [the development g
 - [RabbitMQ events](docs/contracts/events.md)
 - [Verification cases](docs/verification.md)
 - [Release procedure](docs/releases.md)
+- [GitHub checks and permissions](docs/github.md)
 
 The [project board](https://github.com/orgs/ChillGuysStudio/projects/2) tracks team tasks.

@@ -34,7 +34,7 @@ The gateway routes public REST requests and WebSocket upgrades. It is infrastruc
 
 A dedicated database belongs to each service. Sharing a database server in the development deployment does not allow services to use each other's collections or tables. Database foreign keys never cross service boundaries.
 
-MongoDB case operations use local transactions and require a replica set. PostgreSQL transactions protect domain changes and event records. Redis is not the source of shift scores or chat history.
+MongoDB case operations use local transactions and require a replica set. PostgreSQL transactions protect domain changes and event records. Session uses PostgreSQL transaction advisory locks to serialize mutations for one shift. Redis caches rebuildable Session views and is not the source of shift state, scores, locks, or chat history.
 
 ## Communication
 
@@ -45,7 +45,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 | Session                               | Player                                   | Check players and team membership                                                  |
 | Session                               | Server Rules, University Record          | Pin policy, validate permission distribution, and create a reference snapshot      |
 | Session                               | Applicant, Credential, University Record | Select one initializer and poll all three owners for readiness                     |
-| Moderation                            | Session                                  | Check the active shift, assigned Moderator, current case, and pinned configuration |
+| Moderation                            | Session                                  | Check the active shift, assigned Moderator, current case, aggregate readiness, and pinned configuration |
 | Moderation                            | Applicant, Credential, University Record | Read complete case evidence                                                        |
 | Moderation                            | Server Rules                             | Evaluate evidence, existing subject bans, and prior history                        |
 | Moderation                            | Player                                   | Check a disciplinary action's target                                               |

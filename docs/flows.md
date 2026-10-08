@@ -26,9 +26,9 @@ The [case contract](contracts/cases.md) specifies deterministic generation, scen
 
 The Moderator reads applicant claims and credentials. Junior Moderators read only their assigned university record kinds. Discord DMs checks shift roles and record permissions before granting channel access.
 
-Moderation accepts a decision only from the assigned Moderator for the current case in an active shift. It reads complete evidence from its owners and asks Server Rules to evaluate it against the pinned policy.
+Moderation accepts a decision only from the assigned Moderator for the current case in an active shift. It calls Session's aggregate case-status endpoint on behalf of that Moderator and waits for all three owners to be ready. It then reads complete evidence and asks Server Rules to evaluate it against the pinned policy. A pending or failed read prevents a decision.
 
-Server Rules uses university facts, credential validations, and existing subject bans. It does not receive a generator seed or scenario. The expected action stays hidden until the player commits a decision.
+Server Rules uses university facts, credential validations, and existing subject bans. It does not receive a generator seed or scenario. The expected action stays hidden until the player commits a decision. Authorized reads of the committed decision expose its saved policy result, correctness, and score.
 
 Moderation stores the decision, policy snapshot, optional subject ban, and `DecisionScored` outbox entry in one transaction. One final decision is allowed for each case in a shift.
 

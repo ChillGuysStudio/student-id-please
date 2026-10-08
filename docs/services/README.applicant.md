@@ -10,7 +10,7 @@ Source code is in the [private repository](https://github.com/mcittkmims/applica
 
 ## Dependencies
 
-The service needs mongoDB with a replica set, Session context, and the pinned university snapshot.
+The service needs MongoDB with a replica set, Session context, and the pinned university snapshot.
 
 The `applicant` database belongs to this service even when MongoDB infrastructure is shared.
 

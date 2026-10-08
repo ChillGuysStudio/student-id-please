@@ -6,7 +6,7 @@ Session selects one initializer. The other two case services derive only their o
 CaseStart = {session_id: Id, scenario: "eligible" | "forged" | "impersonation" | "outsider" | "random",
              seed: string?, subject_id: Id?}
 CaseAccepted = {case_id: Id, session_id: Id, state: "pending"}
-LocalCaseState = {case_id: Id, session_id: Id, state: "pending" | "ready"}
+LocalCaseStateResponse = {case_id: Id, session_id: Id, state: LocalCaseState}
 CaseSeed = {case_id: Id, session_id: Id,
             scenario: "eligible" | "forged" | "impersonation" | "outsider",
             seed: string, subject_id: Id | null, university_snapshot_id: Id, reference_at: Time}
@@ -22,9 +22,9 @@ CaseInitializedPayload =
 | `POST /internal/v1/applicant/cases` | Applicant owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
 | `POST /internal/v1/credential/cases` | Credential owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
 | `POST /internal/v1/university-record/cases` | University Record owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
-| `GET /internal/v1/applicant/cases/{case_id}/status` | Applicant owns<br>Session calls | None | `200 LocalCaseState` |
-| `GET /internal/v1/credential/cases/{case_id}/status` | Credential owns<br>Session calls | None | `200 LocalCaseState` |
-| `GET /internal/v1/university-record/cases/{case_id}/status` | University Record owns<br>Session calls | None | `200 LocalCaseState` |
+| `GET /internal/v1/applicant/cases/{case_id}/status` | Applicant owns<br>Session calls | None | `200 LocalCaseStateResponse` |
+| `GET /internal/v1/credential/cases/{case_id}/status` | Credential owns<br>Session calls | None | `200 LocalCaseStateResponse` |
+| `GET /internal/v1/university-record/cases/{case_id}/status` | University Record owns<br>Session calls | None | `200 LocalCaseStateResponse` |
 
 The event envelope's `producer` is the discriminator: `applicant` requires `claims`, `credential` requires `credentials`, and `university_record` requires `university_records`. Each payload has one domain section, including when its value is an empty array. The payload omits `source` and `generation_version`. Embedded `case_id` values must match the outer case, and entity IDs are unique within their owning service. A record's `subject_id` identifies its person; global academic-year and schedule records have null subjects.
 
@@ -65,4 +65,8 @@ The first impersonation fixture changes the first and last name alone. Recover t
 
 Consumers persist the original producer and normalized payload with their derived records. Duplicate comparison ignores object-key order, while generation arrays use stable order. An identical initialization under the same or a different event ID is a no-op after completion. Different producer, metadata, or source values for the same case go to quarantine without overwriting or rerolling the stored case. A subscriber creates its own domain projection and publishes no new initialization event.
 
-A service marks its local state ready only after committing its records, including a completed empty bundle. Session marks the case ready only when all three owners report ready. During event propagation, a known Session case with a consumer `404` is still pending. Failed or quarantined initialization remains pending for repair. Moderation cannot score it. Only the three case services read hidden initialization payloads; neither readiness responses nor public administrative preset APIs expose them.
+A service marks its local state ready only after committing its records, including a completed empty bundle. `CaseAccepted.state = pending` describes aggregate initialization; the selected initializer may already have committed its own ready projection.
+
+Session marks the case ready only when all three owners report ready. During its aggregate check, an owner `404` for a case known to Session means propagation is pending. An unknown Session case remains `404`. Failed or quarantined initialization remains pending for repair.
+
+Moderation calls Session's aggregate status before evaluating a new decision, then reads complete evidence from all three owners. Readiness cannot depend on a separate client poll. Neither a failed read nor a missing projection can become a successful empty bundle or an admission result. Only the three case services read hidden initialization payloads; readiness responses and public administrative preset APIs do not expose them.

@@ -23,9 +23,13 @@ Requests and non-empty responses use `application/json`. Field names use `snake_
 
 Clients authenticate with `Authorization: Bearer <access_token>`. The Player Service issues tokens. Each service verifies the token signature, issuer, audience, and expiry. Access tokens expire after 15 minutes. Refresh tokens expire after 7 days. The Player Service stores refresh-token hashes, rotates refresh tokens after use, and revokes the refresh session on logout.
 
-Administrators assign global `admin` access. Players cannot select `admin` during registration. The Server Moderation Session Service assigns shift roles. Services never trust a role claim from a client.
+Player access tokens carry a boolean `is_admin` derived from server-controlled account authority. Only a verified claim equal to `true` grants global admin access. Registration and profile updates cannot assign that authority. The Server Moderation Session Service assigns shift roles from its stored roster, not client role claims.
 
-Internal HTTP calls use `X-Service-Name` and `X-Service-Token`. Each receiver checks the named caller against its `SERVICE_TOKENS` map and the endpoint's allowed callers. A service credential alone does not authorize a player action. Player's internal reads and Session's context endpoint also require the initiating player's `Authorization: Bearer` access token; Session requires the `player_id` query to match its verified subject. Events authenticate the producer as a service. Player-facing responses never contain hidden generation data, expected decisions, or restricted records that belong to another player.
+Internal HTTP calls use `X-Service-Name` and `X-Service-Token`. Each receiver checks the named caller against its `SERVICE_TOKENS` map and the endpoint's allowed callers. Caller names are `player`, `session`, `applicant`, `credential`, `rules`, `university_record`, `moderation`, and `dms`.
+
+A service credential alone does not authorize a player action. Calls representing a player action also forward the initiating player's `Authorization: Bearer` access token. Receivers verify it and obtain participation, shift role, and lifecycle from Session. Session's context query `player_id` must match the verified subject. `X-Player-Id` alone is not identity proof. Service-only readiness polls and authenticated event delivery do not substitute for player authorization.
+
+Player-facing responses never contain hidden generation data or another player's restricted records. Expected actions, correctness, and per-decision score deltas are visible only in authorized committed-decision responses. No endpoint previews a case's expected action before the player's decision commits. Events authenticate the producer as a service.
 
 ## Idempotency
 

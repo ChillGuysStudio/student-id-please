@@ -10,7 +10,7 @@ Source code is in the [private repository](https://github.com/andyp1xe1/pad-disc
 
 ## Dependencies
 
-The service needs postgreSQL, Redis, verified Player tokens, Session roles, and University Record permissions.
+The service needs PostgreSQL, Redis, verified Player tokens, Session roles, and University Record permissions.
 
 `CHAT_TICKET_SECRET` is shared across replicas and retained across restarts. Tickets expire after 30 seconds and can be consumed once.
 

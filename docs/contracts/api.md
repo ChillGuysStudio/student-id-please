@@ -65,7 +65,7 @@ SessionContext = {session: Session, player: Participant}
 | `GET /api/v1/sessions/{session_id}` | Participant | None | `200 Session` |
 | `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>Pins the current published rules and a university snapshot; freezes roster and roles. |
 | `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>Calls the selected initializer with internal scenario `random` and reserves the current-case slot. |
-| `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant | None | `200 CaseStatus`<br>The service queries readiness from all three case owners. |
+| `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant, including Moderation on behalf of the assigned Moderator | None | `200 CaseStatus`<br>The service queries all three case owners and records aggregate readiness before returning. |
 | `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. An unfinished case returns `409`. |
 | `DELETE /api/v1/sessions/{session_id}` | Session owner, lobby only | None | `204`, no body |
 | `GET /internal/v1/sessions/{session_id}/context` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
@@ -177,7 +177,9 @@ PolicyInput = {session_id: Id, case_id: Id, rule_version: Id, claims: Claims,
 | `GET /internal/v1/rule-versions/current` | Session | None | `200 RuleSet`<br>If no published version exists, the endpoint returns `409`. |
 | `POST /internal/v1/policy/evaluations` | Moderation | `PolicyInput` | `200 PolicyResult`<br>The `rule_version` must match the version pinned to the session. |
 
-The `kind` field identifies each condition type. `applies_to_roles = []` means all verified roles; otherwise skip the rule when the verified role is not listed. The `major`, `year`, `enrollment_duration`, and `credential` conditions match when a requirement fails. The `role` and `ban` conditions match when the specified role or ban exists. Prior decision history is accepted for audit context; the initial condition types do not inspect it.
+The `kind` field identifies each condition type. `applies_to_roles = []` means all verified roles; otherwise skip the rule when the verified role is not listed. The `major`, `year`, `enrollment_duration`, and `credential` conditions match when a requirement fails. The `role` and `ban` conditions match when the specified role or ban exists.
+
+`prior_decisions` contains earlier committed decisions for the actual subject across sessions, ordered by creation time and then decision ID. It excludes the decision being evaluated. A null `subject_id` has an empty history. The initial condition types accept this history for audit context but do not inspect it.
 
 | Fact/check | Authority and missing-value behavior |
 | --- | --- |
@@ -237,16 +239,20 @@ Rules does not subscribe to `CaseInitialized`, fetch generator presets, or recei
 | `PUT /api/v1/sessions/{session_id}/record-permissions` | Session owner while lobby is open | `{permissions: Permission[]}` | `200 {permissions: Permission[]}`<br>The body replaces all Junior Moderator permissions. |
 | `GET /api/v1/sessions/{session_id}/record-permissions/me` | Participant | None | `200 Permission`<br>The Moderator has no direct record permissions. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/university-records` | Junior Moderator in active shift | Required query `kind: RecordKind` with pagination | `200 Page<UniversityRecord>`<br>An unassigned `kind` returns `403`. |
-| `GET /internal/v1/sessions/{session_id}/record-permissions/{player_id}` | DMs or Session | None | `200 Permission` |
+| `GET /internal/v1/sessions/{session_id}/record-permissions/{player_id}` | DMs or Session with verified initiating-player context | None | `200 Permission`<br>Participation remains required after shift end; the Moderator receives an empty `record_kinds` array. |
 | `GET /internal/v1/cases/{case_id}/university-records` | Moderation | Query `session_id: Id` | `200 {case_id: Id, subject_id: Id \| null, records: UniversityRecord[]}` with all internal facts |
 
 Record permissions do not change after a shift starts. The Server Moderation Session Service checks that at least one Junior Moderator can inspect each record kind. It also rejects an assignment that gives one Junior Moderator every kind. An incomplete or invalid assignment returns `409`. These rules require at least two Junior Moderators.
+
+Permission reads remain available to authorized participants after shift end so DMs can authorize history. DMs queries permissions for its verified player subject. Session can inspect the frozen roster's assignments when coordinating the shift. University checks the authenticated caller and the initiating player's participation and authority before returning another participant's assignment. Permission reads do not authorize live chat in an ended shift.
 
 Players cannot call the internal endpoint that returns all records. The Moderator receives hidden record details from Junior Moderators through DMs. An empty record set is valid for an outsider and does not grant access to restricted records.
 
 University reference CRUD accepts entries of existing kinds. Adding a course or person requires no schema change, while a new kind or required field requires a shared schema update. Updates replace the full resource; the API accepts no arbitrary JSON patches. Reference subjects must obey the person-field table, and student IDs and canonical emails are unique among them. Administrators must remove live dependents before deleting a referenced program, course, or subject affiliation. Case snapshots contain copied values and remain intact after live reference deletion. The API provides no PUT, PATCH, or DELETE for generated case records or immutable university snapshots.
 
-Identity reservation is an internal University operation rather than a general Applicant CRUD endpoint. The initializer forwards the signed Session context received with `CaseStart`. University verifies the session and selected initializer, then binds the authenticated service's proposed case ID and subject to the reservation before Session receives `CaseAccepted`. Subscribers issue GET requests after propagation and verify the persisted Session case. The API uses case-oriented paths such as `/internal/v1/{service}/cases`. It omits the reference project's `/api/v1/applicants/next` endpoint and its claimed/actual whole-person payload.
+Identity reservation is an internal University operation rather than a general Applicant CRUD endpoint. Reservation authorization binds Session's initialization attempt to the selected initializer, initiating Moderator, pinned snapshot, and reference time. University verifies that authority and binds the authenticated initializer's proposed case ID and subject before Session receives `CaseAccepted`. A player UUID or service credential alone does not establish that binding.
+
+Subscribers read the existing reservation after propagation and verify the persisted Session case. A delayed consumer verifies the retained initialization authority rather than treating an expired player token as authorization for a new action. The API uses case-oriented paths such as `/internal/v1/{service}/cases`. It omits the reference project's `/api/v1/applicants/next` endpoint and its claimed/actual whole-person payload.
 
 ## Moderation Service endpoints
 
@@ -263,7 +269,11 @@ Discipline = {disciplinary_action_id: Id, player_id: Id, reason: string,
 | `GET /api/v1/bans` | Global admin | Optional query `subject_id: Id` with pagination | `200 Page<Ban>` |
 | `POST /api/v1/disciplinary-actions` | Global admin | `{player_id: Id, reason: string, xp_penalty: Int}` | `201 Discipline`<br>The penalty cannot be negative and is separate from decision scoring. |
 
-Before evaluation, the Moderation Service checks session context and readiness in all three services, then reads all case data. It takes the actual `subject_id` from University's internal response and uses it for existing bans and history. It sends those facts and the pinned `reference_at` to Server Rules. It excludes generator metadata and any player-supplied expected result. It stores the returned `PolicyResult` with the immutable decision.
+Before a new decision, Moderation verifies Session context and calls Session's aggregate case-status endpoint with the initiating Moderator's bearer token. Session polls its three case owners and records readiness. A pending result returns `409 CASE_NOT_READY` to the player with `Retry-After: 1`; Moderation does not evaluate or save a decision. The case-owner status endpoints remain Session-only.
+
+After aggregate readiness, Moderation reads the complete Applicant, Credential, and University evidence. Every read must succeed. A pending response prevents scoring; an unavailable dependency returns `503`. Successful empty bundles describe completed evidence, not missing projections.
+
+Moderation takes the actual `subject_id` from University's internal response and uses it for existing bans and history. It supplies required `subject_id`, including null, and uses `Session.started_at` as `PolicyInput.reference_at`. It excludes generator metadata and player-supplied expected results. The full returned `PolicyResult`, including `reasons`, is stored with the immutable decision.
 
 A correct action adds 10 points. An incorrect action subtracts 5 points. The `penalty` is 0 for a correct action and 5 for an incorrect action. An action is correct when it equals `expected_action`.
 

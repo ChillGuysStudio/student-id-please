@@ -1,8 +1,10 @@
 """Test selective service setup without contacting private repositories."""
 
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -16,6 +18,13 @@ spec.loader.exec_module(services)
 
 class ServiceSelectionTests(unittest.TestCase):
     def setUp(self):
+        environment = patch.dict(os.environ, {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -85,6 +94,17 @@ class ServiceSelectionTests(unittest.TestCase):
     def test_uninitialized_service_is_not_probed(self):
         with patch.object(services, "git", side_effect=AssertionError("unexpected git call")):
             services.check_worktree("discord-dms-service")
+
+    def test_fixture_ignores_inherited_signing_configuration(self):
+        config = self.root / "host.gitconfig"
+        config.write_text("[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = false\n")
+        result = self.original_run(
+            [sys.executable, "-m", "unittest",
+             "test_services.ServiceSelectionTests.test_uninitialized_service_is_not_probed"],
+            cwd=ROOT / "tests", env=dict(os.environ, GIT_CONFIG_GLOBAL=str(config)),
+            capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
