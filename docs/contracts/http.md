@@ -4,7 +4,9 @@ These conventions apply to service calls in mocked and integrated deployments. [
 
 ## Paths and data types
 
-Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the gateway does not expose them. Each endpoint belongs to the service named in its section.
+Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. In the Lab 2 target, all client-to-service REST uses the public gateway listener and all service-to-service REST uses the internal gateway listener. Each endpoint belongs to the service named in its section.
+
+Realtime negotiation uses gateway REST. The returned direct Discord DMs URL carries the WebSocket upgrade and frames, even though its path starts with `/api/v1`. See the [target interaction map and delivery status](../architecture.md).
 
 Requests and non-empty responses use `application/json`. Field names use `snake_case`. Services serialize UUIDs in canonical lowercase hyphenated form before comparison or deterministic generation.
 
@@ -20,6 +22,8 @@ Requests and non-empty responses use `application/json`. Field names use `snake_
 `T | null` means that the field is required but can contain `null`. All other fields are required. Scores can be negative. Counts cannot be negative. The objects below use type notation, not JSON syntax.
 
 ## Authentication and authorization
+
+The authentication details below describe the direct-mode baseline. The Lab 2 target verifies client identity at the gateway and removes raw downstream `Authorization`. Tirppy and the caller and receiver owners are coordinating the exact assertion and delegation contract. The [gateway foundation approval](../architecture.md#gateway-delivery-status) does not establish receiver compatibility with that target.
 
 Clients authenticate with `Authorization: Bearer <access_token>`. The Player Service issues tokens. Each service verifies the token signature, issuer, audience, and expiry. Access tokens expire after 15 minutes. Refresh tokens expire after 7 days. The Player Service stores refresh-token hashes, rotates refresh tokens after use, and revokes the refresh session on logout.
 
