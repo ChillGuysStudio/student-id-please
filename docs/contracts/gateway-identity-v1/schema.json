@@ -1,0 +1,511 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:student-id:gateway-identity:v1",
+  "title": "Gateway identity v1 decoded JWT profiles",
+  "description": "Candidate wire shape only. Duplicate JSON rejection, RSA verification, pinned keys, expiry relationships, route binding, authenticated caller, live business policy and replay checks remain mandatory. Length limits in the protocol are UTF-8 bytes, not JSON Schema character counts.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "claims"
+      ],
+      "properties": {
+        "header": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "alg",
+            "kid",
+            "typ"
+          ],
+          "properties": {
+            "alg": {
+              "const": "RS256"
+            },
+            "kid": {
+              "type": "string",
+              "minLength": 1
+            },
+            "typ": {
+              "const": "gateway-request+jwt"
+            }
+          }
+        },
+        "claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "v",
+            "iss",
+            "aud",
+            "iat",
+            "exp",
+            "jti",
+            "actor_exp",
+            "azp",
+            "method",
+            "path",
+            "query_sha256",
+            "body_sha256",
+            "idempotency_sha256"
+          ],
+          "properties": {
+            "v": {
+              "const": 1,
+              "type": "integer"
+            },
+            "iss": {
+              "const": "student-id-gateway"
+            },
+            "aud": {
+              "type": "string",
+              "minLength": 1
+            },
+            "iat": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "exp": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "jti": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "sub": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                },
+                {
+                  "const": ""
+                }
+              ]
+            },
+            "actor_exp": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "actor_jti": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "is_admin": {
+              "type": "boolean"
+            },
+            "azp": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "method": {
+              "type": "string",
+              "pattern": "^[A-Z]{1,20}$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^/"
+            },
+            "query_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "body_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "idempotency_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "session_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "claims"
+      ],
+      "properties": {
+        "header": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "alg",
+            "kid",
+            "typ"
+          ],
+          "properties": {
+            "alg": {
+              "const": "RS256"
+            },
+            "kid": {
+              "type": "string",
+              "minLength": 1
+            },
+            "typ": {
+              "const": "gateway-delegation+jwt"
+            }
+          }
+        },
+        "claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "v",
+            "iss",
+            "aud",
+            "iat",
+            "exp",
+            "jti",
+            "actor_exp",
+            "azp",
+            "sub",
+            "actor_jti",
+            "scopes"
+          ],
+          "properties": {
+            "v": {
+              "const": 1,
+              "type": "integer"
+            },
+            "iss": {
+              "const": "student-id-gateway"
+            },
+            "aud": {
+              "const": "student-id-gateway"
+            },
+            "iat": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "exp": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "jti": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "sub": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "actor_exp": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "actor_jti": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "is_admin": {
+              "type": "boolean"
+            },
+            "azp": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "scopes": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "target",
+                  "method",
+                  "path",
+                  "exact_path"
+                ],
+                "properties": {
+                  "target": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                  },
+                  "method": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{1,20}$"
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "pattern": "^/"
+                  },
+                  "exact_path": {
+                    "type": "boolean"
+                  },
+                  "query": {
+                    "type": "string",
+                    "maxLength": 8192
+                  },
+                  "body_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "claims"
+      ],
+      "properties": {
+        "header": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "alg",
+            "kid",
+            "typ"
+          ],
+          "properties": {
+            "alg": {
+              "const": "RS256"
+            },
+            "kid": {
+              "type": "string",
+              "minLength": 1
+            },
+            "typ": {
+              "const": "gateway-chat+jwt"
+            }
+          }
+        },
+        "claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "v",
+            "iss",
+            "aud",
+            "iat",
+            "exp",
+            "jti",
+            "actor_exp",
+            "azp",
+            "sub",
+            "actor_jti",
+            "scopes",
+            "session_id"
+          ],
+          "properties": {
+            "v": {
+              "const": 1,
+              "type": "integer"
+            },
+            "iss": {
+              "const": "student-id-gateway"
+            },
+            "aud": {
+              "const": "student-id-gateway"
+            },
+            "iat": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "exp": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "jti": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "sub": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "actor_exp": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "actor_jti": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "is_admin": {
+              "const": false
+            },
+            "azp": {
+              "const": "discord-dms"
+            },
+            "scopes": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "target",
+                  "method",
+                  "path",
+                  "exact_path"
+                ],
+                "properties": {
+                  "target": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                  },
+                  "method": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{1,20}$"
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "pattern": "^/"
+                  },
+                  "exact_path": {
+                    "type": "boolean"
+                  },
+                  "query": {
+                    "type": "string",
+                    "maxLength": 8192
+                  },
+                  "body_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "session_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "claims"
+      ],
+      "properties": {
+        "header": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "alg",
+            "kid",
+            "typ"
+          ],
+          "properties": {
+            "alg": {
+              "const": "RS256"
+            },
+            "kid": {
+              "type": "string",
+              "minLength": 1
+            },
+            "typ": {
+              "const": "gateway-workload+jwt"
+            }
+          }
+        },
+        "claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "v",
+            "iss",
+            "aud",
+            "iat",
+            "exp",
+            "jti",
+            "azp",
+            "method",
+            "path",
+            "query_sha256",
+            "body_sha256",
+            "idempotency_sha256"
+          ],
+          "properties": {
+            "v": {
+              "const": 1,
+              "type": "integer"
+            },
+            "iss": {
+              "const": "student-id-gateway"
+            },
+            "aud": {
+              "type": "string",
+              "minLength": 1
+            },
+            "iat": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "exp": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "jti": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "azp": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "method": {
+              "type": "string",
+              "pattern": "^[A-Z]{1,20}$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^/"
+            },
+            "query_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "body_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "idempotency_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

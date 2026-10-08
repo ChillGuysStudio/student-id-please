@@ -1,0 +1,713 @@
+{
+  "version": 1,
+  "gateway_public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm93F5nOGd71KpYCHcs5f\n0CnmQJ4GZCthyvoSBL3QD6VprV8/3HcLTJ6nUspmlQly/R1gzEUf9/t3NQwcoCPI\nhBxxzNU+tXMAZrv83CIi2v8uIKutKSDedMtep5AZmBi6x3jnB70dPjKqLRk5282N\nPY+RIi4km3rORYkcOPnX7DSCprCstTMfLXgJASAyOxkWVAdjOKIrrjpXs12cdu3i\nU9s7roiBD5jj+oUtu0Gp62XGDoXleQGq4UJhPELPOBhEefywl683KJzdshwthJWO\nSNgLATIO7y8X7pop0MEGRAwoiiu5AAvVCXI6ltnJm6Cae3hSRNJiGZaTj9/PLETX\n7wIDAQAB\n-----END PUBLIC KEY-----\n",
+  "player_public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs1NosK28GMfUXjjGFWWv\nuotEWR7bbDWwrcupTiTCClhSK0dO1DibF3N5NJ4dY9XlKJfdymyLxakIKCzY4G2h\nlZE2mlpbnWp5Cg16EWk+nMsFDovcpb6qtWry25WQ0u36MPo/Okhq5Xv6qlBZH39k\nDqB3QohqS0ybz80qTLIXXpcqXSI1KlqQ/coYf4DT2IUPocsk0rSDcGpvOi3n1RdR\nRosvcbsZuuqjZZ0NhzcwBD30TdvHJVNSnXQt+434vumkvunLcXhLgiJdqrtu9CPB\nYw2Ulrc+wpaxLZyHFQSaGdsb93PFuxQtMdIHlYNGpXV6X8R5wgsW4sgwI+zGuguD\nxQIDAQAB\n-----END PUBLIC KEY-----\n",
+  "cases": [
+    {
+      "name": "player-current",
+      "operation": "player",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InBsYXllci12MSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJzdHVkZW50LWlkLXBsYXllcnMiLCJleHAiOjIwMDAwMDA5MDAsImlhdCI6MjAwMDAwMDAwMCwiaXNfYWRtaW4iOnRydWUsImlzcyI6InN0dWRlbnQtaWQtcGxlYXNlIiwianRpIjoib3JpZ2luYWwtcGxheWVyLXRva2VuIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.oieFLEt3Zia_Ld0njKSmOaMyUbOdPZI_-whXEbdtWh-ueRRfUyibUTgdcE0_QIoSeROeP2_i1BN0w9idT7mgNW7Jeg6BADMjvrEYyH5qpej4LTdj_CI9ctOsTVpoVuKKjWMZHYlOleXP5l93JsDdpfNy5-m6fVmBk8-8J9SW7m3M1ed2iuIZT9KmM5MYLMN1LFfb0jvilM4-aVDn6EHqxVysIbmLno1X87E1GAh3etALIQTO0oc-4EiyHxUbGoicXHaSib0IUezegcRL07NTil2u_q7NF2lOekEL2nlIA2o0yJLovMdZiB4LBKAo2_Iwt338hVT9TviY79gU6RSw3w",
+      "accept": true,
+      "expected": {
+        "actor_exp": 2000000900,
+        "is_admin": true,
+        "sub": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "player-legacy",
+      "operation": "player",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InBsYXllci12MSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJzdHVkZW50LWlkLXBsYXllcnMiLCJleHAiOjIwMDAwMDA5MDAsImlzcyI6InN0dWRlbnQtaWQtcGxlYXNlIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.PLf4jd2D-kqoBFLCLNCHIdIj3uttNfydmvXVLqXOH0e7PUG481_qpcYNDPN-hWiPjRFlshnM3mJ_Dg0cBOc8DPUbQhpbIcz2wgzIaJdJRcSJohlq5wsvveB7IgiS1HcR1RqOrYNmBh96b-kn-Wk-XZZGYKAIBQQwjZZAZomPJeZHmGgNUSbktsdzAiytBg8RxyFlLa5n3z2IN5Fs-iFJ7uH9mnYzidxsyUpDaYD37e5XI9-pVkq1dQyGqbBEimW56AKsbygX6OZux97E7jmd_fGml0tEGhX8q7NNOOYbHORMSunxn4IwM0e236Vh8FbX1gk5smQkWN27IYQEmNmCuQ",
+      "accept": true,
+      "expected": {
+        "actor_exp": 2000000900,
+        "actor_jti": "sha256:0ddc35e344642105a0149e9da83ef0fc667a359d0f1667a5dd8847dbb2f3cb55",
+        "is_admin": false,
+        "sub": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "reject-player-admin-integer",
+      "operation": "player",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InBsYXllci12MSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJzdHVkZW50LWlkLXBsYXllcnMiLCJleHAiOjIwMDAwMDA5MDAsImlhdCI6MjAwMDAwMDAwMCwiaXNfYWRtaW4iOjEsImlzcyI6InN0dWRlbnQtaWQtcGxlYXNlIiwianRpIjoib3JpZ2luYWwtcGxheWVyLXRva2VuIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.ca_6AX647khFw1L8jPy0DDHU9ELcS5oqL5LlkTMQhuO6DjVfBF_qQPByYytaanDHzIuwNsFGwFhqHcbD3uDb70uHCsOSV5maYA8lEPduFVK_c-xyFJyL_S80GS-Iqsm8buRnX07wTFnOz67jUSTYwoTmBjSaYvZAT0TedGwtfTPJxAU4U2GvNOpu-b0WxuxdGLckEtrbMp53EY_voFtrWWR4PrFsuheoEuUN9exiGkTPU1_MunLUL4oJZb5Yn0DsDdtpq7GdhJsVYbxU1VKHbPUFkYtwNLq_Vt0F2v6VhJNM42n_6Abc0QBM7JHFGTZb-IAZXTAfyhAMqrMTr_9I0A",
+      "accept": false
+    },
+    {
+      "name": "reject-player-admin-null",
+      "operation": "player",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InBsYXllci12MSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJzdHVkZW50LWlkLXBsYXllcnMiLCJleHAiOjIwMDAwMDA5MDAsImlhdCI6MjAwMDAwMDAwMCwiaXNfYWRtaW4iOm51bGwsImlzcyI6InN0dWRlbnQtaWQtcGxlYXNlIiwianRpIjoib3JpZ2luYWwtcGxheWVyLXRva2VuIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.RWtLvKea6dxsC1q7BpyWroj08dSPtY6rAkNSrMtrchkzNhfN9oyYqoVFRWjHik7y9EA0vwisXznTS9INeJJuN663OQmf7-JZvguUWUhyDbNSK7smDhB1BQgdxO9dUIAw34KkRwTl5Mw5LNHqsvsNGsFiOK-7opDmFfJOVjM7CRdjYfT1MZDpTgIY43LqLzAzXUo9uzKNu_fwwKiR8lGpfycBVuvV2ZryRfAzjAPLkqMwf0xp7pCrLpltfUO_2_kPfkn62F1AN0Rzplbbjrcq3vnWxTQe_E9zyJlQ_aVGMh9PzxK29vxlcHYqB1hGKh5pwn_zUKP2RqzgPGHaVm4_Tw",
+      "accept": false
+    },
+    {
+      "name": "reject-player-admin-string",
+      "operation": "player",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InBsYXllci12MSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJzdHVkZW50LWlkLXBsYXllcnMiLCJleHAiOjIwMDAwMDA5MDAsImlhdCI6MjAwMDAwMDAwMCwiaXNfYWRtaW4iOiJ0cnVlIiwiaXNzIjoic3R1ZGVudC1pZC1wbGVhc2UiLCJqdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEifQ.nEGvcUewRDqwjY1OZf1BpKHi22_z5gJU4JJB8wH7eIH1wy_fq9GgPjC_v4XFTos1FME0e0PBduR6T9Unwb4-N2lnIMUL0GVBvmmDP_0n7-VFbKGt5q1oYq1LIzqsZc56LW13nafW96scG79yQotKyvlvp9H8ZlJ1xfX7Gl9jYyhzugqeRwoB5DqUIUWvEtdnYWujsRtiINZ6zeNffKnS3ov_o6wvm-Wo7xtVw-0UB8NzCYeplj7_d3eqhggAZqYy5ZJIm8L3Wloe5Iupn4wlW0W_lRxY3EDfhqIKjoXDHa4G3E3nGCoTaEFI7gon2XbIkFQ7pmgLTeFckCCr1kIJ2Q",
+      "accept": false
+    },
+    {
+      "name": "request-empty-body",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6Ijg3YzRhNDA4N2E0NzNhMjZmZGMyYzhiNjRlOTM1MGJmIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IkdFVCIsInBhdGgiOiIvaW50ZXJuYWwvdjEvcGxheWVycy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJxdWVyeV9zaGEyNTYiOiI1YTY1NDgxMGM5ODY0MWVlZDVjMTFjMjhkMjBiMTJmZTljMTgzNWMwZTMyNTIzYjVmZmM0NmQ2NGZiMTVmYTRiIiwiYm9keV9zaGEyNTYiOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiaWRlbXBvdGVuY3lfc2hhMjU2IjoiNGIwZTAyODRlZjQyNDAyNWJiYjRhZDBjZGM3ZmQ1YTEzMzkwMjQ4NTliNjkwNmQ3Njk4Njg5NDIxNjQxOWY4NiJ9.h5nA-lWHuzvjvnffj667UGWH4eAEmatNyZts0RmGAUqdxch_7fMF-l_0tthcr4rZR4jYrJKYAoMZRQsGH2UUvU6-d9gdy1Jy6P6iL0-8KtETyuCG2M-3iHPJfkp7i-m2bYKN8lt0EKIklGvLFn4ocYxv_-wcX4FRtJATqP51xltG_18Q6n0dcXrMLQn_R0jSkTHabt1__otrCwLLjkyuQi1R_4UyXvM5-G298bTPOkPuNCR_rw6FBo6wkcD-arGI5IGmmqBEG5okxKU1JAbbd-kqCrKZU5RG5Rwvdo6iR3c0DG46wescjA6q4jEm8d0e3Y29tkArTmB6b6cbVCJHIw",
+      "accept": true,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "GET",
+        "path": "/internal/v1/players/00000000-0000-4000-8000-000000000001",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "",
+        "idempotency_key": "attempt-one"
+      },
+      "expected": {
+        "actor_exp": 2000000900,
+        "exp": 2000000030,
+        "is_admin": true,
+        "sub": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "request-binary-encoded-path-repeated-query",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjI5MjE3NjlkNDk4MjAwZTk3YjlhZmNmMGJkMDU1NjM0Iiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.IZ2HrM20LMt6Y3Yk0RwQa1-CszonH_mtawLZg-u8A6ck-03vrjEkSj95ScTqKgsObnyQUjD_lx4PACYGA4SknvzcAjg4-u_AImTE2dFcy3sDC-ZfSAZ0BPs1GCDkpFRnE0AQgMIPgzOimxP932ENdidWmNS1_YExd5U89M_aLOrGfoD725l8AQtcbcDdSdDOBVW_wYcZ8XqvYHY4Q51vMOda_1_3SLX8xvH6xzoAoDVaFja6acj4i5LnUyARDVBKl3z67YGw3Zy6WB31nPyGtYiabkyXVL_etGs54506mTInAwluU2CpEgwx6T73r2HRBAd01PdhXKwBZy8o8YGV7g",
+      "accept": true,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      },
+      "expected": {
+        "actor_exp": 2000000900,
+        "exp": 2000000030,
+        "is_admin": true,
+        "sub": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "request-absent-or-empty-idempotency",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjQzOTg1MDA5NTIwYWU1OTY2Y2I2NDI3ZmQ0MjZjNjkxIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IkdFVCIsInBhdGgiOiIvaW50ZXJuYWwvdjEvcGxheWVycy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJxdWVyeV9zaGEyNTYiOiI1YTY1NDgxMGM5ODY0MWVlZDVjMTFjMjhkMjBiMTJmZTljMTgzNWMwZTMyNTIzYjVmZmM0NmQ2NGZiMTVmYTRiIiwiYm9keV9zaGEyNTYiOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiaWRlbXBvdGVuY3lfc2hhMjU2IjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9.ZJ3Z1_aP4YsoJKPZIt0BOp7kSXG1eJAXkd2NtatKcm-j3UxHTc9TB2WuVJBg4HOAGBKj1jBr6Pb_c2uTqfCyARyZzjd2KOTVt3L0FObiooQvg658GUMUvyCUckj68UVGgfBw-UAMKEaj-B6rELz8BzfL3RYuKaimTE02iD1hunSLmAd1EMzDAZc8vIwT87HjJBCGhcNpAZedfu2N17N4hXsg5LeA61VMyRZvKrKWeaibZA1q8HWR9770Yp7giju30PL_bj4U__C45JbMT-YBVmIoHQSie3kjsGujt_aqa95t5xvR_aOR5dB-AP2SQfZlRdKe3Ep9wgtBaO6K3YX-sg",
+      "accept": true,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "GET",
+        "path": "/internal/v1/players/00000000-0000-4000-8000-000000000001",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "",
+        "idempotency_key": ""
+      },
+      "expected": {
+        "actor_exp": 2000000900,
+        "exp": 2000000030,
+        "is_admin": true,
+        "sub": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "request-anonymous-login",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6ImVlZDBiOTk4MGU4ZTI2MmY3OWY4NDkzMjY2ZmY5NDc5IiwiYWN0b3JfZXhwIjoyMDAwMDAwMDMwLCJhenAiOiJnYXRld2F5IiwibWV0aG9kIjoiUE9TVCIsInBhdGgiOiIvYXBpL3YxL2F1dGgvbG9naW4iLCJxdWVyeV9zaGEyNTYiOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiYm9keV9zaGEyNTYiOiIxN2E3YjM3YjU1MGI4ZjM0Nzk5ODc4ZmJkYzFlNzFiY2NmNDdiZGNiYTA1Njc1M2E0YWYxOTc3MzhjNDQ2MDc3IiwiaWRlbXBvdGVuY3lfc2hhMjU2IjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9.aRJjkKUtbU6M6_D6Nb6SSzoHx39lUjXjfQs8YuU0tNa_DUpX7fL1A5dwo15WIekfjG0Kuo7LiYsQgS7YKMZrw1QeCRcCHPHDTIXuRghGiGIpEoffGytXrldvTyfvY6YPtEIVnkIPWQxV3CIwoZLKb2dFBinn1H-1lysbvYKxxW52ZGBZw0N2mSsyBzmdFvv2wr7KEVHU12epDjTeqAMrA0igSZf3bjnokvCM4JROiw5sxY1Q_5lEh-P449E3FCz5WJfyKdTRQ1ku4sHNO3iOSHK4h07Fl44gsiiFbxcCBtrMYcwfzw0oVzpSaLEAdulgJGUi7l7pqzxncmIgcg0H4w",
+      "accept": true,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/api/v1/auth/login",
+        "raw_query": "",
+        "body_base64": "eyJlbWFpbCI6ImZpeHR1cmVAZXhhbXBsZS5pbnZhbGlkIiwicGFzc3dvcmQiOiJmaXh0dXJlIn0=",
+        "idempotency_key": ""
+      },
+      "expected": {
+        "actor_exp": 2000000030,
+        "exp": 2000000030,
+        "is_admin": false,
+        "sub": ""
+      }
+    },
+    {
+      "name": "reject-request-changed-body",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQ==",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-request-changed-idempotency",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-2"
+      }
+    },
+    {
+      "name": "reject-request-changed-audience",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "session",
+        "audience": "student-id-session-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-request-changed-method",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "PUT",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-request-changed-path",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/a",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-request-changed-query-order",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=b\u0026tag=a\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-request-changed-query-encoding",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a+b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-header-duplicate-alg",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImFsZyI6IlJTMjU2Iiwia2lkIjoiZ2F0ZXdheS12MSIsInR5cCI6ImdhdGV3YXktcmVxdWVzdCtqd3QifQ.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.Sie6pgA1m0gpVZ5HdRwrIM44-veRpwyzYxijfocfkdvBdDbkxRu7IvWzquky7ToO8_8M6Ia_kiZe7FXIG7yE9qATCfNnfD0JQPhcHwxjoFMnpbrKk-ZIDchIuB1jCa42EkBZg2VvA0k0NVNfSfHAzD7Bsh_IBBRY7yd-HD21fM0eUg44vHzh_06PJuaPKSjyOHtcVxgHOrO6_vus_MFqe_-0dkWWoMOnG3WWNP_F5GGhcEFNRfcP8qEyTgyjuzXG4-TMYX2xQCKS9TLtUB8PIg4zqhhAord-62QcC3sZKHlmLDI8JP23zgLCr9xBop12IoIkbiZcdc3xMnLZxveTtg",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-header-case-alias",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJBTEciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.SUKWz_JU4sYXN6S1vaZgFX9MQOnuHk-xOUhf9eFthTsIeVwQb_WT9g51hz0B93gIeRKQ9rMU85MpM10CV_4qyJv-7mm4EEE8ymkNdiV4PAwm6p7ZPTRLEInmLRjTn6vIYN1pxpRV6aXDSmSbnIdQUSIqjhKplh_Y-t0Fe_8wZ514a2NxWq_bI9x7se2KEA3DZPf6Wu2u_X4iS_KuyoByQIxEh0UoF8jY0dNYUa-yxIJafdo59-dafrjPP2ZomHxiW1YmIgOmq5kOKjnzkzyHdUiLPYHr9IOJF54WNORNz0d7EXAcOYtMYTNaI6almPF5derV58_F09UHY751MWx1gQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-header-remote-key",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0Iiwiamt1IjoiaHR0cHM6Ly9maXh0dXJlLmludmFsaWQvandrcyJ9.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.TggCxzZi7CZUawJWEiYauYsAnUk_PC-A5DBP8N6cyw78BF9LseEF8mNDHtE6-JiEDyr2sONlFiMWzXmZcnbjNSEGSrU_eNi-3KopDLTwe2hO2O5hPI6VNOaUJySf_K-U8_d2oMO9fu-2wQz-QZOZFQ1KurzVqF-MZXJSxhsUCkBdP2uuCMoN8ItAB-I_N72qJAswXzUD8IQNxnlgiWi_LQVVRCzMzRSFh_1PbgHiqd1svRaAA3eMDt72MCMejZu1T4LjNp0w7SWvrFGueE1il4x-0IbMx0sGktiQ9RDUG2eyagF65jBX_INALAa7TWnNc8c0c5MPiYInWKcCVFfULg",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-header-unknown-kid",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InVua25vd24iLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.BX_1gm7AA8ZWEBArmgQUZJ-ak72E1tTbI6lyBk4j1IoyF8mXbfUier3T6kXF8q7t7A9K4KPPKeTI4jcaLO4Bt83DDYu2rhJ-ebQG9k6ZpjyWkByarPPXK5qhmKJv5IF2xZsfTf6D2VCxJq0Mdo5qOK-fhxNwFJI8c4iJQb123uHKg_vegl8S4nLiL16gKF93MuJhgCBqHPbT7QIjojTDSgvXBwK6fdHLnTTycZF8qwsFSWZ54066p2VvjKdQ4zhLOXW0iXP3N9lHXGvcMrN_vMrAd1buK3ON28eMbgseyL-M36Kf9ALLhvMGtLMyN3G1U4gqIfP1cX6NB2G9R2-Kog",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-header-wrong-type",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWRlbGVnYXRpb24rand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.UXq2DFbyhbf03mWRNCmAdeB9JVzzJqb1HuUwLpyX40WhrtZDLjQMKHyVn5BqvXroB4j9GaNFy1VzqJVhwB89YYgwsR6IQHkmGjFO4wkabn4jLZs-Pqj_vCqNColZxUtXJ5XxuiHZoTjfJ6JsaBWpxqHjKzg10QSnbl5DkZM5gUARTsMvcqzGNLhuL8LTYDAsluV2qCB1Vogf_MrD_dkMdqOw-Y0yBlFhzJSBcxh6XWJ9zzMa2iJHT_W-5YDPSglRM6jv_owVCGc9FZYtTyk4zur1hau9c1ud2qZ_JLoqzLFtmZfVXKEVNnuUoHr5Xu8gwCThrMY7JM2ZBAeQNnev0g",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-claims-case-alias",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJJU1MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF1ZCI6InN0dWRlbnQtaWQtcGxheWVyLXNlcnZpY2UiLCJhenAiOiJnYXRld2F5IiwiYm9keV9zaGEyNTYiOiIxZTgxMzNjN2M4MTkxMjczOGRjZGYxMjU0ZmI4Njc3YjUxYzIxYWU5YmI0MzU4YzQzMjAyYWQ5YTlhNzFlNTQxIiwiZXhwIjoyMDAwMDAwMDMwLCJpYXQiOjIwMDAwMDAwMDAsImlkZW1wb3RlbmN5X3NoYTI1NiI6IjE4N2YwMzQ5ZGQxMmI2ZGM3M2Q3NmQ4NmY0MjFjZDQ1NGZhY2NjYzM2ZWY5YTJiYTY5NTZiMzdhYmJiMzExMDIiLCJpc19hZG1pbiI6dHJ1ZSwiaXNzIjoic3R1ZGVudC1pZC1nYXRld2F5IiwianRpIjoiNjgwZTRmMGU0NWQ1NmNlYWFhNGVmYjRkZTAyODhjMWQiLCJtZXRob2QiOiJQT1NUIiwicGF0aCI6Ii9pbnRlcm5hbC92MS8lNjEiLCJxdWVyeV9zaGEyNTYiOiI3ZDJmZDYwYzhlMThiMTUxZTQyZmVjM2Q5NWZlMTNiMmJiNWQxNzVmOTgyMGE3NDA3MTAyMWY0OWU4MGU1OTBkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidiI6MX0.MuZ1j-nfJwmcMEtM5ycnPEyUyGxQGh2hHN5Y7RFBjFuYG_yyjNEFpAXfhF-lZr8f7OfEfiExpq8DwXMbHU3sFaIp4I676D4Ck2SuhgFYlYoj4qfRnttIv4qEjwJhwKx9fN6Dt8MfGf88yjECQzv2q45KIi10fOJqnUrF96kGbSXVZs7zSjSEocnPgWk5IwoLxeUWkn-AnLy6oUITU4FQxiuGxP-xM5tsIG_EDlwGuXWjfpSMDep1hpWIEoJ4QONn3rJYzRnZ09--lV-B2vF_FU3nwJWhxRhkW2qXRJpSaywri4s3wQTJO2SYYOlQgXU65OYvx2VnKmCoUCZRn9IMZQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-claims-fractional-expiry",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF1ZCI6InN0dWRlbnQtaWQtcGxheWVyLXNlcnZpY2UiLCJhenAiOiJnYXRld2F5IiwiYm9keV9zaGEyNTYiOiIxZTgxMzNjN2M4MTkxMjczOGRjZGYxMjU0ZmI4Njc3YjUxYzIxYWU5YmI0MzU4YzQzMjAyYWQ5YTlhNzFlNTQxIiwiZXhwIjoyMDAwMDAwMDMwLjUsImlhdCI6MjAwMDAwMDAwMCwiaWRlbXBvdGVuY3lfc2hhMjU2IjoiMTg3ZjAzNDlkZDEyYjZkYzczZDc2ZDg2ZjQyMWNkNDU0ZmFjY2NjMzZlZjlhMmJhNjk1NmIzN2FiYmIzMTEwMiIsImlzX2FkbWluIjp0cnVlLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJqdGkiOiI2ODBlNGYwZTQ1ZDU2Y2VhYWE0ZWZiNGRlMDI4OGMxZCIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJ2IjoxfQ.aJ-dNJBEh2Nfj2Vld_0tfG6gsLYTKFQ-oVnNM6aCVEkWEd9AEENciqDyuH7u8uFMPd2joMVzlA1DKNc65CHpjMp916jlAM7A-EeD1UhKd1RDpemhajdYszcCAkwcOKm_aVONjrN7_IQ8W4m745F-QD6r2IDHhZEXliGwb0zwPNnYQJX56jMnCTAOmWMt_-zPUjgje9f-_S7fS38YvmtyQnoxKCGXWSBpnlUs2JBu_9oSsznSOnvrURl6k3viLzXJ4YorpcE5RFmesi_GZKgOU4Hb3xP9h1QaqwzzsnQQGRLzzipVYAs9PS58IktD1XagdJkcEGDq7aFm6fHU3-6TOw",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-claims-audience-array",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF1ZCI6WyJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIl0sImF6cCI6ImdhdGV3YXkiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJleHAiOjIwMDAwMDAwMzAsImlhdCI6MjAwMDAwMDAwMCwiaWRlbXBvdGVuY3lfc2hhMjU2IjoiMTg3ZjAzNDlkZDEyYjZkYzczZDc2ZDg2ZjQyMWNkNDU0ZmFjY2NjMzZlZjlhMmJhNjk1NmIzN2FiYmIzMTEwMiIsImlzX2FkbWluIjp0cnVlLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJqdGkiOiI2ODBlNGYwZTQ1ZDU2Y2VhYWE0ZWZiNGRlMDI4OGMxZCIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJ2IjoxfQ.Sb3MfNRZBtZ0sfYS3ovJC18VpuQ0azwVpEb3vJPpneL73ilcvysITzz465RWgMSFWRAyu69P13w4mdDawOdddWx_RuR0XCVDO1UQPwwjB8keUSaw_trNjlsQHt8iqf2_0TEBVRhPKKK5Gb7pGUrsvxNszZQLaPA97r3h9-J8o_ZGuxo9PXOGQJg4BP7I-i2_5j1ZIb1EJoVYm8BmEbPIR_dRD3j2Ck7ElaGKcDIXcw9fwanGIfbsdwQXTr1GlcjP5Ox9OFzic6ZAHCes3dTdGwYvI4AVpR9En7_GPJwFM2ifdjOWKgnKoNeVxwO_VSROt994abYl76H6rgv1_ZN0XA",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-claims-actor-expiry",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJhY3Rvcl9leHAiOjIwMDAwMDAwMjksImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF1ZCI6InN0dWRlbnQtaWQtcGxheWVyLXNlcnZpY2UiLCJhenAiOiJnYXRld2F5IiwiYm9keV9zaGEyNTYiOiIxZTgxMzNjN2M4MTkxMjczOGRjZGYxMjU0ZmI4Njc3YjUxYzIxYWU5YmI0MzU4YzQzMjAyYWQ5YTlhNzFlNTQxIiwiZXhwIjoyMDAwMDAwMDMwLCJpYXQiOjIwMDAwMDAwMDAsImlkZW1wb3RlbmN5X3NoYTI1NiI6IjE4N2YwMzQ5ZGQxMmI2ZGM3M2Q3NmQ4NmY0MjFjZDQ1NGZhY2NjYzM2ZWY5YTJiYTY5NTZiMzdhYmJiMzExMDIiLCJpc19hZG1pbiI6dHJ1ZSwiaXNzIjoic3R1ZGVudC1pZC1nYXRld2F5IiwianRpIjoiNjgwZTRmMGU0NWQ1NmNlYWFhNGVmYjRkZTAyODhjMWQiLCJtZXRob2QiOiJQT1NUIiwicGF0aCI6Ii9pbnRlcm5hbC92MS8lNjEiLCJxdWVyeV9zaGEyNTYiOiI3ZDJmZDYwYzhlMThiMTUxZTQyZmVjM2Q5NWZlMTNiMmJiNWQxNzVmOTgyMGE3NDA3MTAyMWY0OWU4MGU1OTBkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidiI6MX0.K0LrAar7YWuDNBr0e1xbebcQHQXHrVzypdidZu6iOnQ-WeG8eiFijzpQ8N8knC3Qa0HdswzxLQtuOyWLZn3QdXBjR7Vsd6gYg7mpYQ4n5QDngy8RQSaswyOWOJ2ULJurgsjP3BjRkV6GDY070ZZIj4LW08fzBsCak5rw9WREheQQO19JQ3fZymrn5Rgn98nDqeiLzYTAYY_8lAiPYvt42NknTyC9WpMW2o9ISLz9AI_iBlJkm_238MIeKzpY1hS33huqLxcRwupZVpRPXNlRmCYNkV0NkYY-ln9Oe3ST-PomxGyu-zLZUjLmmL7GJJSJnW2qhwCg6wLXq7V1AyUzFg",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-claims-lifetime",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF1ZCI6InN0dWRlbnQtaWQtcGxheWVyLXNlcnZpY2UiLCJhenAiOiJnYXRld2F5IiwiYm9keV9zaGEyNTYiOiIxZTgxMzNjN2M4MTkxMjczOGRjZGYxMjU0ZmI4Njc3YjUxYzIxYWU5YmI0MzU4YzQzMjAyYWQ5YTlhNzFlNTQxIiwiZXhwIjoyMDAwMDAwMDMxLCJpYXQiOjIwMDAwMDAwMDAsImlkZW1wb3RlbmN5X3NoYTI1NiI6IjE4N2YwMzQ5ZGQxMmI2ZGM3M2Q3NmQ4NmY0MjFjZDQ1NGZhY2NjYzM2ZWY5YTJiYTY5NTZiMzdhYmJiMzExMDIiLCJpc19hZG1pbiI6dHJ1ZSwiaXNzIjoic3R1ZGVudC1pZC1nYXRld2F5IiwianRpIjoiNjgwZTRmMGU0NWQ1NmNlYWFhNGVmYjRkZTAyODhjMWQiLCJtZXRob2QiOiJQT1NUIiwicGF0aCI6Ii9pbnRlcm5hbC92MS8lNjEiLCJxdWVyeV9zaGEyNTYiOiI3ZDJmZDYwYzhlMThiMTUxZTQyZmVjM2Q5NWZlMTNiMmJiNWQxNzVmOTgyMGE3NDA3MTAyMWY0OWU4MGU1OTBkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidiI6MX0.iodjGkTJ5DOw0gSVkndjGpTBxUN6TCNqAOlh6tv8dYKL8RCPm-hEg1ZNnrj3gJqg16F9y3Nqc1xKLDVG0XR41sfp3FasOd5rt5YU9Kw3GILSqc2JjV7OvKXKlhnAFXXxqik377-rNLmzRA5Yz142eYWDcslYurOuxa0wCmgAA0o5hXIaJpOGLNn3QtLimHvq705eTnnjM3oibYMWAgIiiVRiZomfVSksNL9SRAw4M21J1UGupd-t0VrEhImnGwKBlGCxCGhWqy2cYG8BUhR8JaIEBJtkw-xS6GOiwO1O5PJw3ekQmPXdVevzFvh2SepV4QLiGXX8yREdp7WQekS0YA",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-claims-null-admin",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF1ZCI6InN0dWRlbnQtaWQtcGxheWVyLXNlcnZpY2UiLCJhenAiOiJnYXRld2F5IiwiYm9keV9zaGEyNTYiOiIxZTgxMzNjN2M4MTkxMjczOGRjZGYxMjU0ZmI4Njc3YjUxYzIxYWU5YmI0MzU4YzQzMjAyYWQ5YTlhNzFlNTQxIiwiZXhwIjoyMDAwMDAwMDMwLCJpYXQiOjIwMDAwMDAwMDAsImlkZW1wb3RlbmN5X3NoYTI1NiI6IjE4N2YwMzQ5ZGQxMmI2ZGM3M2Q3NmQ4NmY0MjFjZDQ1NGZhY2NjYzM2ZWY5YTJiYTY5NTZiMzdhYmJiMzExMDIiLCJpc19hZG1pbiI6bnVsbCwiaXNzIjoic3R1ZGVudC1pZC1nYXRld2F5IiwianRpIjoiNjgwZTRmMGU0NWQ1NmNlYWFhNGVmYjRkZTAyODhjMWQiLCJtZXRob2QiOiJQT1NUIiwicGF0aCI6Ii9pbnRlcm5hbC92MS8lNjEiLCJxdWVyeV9zaGEyNTYiOiI3ZDJmZDYwYzhlMThiMTUxZTQyZmVjM2Q5NWZlMTNiMmJiNWQxNzVmOTgyMGE3NDA3MTAyMWY0OWU4MGU1OTBkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidiI6MX0.PBqZT-g1pYNOr_s53efz3QDkLNIff5Ty6-eUwACvXO9kIUWmgCYOk1tToNyS-DqsuOsqBw5FqmX3OxFhJXiYI6ok2rw9qselqiGhmTRvxgU6St1zlJ3RhJQrbdvsbIZbMJd2jynN2Gf4wFdvE5TThzZXebYzPBia5ZjpX4fSrxc2Ch57wltWgF2PW6mp2Y0iwncABq_FpHWCVyMNnMl6VAcURGDgNLtaMweOWqcWzh7hoSY27VSb0BDdGtyw-Xu7-D4sy6RHhUtCFknUCnxujl0pIeMt0A3CiNUe2Nvl1zqhUbWC2q700RoVXkXf0V10p_zFItJ6Oa8-tDIKVv_9fg",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-duplicate-sub",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.Ku8p1qYTFenCfe5KEHymOkFSmNV0r8Uk6dMJFX5uqgVvTVObH12vtDZiil_wZznXrffq_KkoQo_ix3bwDdKvT5JJOAQSyq_Numzf3XT27exh12XEdAqeHJ0dceyYrvna0jY4lrLIW1Ja_tLSROrCAkylhpwey4lWrjWEwYtUxIVF33R8tqaJpVIFOb22c_3F00BlYdAr_4qJrWrGFkfPf5z7yTbr3s0Tjbkqwj6zHsDEZZvkU4C1omEXpJdLnqROuNLTnHfCNyy2LolDIDu2fe6Cv-gTxKyQiZRuDofCo4b-NGlXiMMEjS7QDDk7CZyyW_q5FZLPmemteisJtgnuNw",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-forged-signature",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.iuUaCqTCJ0GNIt-lUE55hiiu4kJ6Weh2BCa1sqkwopP1iiXU-YBqDxmpAyPaqNy99Vww-EhMQz5-_rAmFk3rPm3abX1HCVNpXmPpt_bKUq7vQn5PvzfX8XPzK9R1GoA-1c-5FHOd2YypsfhHGMihgyBk4LnFLxcwS1njc6Vmid25tTh9vKyaMp6AO-VKFRAaZ2Xy9s9s7e8XSbRNQIPgGq1EmquvCdZJzD2eUA6lzzUChVNmS3AozvAi5UE206hsI6f5-o1sEcpP2wqcwVSNV_uUvqa2VYUU-FBhVd4uQi971J5m-5UcVILzbv7SoWwteUpFOz-UDA_1vrMHA7Pvgw",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "reject-expired-request",
+      "operation": "request",
+      "now": 2000000030,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY4MGU0ZjBlNDVkNTZjZWFhYTRlZmI0ZGUwMjg4YzFkIiwic3ViIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWN0b3JfZXhwIjoyMDAwMDAwOTAwLCJhY3Rvcl9qdGkiOiJvcmlnaW5hbC1wbGF5ZXItdG9rZW4iLCJpc19hZG1pbiI6dHJ1ZSwiYXpwIjoiZ2F0ZXdheSIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxLyU2MSIsInF1ZXJ5X3NoYTI1NiI6IjdkMmZkNjBjOGUxOGIxNTFlNDJmZWMzZDk1ZmUxM2IyYmI1ZDE3NWY5ODIwYTc0MDcxMDIxZjQ5ZTgwZTU5MGQiLCJib2R5X3NoYTI1NiI6IjFlODEzM2M3YzgxOTEyNzM4ZGNkZjEyNTRmYjg2NzdiNTFjMjFhZTliYjQzNThjNDMyMDJhZDlhOWE3MWU1NDEiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiIxODdmMDM0OWRkMTJiNmRjNzNkNzZkODZmNDIxY2Q0NTRmYWNjY2MzNmVmOWEyYmE2OTU2YjM3YWJiYjMxMTAyIn0.ThkA_hODKaq3JCOd9uPAWN7-MAOWs6_8sjR-zfrCNlrNXgzIx0RJ9XoqADwGzaPWZrFkudrIAg5RbwuUU3Qwnmtof_VqLeaXdHiKql5Z293dQCujwYv5KQFmDr2BlVIpcNxLTs98Wb1ol7SAoYk6WA3NadkNC97YLBg2bFNbt4oY8mKRGbpe_4Uy3PLdTUlErHcRm7oJO7oCjlnq7cabx3yczRlbF7Ah26lcxLNqXA4mzMhKj8ZY1gJ_NA1p5FZVPP7dVrPc9GTTyMdqozjdZ9lmEAEawS8rF5mPiYUMyPy13WmiWYEnDefLSBjyRs6LaRZp6Q2a7_9YXcnzUp86CQ",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/%61",
+        "raw_query": "tag=a\u0026tag=b\u0026term=a%20b\u0026term=a+b",
+        "body_base64": "AP/+AQo=",
+        "idempotency_key": "operation-1"
+      }
+    },
+    {
+      "name": "workload-authenticated-moderation-event",
+      "operation": "workload",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXdvcmtsb2FkK2p3dCJ9.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6ImRkNDM1MGJiZWEzOTFiYzEwZmMxYzNmYzQ5Zjg2Yzk2IiwiYXpwIjoibW9kZXJhdGlvbiIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxL2V2ZW50cyIsInF1ZXJ5X3NoYTI1NiI6IjVhNjU0ODEwYzk4NjQxZWVkNWMxMWMyOGQyMGIxMmZlOWMxODM1YzBlMzI1MjNiNWZmYzQ2ZDY0ZmIxNWZhNGIiLCJib2R5X3NoYTI1NiI6IjA2ZDZjMzg3YmIzOTZiMzJiN2JmMWEzNTQ4MTA4Y2U5MmEwMmYyNzAxZTkwMmNhMDBiZGU0N2I0NDIyN2ZhNTAiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiI0YjBlMDI4NGVmNDI0MDI1YmJiNGFkMGNkYzdmZDVhMTMzOTAyNDg1OWI2OTA2ZDc2OTg2ODk0MjE2NDE5Zjg2In0.eBvrplZfzoQTLPNF38WBxHFy-o3DaVTlkJL_E_TMTXYdxL6Br0hkmrPuWUcwahWwQdM1bW67neeQ0-3lxnyUoIpQ3Tiq8VWwzWf5S28ggnyP513_Bo-akx25lt4NjgZ_oqS5AHDpCsA9yDW5cT4k82ywjwHykZyYszNMF3K6x3m4NGkPE3GghugO81QhN8Bgdyd0QFwkYykLlyqQ_5rZrrFz-VUToFstI27MildsSGVTnHVWf15YElJuw1wftj09lySIC9oYOACLxfv3cfcEjU6dOUqr1xrzsWcqbm1QpACCDkSd54nDq2dReSjvnA4EN2w751CmhF4iVvuRQA6O_w",
+      "accept": true,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/events",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "eyJldmVudF90eXBlIjoiZml4dHVyZSJ9",
+        "idempotency_key": "attempt-one"
+      },
+      "expected": {
+        "actor_exp": 0,
+        "azp": "moderation",
+        "exp": 2000000030,
+        "is_admin": false,
+        "sub": ""
+      }
+    },
+    {
+      "name": "reject-workload-as-actor",
+      "operation": "request",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXdvcmtsb2FkK2p3dCJ9.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6ImRkNDM1MGJiZWEzOTFiYzEwZmMxYzNmYzQ5Zjg2Yzk2IiwiYXpwIjoibW9kZXJhdGlvbiIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxL2V2ZW50cyIsInF1ZXJ5X3NoYTI1NiI6IjVhNjU0ODEwYzk4NjQxZWVkNWMxMWMyOGQyMGIxMmZlOWMxODM1YzBlMzI1MjNiNWZmYzQ2ZDY0ZmIxNWZhNGIiLCJib2R5X3NoYTI1NiI6IjA2ZDZjMzg3YmIzOTZiMzJiN2JmMWEzNTQ4MTA4Y2U5MmEwMmYyNzAxZTkwMmNhMDBiZGU0N2I0NDIyN2ZhNTAiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiI0YjBlMDI4NGVmNDI0MDI1YmJiNGFkMGNkYzdmZDVhMTMzOTAyNDg1OWI2OTA2ZDc2OTg2ODk0MjE2NDE5Zjg2In0.eBvrplZfzoQTLPNF38WBxHFy-o3DaVTlkJL_E_TMTXYdxL6Br0hkmrPuWUcwahWwQdM1bW67neeQ0-3lxnyUoIpQ3Tiq8VWwzWf5S28ggnyP513_Bo-akx25lt4NjgZ_oqS5AHDpCsA9yDW5cT4k82ywjwHykZyYszNMF3K6x3m4NGkPE3GghugO81QhN8Bgdyd0QFwkYykLlyqQ_5rZrrFz-VUToFstI27MildsSGVTnHVWf15YElJuw1wftj09lySIC9oYOACLxfv3cfcEjU6dOUqr1xrzsWcqbm1QpACCDkSd54nDq2dReSjvnA4EN2w751CmhF4iVvuRQA6O_w",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/events",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "eyJldmVudF90eXBlIjoiZml4dHVyZSJ9",
+        "idempotency_key": "attempt-one"
+      }
+    },
+    {
+      "name": "reject-anonymous-as-workload",
+      "operation": "workload",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXJlcXVlc3Qrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6IjY0MzFhNjY0ZmUxZTMxNWRiZjQ5M2E2ZGNhNzI2MzA2IiwiYWN0b3JfZXhwIjoyMDAwMDAwMDMwLCJhenAiOiJnYXRld2F5IiwibWV0aG9kIjoiUE9TVCIsInBhdGgiOiIvaW50ZXJuYWwvdjEvZXZlbnRzIiwicXVlcnlfc2hhMjU2IjoiNWE2NTQ4MTBjOTg2NDFlZWQ1YzExYzI4ZDIwYjEyZmU5YzE4MzVjMGUzMjUyM2I1ZmZjNDZkNjRmYjE1ZmE0YiIsImJvZHlfc2hhMjU2IjoiMDZkNmMzODdiYjM5NmIzMmI3YmYxYTM1NDgxMDhjZTkyYTAyZjI3MDFlOTAyY2EwMGJkZTQ3YjQ0MjI3ZmE1MCIsImlkZW1wb3RlbmN5X3NoYTI1NiI6IjRiMGUwMjg0ZWY0MjQwMjViYmI0YWQwY2RjN2ZkNWExMzM5MDI0ODU5YjY5MDZkNzY5ODY4OTQyMTY0MTlmODYifQ.eLi7zPD1uK2tmBRvWTm7Rec44jk8rnE8a63n0lrQtubrzLG6y3UkROw6TPAYXD7rwpAPIjqMThnvI-0Fu2WU1wAL4AdJUdSUHAJbBkbsNlJnnejVvljINVtmpBJlg2C_OViYfc994FUfjnBJUT2kpegeUrz1__kghXYhMalt1fReoARY6EwGa_ivo76o0KBBd639S04eqXkp-EpzEFLxgLUeBFvfqLg7ZUKbS3bGH78Iyn5jCP1gMDieUrAMULx4iri0hjKkA9PRddYmYFjX_IG_O8R9mPKj0ptZO698Un-VRsYdLLvGCl9HGHb3Uh7yAS5dNe41RpreHkvIeAnmcg",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/events",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "eyJldmVudF90eXBlIjoiZml4dHVyZSJ9",
+        "idempotency_key": "attempt-one"
+      }
+    },
+    {
+      "name": "reject-workload-expired",
+      "operation": "workload",
+      "now": 2000000030,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXdvcmtsb2FkK2p3dCJ9.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6ImRkNDM1MGJiZWEzOTFiYzEwZmMxYzNmYzQ5Zjg2Yzk2IiwiYXpwIjoibW9kZXJhdGlvbiIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxL2V2ZW50cyIsInF1ZXJ5X3NoYTI1NiI6IjVhNjU0ODEwYzk4NjQxZWVkNWMxMWMyOGQyMGIxMmZlOWMxODM1YzBlMzI1MjNiNWZmYzQ2ZDY0ZmIxNWZhNGIiLCJib2R5X3NoYTI1NiI6IjA2ZDZjMzg3YmIzOTZiMzJiN2JmMWEzNTQ4MTA4Y2U5MmEwMmYyNzAxZTkwMmNhMDBiZGU0N2I0NDIyN2ZhNTAiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiI0YjBlMDI4NGVmNDI0MDI1YmJiNGFkMGNkYzdmZDVhMTMzOTAyNDg1OWI2OTA2ZDc2OTg2ODk0MjE2NDE5Zjg2In0.eBvrplZfzoQTLPNF38WBxHFy-o3DaVTlkJL_E_TMTXYdxL6Br0hkmrPuWUcwahWwQdM1bW67neeQ0-3lxnyUoIpQ3Tiq8VWwzWf5S28ggnyP513_Bo-akx25lt4NjgZ_oqS5AHDpCsA9yDW5cT4k82ywjwHykZyYszNMF3K6x3m4NGkPE3GghugO81QhN8Bgdyd0QFwkYykLlyqQ_5rZrrFz-VUToFstI27MildsSGVTnHVWf15YElJuw1wftj09lySIC9oYOACLxfv3cfcEjU6dOUqr1xrzsWcqbm1QpACCDkSd54nDq2dReSjvnA4EN2w751CmhF4iVvuRQA6O_w",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/events",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "eyJldmVudF90eXBlIjoiZml4dHVyZSJ9",
+        "idempotency_key": "attempt-one"
+      }
+    },
+    {
+      "name": "reject-workload-body-mutation",
+      "operation": "workload",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LXdvcmtsb2FkK2p3dCJ9.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLXBsYXllci1zZXJ2aWNlIiwiaWF0IjoyMDAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMzAsImp0aSI6ImRkNDM1MGJiZWEzOTFiYzEwZmMxYzNmYzQ5Zjg2Yzk2IiwiYXpwIjoibW9kZXJhdGlvbiIsIm1ldGhvZCI6IlBPU1QiLCJwYXRoIjoiL2ludGVybmFsL3YxL2V2ZW50cyIsInF1ZXJ5X3NoYTI1NiI6IjVhNjU0ODEwYzk4NjQxZWVkNWMxMWMyOGQyMGIxMmZlOWMxODM1YzBlMzI1MjNiNWZmYzQ2ZDY0ZmIxNWZhNGIiLCJib2R5X3NoYTI1NiI6IjA2ZDZjMzg3YmIzOTZiMzJiN2JmMWEzNTQ4MTA4Y2U5MmEwMmYyNzAxZTkwMmNhMDBiZGU0N2I0NDIyN2ZhNTAiLCJpZGVtcG90ZW5jeV9zaGEyNTYiOiI0YjBlMDI4NGVmNDI0MDI1YmJiNGFkMGNkYzdmZDVhMTMzOTAyNDg1OWI2OTA2ZDc2OTg2ODk0MjE2NDE5Zjg2In0.eBvrplZfzoQTLPNF38WBxHFy-o3DaVTlkJL_E_TMTXYdxL6Br0hkmrPuWUcwahWwQdM1bW67neeQ0-3lxnyUoIpQ3Tiq8VWwzWf5S28ggnyP513_Bo-akx25lt4NjgZ_oqS5AHDpCsA9yDW5cT4k82ywjwHykZyYszNMF3K6x3m4NGkPE3GghugO81QhN8Bgdyd0QFwkYykLlyqQ_5rZrrFz-VUToFstI27MildsSGVTnHVWf15YElJuw1wftj09lySIC9oYOACLxfv3cfcEjU6dOUqr1xrzsWcqbm1QpACCDkSd54nDq2dReSjvnA4EN2w751CmhF4iVvuRQA6O_w",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/events",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "Y2hhbmdlZA==",
+        "idempotency_key": "attempt-one"
+      }
+    },
+    {
+      "name": "exchange-synchronous-remaining-deadline",
+      "operation": "exchange",
+      "now": 2000000020,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWRlbGVnYXRpb24rand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDAzMCwianRpIjoiYjMzYzZjZGVmODBjMzZmNmUyMjYyMDFjNzFiYTAxNzYiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImlzX2FkbWluIjp0cnVlLCJhenAiOiJzZXNzaW9uIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJwbGF5ZXIiLCJtZXRob2QiOiJHRVQiLCJwYXRoIjoiL2ludGVybmFsL3YxL3BsYXllcnMiLCJleGFjdF9wYXRoIjpmYWxzZX1dfQ.kHkm1ytv0cuSCuGw2dEJmXw3nnKTXIHursdCPwyDBWog9nviPaticT87CY6yPDXs0JCr73RqsllzFurs3S2jHSW9ny4jHLNttxEZXL5x32SbjKf2wjZQL3yfDmlu-BHDDSVfjXSuwy3aLoJGmMQ7U37XNT_hGDzXBwPgcDmlLJyVebvWrnkyYdouAIFvkmo-T7OpXtbm3KQGDrD9WaQUu9Qxwz4iGavZt7E7SBJxu0Hm_I-i2v4mj1YU4-Ad4ov9roobUYdYX1jitssYtiyr3ocKLA8cQ27rJrx40ourpZkZiYJK4VYgiMhTY7LEy5cRpZ5ydvvO9zk5JEvXYvf32Q",
+      "accept": true,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "GET",
+        "path": "/internal/v1/players/00000000-0000-4000-8000-000000000001",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "",
+        "idempotency_key": "attempt-one"
+      },
+      "caller": "session",
+      "expected": {
+        "actor_exp": 2000000900,
+        "exp": 2000000030,
+        "is_admin": true,
+        "sub": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "reject-exchange-wrong-caller",
+      "operation": "exchange",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWRlbGVnYXRpb24rand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDAzMCwianRpIjoiYjMzYzZjZGVmODBjMzZmNmUyMjYyMDFjNzFiYTAxNzYiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImlzX2FkbWluIjp0cnVlLCJhenAiOiJzZXNzaW9uIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJwbGF5ZXIiLCJtZXRob2QiOiJHRVQiLCJwYXRoIjoiL2ludGVybmFsL3YxL3BsYXllcnMiLCJleGFjdF9wYXRoIjpmYWxzZX1dfQ.kHkm1ytv0cuSCuGw2dEJmXw3nnKTXIHursdCPwyDBWog9nviPaticT87CY6yPDXs0JCr73RqsllzFurs3S2jHSW9ny4jHLNttxEZXL5x32SbjKf2wjZQL3yfDmlu-BHDDSVfjXSuwy3aLoJGmMQ7U37XNT_hGDzXBwPgcDmlLJyVebvWrnkyYdouAIFvkmo-T7OpXtbm3KQGDrD9WaQUu9Qxwz4iGavZt7E7SBJxu0Hm_I-i2v4mj1YU4-Ad4ov9roobUYdYX1jitssYtiyr3ocKLA8cQ27rJrx40ourpZkZiYJK4VYgiMhTY7LEy5cRpZ5ydvvO9zk5JEvXYvf32Q",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "GET",
+        "path": "/internal/v1/players/00000000-0000-4000-8000-000000000001",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "",
+        "idempotency_key": "attempt-one"
+      },
+      "caller": "moderation"
+    },
+    {
+      "name": "reject-exchange-write-widening",
+      "operation": "exchange",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWRlbGVnYXRpb24rand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDAzMCwianRpIjoiYjMzYzZjZGVmODBjMzZmNmUyMjYyMDFjNzFiYTAxNzYiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImlzX2FkbWluIjp0cnVlLCJhenAiOiJzZXNzaW9uIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJwbGF5ZXIiLCJtZXRob2QiOiJHRVQiLCJwYXRoIjoiL2ludGVybmFsL3YxL3BsYXllcnMiLCJleGFjdF9wYXRoIjpmYWxzZX1dfQ.kHkm1ytv0cuSCuGw2dEJmXw3nnKTXIHursdCPwyDBWog9nviPaticT87CY6yPDXs0JCr73RqsllzFurs3S2jHSW9ny4jHLNttxEZXL5x32SbjKf2wjZQL3yfDmlu-BHDDSVfjXSuwy3aLoJGmMQ7U37XNT_hGDzXBwPgcDmlLJyVebvWrnkyYdouAIFvkmo-T7OpXtbm3KQGDrD9WaQUu9Qxwz4iGavZt7E7SBJxu0Hm_I-i2v4mj1YU4-Ad4ov9roobUYdYX1jitssYtiyr3ocKLA8cQ27rJrx40ourpZkZiYJK4VYgiMhTY7LEy5cRpZ5ydvvO9zk5JEvXYvf32Q",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "POST",
+        "path": "/internal/v1/players/00000000-0000-4000-8000-000000000001",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "",
+        "idempotency_key": "attempt-one"
+      },
+      "caller": "session"
+    },
+    {
+      "name": "reject-exchange-prefix-segment",
+      "operation": "exchange",
+      "now": 2000000000,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWRlbGVnYXRpb24rand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDAzMCwianRpIjoiYjMzYzZjZGVmODBjMzZmNmUyMjYyMDFjNzFiYTAxNzYiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImlzX2FkbWluIjp0cnVlLCJhenAiOiJzZXNzaW9uIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJwbGF5ZXIiLCJtZXRob2QiOiJHRVQiLCJwYXRoIjoiL2ludGVybmFsL3YxL3BsYXllcnMiLCJleGFjdF9wYXRoIjpmYWxzZX1dfQ.kHkm1ytv0cuSCuGw2dEJmXw3nnKTXIHursdCPwyDBWog9nviPaticT87CY6yPDXs0JCr73RqsllzFurs3S2jHSW9ny4jHLNttxEZXL5x32SbjKf2wjZQL3yfDmlu-BHDDSVfjXSuwy3aLoJGmMQ7U37XNT_hGDzXBwPgcDmlLJyVebvWrnkyYdouAIFvkmo-T7OpXtbm3KQGDrD9WaQUu9Qxwz4iGavZt7E7SBJxu0Hm_I-i2v4mj1YU4-Ad4ov9roobUYdYX1jitssYtiyr3ocKLA8cQ27rJrx40ourpZkZiYJK4VYgiMhTY7LEy5cRpZ5ydvvO9zk5JEvXYvf32Q",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "GET",
+        "path": "/internal/v1/players-other/00000000-0000-4000-8000-000000000001",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "",
+        "idempotency_key": "attempt-one"
+      },
+      "caller": "session"
+    },
+    {
+      "name": "reject-expired-synchronous-grant",
+      "operation": "exchange",
+      "now": 2000000030,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWRlbGVnYXRpb24rand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDAzMCwianRpIjoiYjMzYzZjZGVmODBjMzZmNmUyMjYyMDFjNzFiYTAxNzYiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImlzX2FkbWluIjp0cnVlLCJhenAiOiJzZXNzaW9uIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJwbGF5ZXIiLCJtZXRob2QiOiJHRVQiLCJwYXRoIjoiL2ludGVybmFsL3YxL3BsYXllcnMiLCJleGFjdF9wYXRoIjpmYWxzZX1dfQ.kHkm1ytv0cuSCuGw2dEJmXw3nnKTXIHursdCPwyDBWog9nviPaticT87CY6yPDXs0JCr73RqsllzFurs3S2jHSW9ny4jHLNttxEZXL5x32SbjKf2wjZQL3yfDmlu-BHDDSVfjXSuwy3aLoJGmMQ7U37XNT_hGDzXBwPgcDmlLJyVebvWrnkyYdouAIFvkmo-T7OpXtbm3KQGDrD9WaQUu9Qxwz4iGavZt7E7SBJxu0Hm_I-i2v4mj1YU4-Ad4ov9roobUYdYX1jitssYtiyr3ocKLA8cQ27rJrx40ourpZkZiYJK4VYgiMhTY7LEy5cRpZ5ydvvO9zk5JEvXYvf32Q",
+      "accept": false,
+      "binding": {
+        "target": "player",
+        "audience": "student-id-player-service",
+        "method": "GET",
+        "path": "/internal/v1/players/00000000-0000-4000-8000-000000000001",
+        "raw_query": "a=1\u0026a=2",
+        "body_base64": "",
+        "idempotency_key": "attempt-one"
+      },
+      "caller": "session"
+    },
+    {
+      "name": "exchange-chat-after-synchronous-window",
+      "operation": "exchange",
+      "now": 2000000045,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWNoYXQrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDkwMCwianRpIjoiYmU0Njg2Njk1ZDZjNmE5ZDUwZDZiMjU2NDI4NjljN2IiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF6cCI6ImRpc2NvcmQtZG1zIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJzZXNzaW9uIiwibWV0aG9kIjoiR0VUIiwicGF0aCI6Ii9pbnRlcm5hbC92MS9zZXNzaW9ucy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMTAvY29udGV4dCIsImV4YWN0X3BhdGgiOnRydWUsInF1ZXJ5IjoicGxheWVyX2lkPTAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9XSwic2Vzc2lvbl9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAxMCJ9.iowb_3AMP0K-7dpdLPjyjfpBRg7tDr7CQ359zBEpiQ8R3opbK82vHW6SShqzu8UCnY9cBT293RMxU9mEo_LGiXJvRHuyfaBFZTWm8-MltfrFxsAKuRKNsw5ATg4zmXGlgWQ0XUbCDl3rwaDW9IEsLRvZcD6tmV_0zjOX0afc-qZ6AadEoGCdXgSER53Y0bCEjppHDj1aynzDwUzdV8Qt5ckkWvpp49KqsPJ5mVXqhuX0JFiEZ0neT6mWeH6ADPo1m-tjKdObIp5rAh8IEOiizWsNHO9RWsLdF1oF7yhghs3xDce77ACcV5ZqDyfHNm75c0C_p3GdtO5aHBXuIVA6fg",
+      "accept": true,
+      "binding": {
+        "target": "session",
+        "audience": "student-id-session-service",
+        "method": "GET",
+        "path": "/internal/v1/sessions/00000000-0000-4000-8000-000000000010/context",
+        "raw_query": "player_id=00000000-0000-4000-8000-000000000001",
+        "body_base64": "",
+        "idempotency_key": ""
+      },
+      "caller": "discord-dms",
+      "expected": {
+        "actor_exp": 2000000900,
+        "exp": 2000000075,
+        "is_admin": false,
+        "session_id": "00000000-0000-4000-8000-000000000010",
+        "sub": "00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "reject-chat-other-player",
+      "operation": "exchange",
+      "now": 2000000045,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWNoYXQrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDkwMCwianRpIjoiYmU0Njg2Njk1ZDZjNmE5ZDUwZDZiMjU2NDI4NjljN2IiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF6cCI6ImRpc2NvcmQtZG1zIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJzZXNzaW9uIiwibWV0aG9kIjoiR0VUIiwicGF0aCI6Ii9pbnRlcm5hbC92MS9zZXNzaW9ucy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMTAvY29udGV4dCIsImV4YWN0X3BhdGgiOnRydWUsInF1ZXJ5IjoicGxheWVyX2lkPTAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9XSwic2Vzc2lvbl9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAxMCJ9.iowb_3AMP0K-7dpdLPjyjfpBRg7tDr7CQ359zBEpiQ8R3opbK82vHW6SShqzu8UCnY9cBT293RMxU9mEo_LGiXJvRHuyfaBFZTWm8-MltfrFxsAKuRKNsw5ATg4zmXGlgWQ0XUbCDl3rwaDW9IEsLRvZcD6tmV_0zjOX0afc-qZ6AadEoGCdXgSER53Y0bCEjppHDj1aynzDwUzdV8Qt5ckkWvpp49KqsPJ5mVXqhuX0JFiEZ0neT6mWeH6ADPo1m-tjKdObIp5rAh8IEOiizWsNHO9RWsLdF1oF7yhghs3xDce77ACcV5ZqDyfHNm75c0C_p3GdtO5aHBXuIVA6fg",
+      "accept": false,
+      "binding": {
+        "target": "session",
+        "audience": "student-id-session-service",
+        "method": "GET",
+        "path": "/internal/v1/sessions/00000000-0000-4000-8000-000000000010/context",
+        "raw_query": "player_id=00000000-0000-4000-8000-000000000010",
+        "body_base64": "",
+        "idempotency_key": ""
+      },
+      "caller": "discord-dms"
+    },
+    {
+      "name": "reject-chat-original-actor-expired",
+      "operation": "exchange",
+      "now": 2000000900,
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImdhdGV3YXktdjEiLCJ0eXAiOiJnYXRld2F5LWNoYXQrand0In0.eyJ2IjoxLCJpc3MiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJhdWQiOiJzdHVkZW50LWlkLWdhdGV3YXkiLCJpYXQiOjIwMDAwMDAwMDAsImV4cCI6MjAwMDAwMDkwMCwianRpIjoiYmU0Njg2Njk1ZDZjNmE5ZDUwZDZiMjU2NDI4NjljN2IiLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhY3Rvcl9leHAiOjIwMDAwMDA5MDAsImFjdG9yX2p0aSI6Im9yaWdpbmFsLXBsYXllci10b2tlbiIsImF6cCI6ImRpc2NvcmQtZG1zIiwic2NvcGVzIjpbeyJ0YXJnZXQiOiJzZXNzaW9uIiwibWV0aG9kIjoiR0VUIiwicGF0aCI6Ii9pbnRlcm5hbC92MS9zZXNzaW9ucy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMTAvY29udGV4dCIsImV4YWN0X3BhdGgiOnRydWUsInF1ZXJ5IjoicGxheWVyX2lkPTAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9XSwic2Vzc2lvbl9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAxMCJ9.iowb_3AMP0K-7dpdLPjyjfpBRg7tDr7CQ359zBEpiQ8R3opbK82vHW6SShqzu8UCnY9cBT293RMxU9mEo_LGiXJvRHuyfaBFZTWm8-MltfrFxsAKuRKNsw5ATg4zmXGlgWQ0XUbCDl3rwaDW9IEsLRvZcD6tmV_0zjOX0afc-qZ6AadEoGCdXgSER53Y0bCEjppHDj1aynzDwUzdV8Qt5ckkWvpp49KqsPJ5mVXqhuX0JFiEZ0neT6mWeH6ADPo1m-tjKdObIp5rAh8IEOiizWsNHO9RWsLdF1oF7yhghs3xDce77ACcV5ZqDyfHNm75c0C_p3GdtO5aHBXuIVA6fg",
+      "accept": false,
+      "binding": {
+        "target": "session",
+        "audience": "student-id-session-service",
+        "method": "GET",
+        "path": "/internal/v1/sessions/00000000-0000-4000-8000-000000000010/context",
+        "raw_query": "player_id=00000000-0000-4000-8000-000000000001",
+        "body_base64": "",
+        "idempotency_key": ""
+      },
+      "caller": "discord-dms"
+    }
+  ]
+}
