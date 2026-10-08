@@ -18,7 +18,9 @@ Redis holds tickets and delivery notifications. PostgreSQL holds authoritative h
 
 Mocked authorization uses role and permission fixtures. Integrated authorization reads both owners and denies access when either check fails.
 
-The gateway forwards WebSocket upgrades and redacts ticket query parameters. Message persistence precedes acknowledgement and broadcast.
+In the Lab 2 target, clients negotiate realtime access through REST on the gateway and receive a direct Discord DMs WebSocket URL. Discord DMs consumes the ticket on the direct upgrade and carries all chat frames. The gateway does not relay the live connection. Discord DMs redacts ticket query parameters, and message persistence precedes acknowledgement and broadcast.
+
+Clients request new tickets and recover history through public gateway REST routes. All Discord DMs service-to-service REST, including Session role and University Record permission checks, uses the internal gateway. [Gateway delivery status](../architecture.md#gateway-delivery-status) tracks the pending negotiation and identity integration. Current direct-mode service behavior does not prove that integration.
 
 ## Configuration
 

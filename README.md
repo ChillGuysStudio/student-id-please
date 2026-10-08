@@ -6,11 +6,23 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 ## Architecture
 
-Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway routes client requests and does not own game data.
+Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the Lab 2 target topology.
 
-<img src="docs/architecture.jpg" alt="Architecture diagram" width="1080"/>
+<img src="docs/architecture.jpg" alt="Legacy architecture diagram awaiting a human-authored Lab 2 update" width="1080"/>
+
+The figure and its [editable source](docs/architecture.drawio) are the unchanged legacy diagram, awaiting a human-authored Lab 2 update. Its WebSocket relay, direct inter-service REST links, and Session storage labels do not describe the target. [The human diagram handoff](docs/architecture.md#human-diagram-handoff) tracks the remaining work in issue #74.
 
 [Architecture](docs/architecture.md) explains ownership and technology choices. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
+
+## Gateway
+
+The selected gateway is shared Go infrastructure, separate from the eight domain services. In the Lab 2 target, all client-to-service REST traffic uses its public listener. All service-to-service REST traffic uses its internal listener, which is not publicly exposed. The gateway validates client identity, routes requests, and bounds task duration and concurrency. Domain services retain business authorization and data ownership.
+
+Realtime negotiation uses REST through the gateway and returns a direct Discord DMs WebSocket URL. Clients connect to Discord DMs for the upgrade and chat frames. The gateway does not relay frames. Chat tickets, permissions, Redis delivery, and stored history belong to Discord DMs.
+
+RabbitMQ events and service-owned storage connections are not REST routing paths and do not pass through the gateway.
+
+[Gateway foundation PR #2](https://github.com/ChillGuysStudio/gateway-service/pull/2) at `9d298ab` has MaxNoragami's formal approval for listeners, process health, transport limits, graceful shutdown, and the container foundation. Identity and routing have separate owners, and application limits, realtime integration, and image publication remain follow-up work. A published gateway image and a running full stack are not yet verified. [Gateway delivery status](docs/architecture.md#gateway-delivery-status) records the scope and dependencies.
 
 ## Team and services
 
