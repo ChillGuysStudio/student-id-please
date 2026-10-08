@@ -5,10 +5,9 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "session_url",
-      "value": "http://localhost:8002"
-    }
+    { "key": "gateway_public_url", "value": "http://localhost:8080" },
+    { "key": "gateway_internal_url", "value": "http://localhost:8083" },
+    { "key": "session_ops_url", "value": "http://localhost:8002" }
   ],
   "auth": {
     "type": "bearer",
@@ -66,21 +65,21 @@
           "name": "200 Session health",
           "request": {
             "method": "GET",
-            "url": "{{session_url}}/health"
+            "url": "{{session_ops_url}}/health"
           }
         },
         {
           "name": "200 Session readiness",
           "request": {
             "method": "GET",
-            "url": "{{session_url}}/ready"
+            "url": "{{session_ops_url}}/ready"
           }
         },
         {
           "name": "201 Create session",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions",
+            "url": "{{gateway_public_url}}/api/v1/sessions",
             "header": [
               {
                 "key": "Content-Type",
@@ -97,7 +96,7 @@
           "name": "409 Reject understaffed shift",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/start",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/start",
             "header": [
               {
                 "key": "Content-Type",
@@ -114,7 +113,7 @@
           "name": "200 Join junior1",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/participants",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/participants",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -141,7 +140,7 @@
           "name": "200 Join junior2",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/participants",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/participants",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -168,7 +167,7 @@
           "name": "200 Assign roles",
           "request": {
             "method": "PUT",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/roles",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/roles",
             "header": [
               {
                 "key": "Content-Type",
@@ -185,21 +184,21 @@
           "name": "200 List sessions",
           "request": {
             "method": "GET",
-            "url": "{{session_url}}/api/v1/sessions"
+            "url": "{{gateway_public_url}}/api/v1/sessions"
           }
         },
         {
           "name": "200 Read session",
           "request": {
             "method": "GET",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}"
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}"
           }
         },
         {
           "name": "200 Start shift",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/start",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/start",
             "header": [
               {
                 "key": "Content-Type",
@@ -216,7 +215,7 @@
           "name": "403 Reject Junior Moderator case creation",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/cases",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/cases",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -243,7 +242,7 @@
           "name": "202 Create applicant case",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/cases",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/cases",
             "header": [
               {
                 "key": "Content-Type",
@@ -260,7 +259,7 @@
           "name": "409 Reject premature end",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/end",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/end",
             "header": [
               {
                 "key": "Content-Type",
@@ -277,14 +276,14 @@
           "name": "200 Case readiness",
           "request": {
             "method": "GET",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/cases/{{case_id}}/status"
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/cases/{{case_id}}/status"
           }
         },
         {
           "name": "200 Internal context",
           "request": {
             "method": "GET",
-            "url": "{{session_url}}/internal/v1/sessions/{{session_id}}/context?player_id={{moderator_id}}",
+            "url": "{{gateway_internal_url}}/internal/v1/sessions/{{session_id}}/context?player_id={{moderator_id}}",
             "header": [
               {
                 "key": "X-Service-Name",
@@ -301,7 +300,7 @@
           "name": "200 Score current case",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/internal/v1/events",
+            "url": "{{gateway_internal_url}}/internal/v1/session/events",
             "auth": {
               "type": "noauth"
             },
@@ -329,7 +328,7 @@
           "name": "200 Replay scoring event",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/internal/v1/events",
+            "url": "{{gateway_internal_url}}/internal/v1/session/events",
             "auth": {
               "type": "noauth"
             },
@@ -357,7 +356,7 @@
           "name": "200 End shift",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions/{{session_id}}/end",
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/end",
             "header": [
               {
                 "key": "Content-Type",
@@ -374,7 +373,7 @@
           "name": "201 Create disposable lobby",
           "request": {
             "method": "POST",
-            "url": "{{session_url}}/api/v1/sessions",
+            "url": "{{gateway_public_url}}/api/v1/sessions",
             "header": [
               {
                 "key": "Content-Type",
@@ -391,7 +390,7 @@
           "name": "204 Delete lobby",
           "request": {
             "method": "DELETE",
-            "url": "{{session_url}}/api/v1/sessions/{{lobby_id}}"
+            "url": "{{gateway_public_url}}/api/v1/sessions/{{lobby_id}}"
           }
         }
       ]

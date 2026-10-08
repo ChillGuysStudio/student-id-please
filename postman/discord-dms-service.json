@@ -5,7 +5,9 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "dms_url", "value": "http://127.0.0.1:8009" },
+    { "key": "gateway_public_url", "value": "http://localhost:8080" },
+    { "key": "gateway_internal_url", "value": "http://localhost:8083" },
+    { "key": "dms_ops_url", "value": "http://127.0.0.1:8009" },
     { "key": "dms_ws_url", "value": "ws://127.0.0.1:8009" },
     { "key": "session_id", "value": "00000000-0000-4000-8000-000000000301" },
     { "key": "moderator_id", "value": "00000000-0000-4000-8000-000000000302" },
@@ -64,13 +66,13 @@
       "name": "Channel access",
       "description": "Run first. The demo Moderator can use every channel; the Junior Moderator has enrollment and course permissions but no faculty permission.",
       "item": [
-        { "name": "200 Health", "request": { "method": "GET", "url": "{{dms_url}}/healthz", "auth": { "type": "noauth" } } },
-        { "name": "200 Moderator channels", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" } },
+        { "name": "200 Health", "request": { "method": "GET", "url": "{{dms_ops_url}}/healthz", "auth": { "type": "noauth" } } },
+        { "name": "200 Moderator channels", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" } },
         {
           "name": "200 Junior channels",
-          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
         },
-        { "name": "200 General history", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=50" } }
+        { "name": "200 General history", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=50" } }
       ]
     },
     {
@@ -79,15 +81,15 @@
       "item": [
         {
           "name": "201 Create ticket",
-          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
         },
         {
           "name": "201 Retry ticket with same key",
-          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
         },
         {
           "name": "201 Junior ticket",
-          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
         }
       ]
     },
@@ -97,30 +99,30 @@
       "item": [
         {
           "name": "403 Outsider channels denied",
-          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] } },
-          "response": [{ "name": "Not a participant", "originalRequest": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Forbidden", "code": 403, "_postman_previewlanguage": "json", "body": "{\"code\":\"FORBIDDEN\",\"message\":\"Session participation not found\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] } },
+          "response": [{ "name": "Not a participant", "originalRequest": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Forbidden", "code": 403, "_postman_previewlanguage": "json", "body": "{\"code\":\"FORBIDDEN\",\"message\":\"Session participation not found\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
         },
-        { "name": "401 No token", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "noauth" } } },
+        { "name": "401 No token", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "noauth" } } },
         {
           "name": "403 Faculty history denied to Junior",
-          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{faculty_channel_id}}/messages", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{faculty_channel_id}}/messages", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
         },
         {
           "name": "400 Invalid history cursor",
-          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?cursor=not-a-cursor" }
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?cursor=not-a-cursor" }
         },
         {
           "name": "422 History limit out of range",
-          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=101" }
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=101" }
         },
         {
           "name": "422 Ticket with extra field",
-          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"extra\":true}" } },
-          "response": [{ "name": "Validation error", "originalRequest": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets" }, "status": "Unprocessable Entity", "code": 422, "_postman_previewlanguage": "json", "body": "{\"detail\":[{\"type\":\"extra_forbidden\",\"loc\":[\"body\",\"extra\"],\"msg\":\"Extra inputs are not permitted\"}]}" }]
+          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"extra\":true}" } },
+          "response": [{ "name": "Validation error", "originalRequest": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets" }, "status": "Unprocessable Entity", "code": 422, "_postman_previewlanguage": "json", "body": "{\"detail\":[{\"type\":\"extra_forbidden\",\"loc\":[\"body\",\"extra\"],\"msg\":\"Extra inputs are not permitted\"}]}" }]
         },
         {
           "name": "403 Outsider cannot get ticket",
-          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
         }
       ]
     },
@@ -130,7 +132,7 @@
       "item": [
         {
           "name": "201 Fresh ticket for WebSocket",
-          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
         }
       ]
     },
@@ -138,22 +140,22 @@
       "name": "After WebSocket send",
       "description": "Run after sending the exact client_message_id from WebSocket manual checks. A committed message must appear in REST history and survive a reconnect.",
       "item": [
-        { "name": "200 History after WebSocket send", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100" } },
-        { "name": "200 Junior reads general history", "request": { "method": "GET", "url": "{{dms_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } } }
+        { "name": "200 History after WebSocket send", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100" } },
+        { "name": "200 Junior reads general history", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } } }
       ]
     },
     {
       "name": "Dependency failures",
-      "description": "Run separately with MOCK_CONTRACT_FILE empty and SESSION_URL and SESSION_SERVICE_TOKEN unset. Keep JWT verification, PostgreSQL, and Redis configured. A failed Session authorization lookup must return 503 and grant no channel, history, or ticket access. Use a separate container and override dms_url so the other demo stack can stay available.",
+      "description": "Run separately with MOCK_CONTRACT_FILE empty and SESSION_URL and SESSION_SERVICE_TOKEN unset. Keep JWT verification, PostgreSQL, and Redis configured. A failed Session authorization lookup must return 503 and grant no channel, history, or ticket access. Use a separate container and override gateway_public_url so the other demo stack can stay available.",
       "item": [
         {
           "name": "503 Session unavailable for channels",
-          "request": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" },
-          "response": [{ "name": "Dependency unavailable", "originalRequest": { "method": "GET", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Service Unavailable", "code": 503, "_postman_previewlanguage": "json", "body": "{\"code\":\"DEPENDENCY_UNAVAILABLE\",\"message\":\"session is not configured\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" },
+          "response": [{ "name": "Dependency unavailable", "originalRequest": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Service Unavailable", "code": 503, "_postman_previewlanguage": "json", "body": "{\"code\":\"DEPENDENCY_UNAVAILABLE\",\"message\":\"session is not configured\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
         },
         {
           "name": "503 Session unavailable for tickets",
-          "request": { "method": "POST", "url": "{{dms_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
         }
       ]
     }

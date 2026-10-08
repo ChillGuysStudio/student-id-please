@@ -25,7 +25,7 @@ def setting(name):
 
 
 def create_player_fixtures():
-    base = os.environ.get("PLAYER_SETUP_URL", "http://localhost:8001").rstrip("/")
+    base = os.environ.get("GATEWAY_PUBLIC_URL", "http://localhost:8080").rstrip("/")
 
     def call(method, path, body, expected, token=None):
         headers = {"Content-Type": "application/json", "Idempotency-Key": str(uuid4())}
@@ -70,8 +70,14 @@ def main():
     fixtures = create_player_fixtures()
     network = os.environ.get("POSTMAN_DOCKER_NETWORK")
     session_url = os.environ.get("SESSION_URL", "http://session:8002" if network else "http://host.docker.internal:8002")
+    gateway_public = os.environ.get("GATEWAY_PUBLIC_URL", "http://gateway:8080" if network else "http://host.docker.internal:8080")
+    gateway_internal = os.environ.get("GATEWAY_INTERNAL_URL", "http://gateway:8083" if network else "")
+    if not gateway_internal:
+        raise SystemExit("Set POSTMAN_DOCKER_NETWORK so Newman reaches the private gateway listener; never publish the internal listener to the host.")
     environment = {"name": "Session local test", "values": [
-        {"key": "session_url", "value": session_url, "enabled": True},
+        {"key": "gateway_public_url", "value": gateway_public, "enabled": True},
+        {"key": "gateway_internal_url", "value": gateway_internal, "enabled": True},
+        {"key": "session_ops_url", "value": session_url, "enabled": True},
         {"key": "moderation_token", "value": setting("MODERATION_SERVICE_TOKEN"), "enabled": True},
         *({"key": key, "value": value, "enabled": True} for key, value in fixtures.items()),
     ]}
