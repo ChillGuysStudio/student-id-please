@@ -37,14 +37,15 @@ def release_pr(title="chore(v2.0.0): release lab 2", sha="main-sha"):
 class ReleaseTests(unittest.TestCase):
     def test_title_and_automatic_messages(self):
         for title, tag, message in (
-            ("chore(v2.0.0): release lab 2", "v2.0.0", "Lab 2 completion"),
-            ("fix(v2.0.1): release a hotfix", "v2.0.1", "Lab 2 hotfix"),
-            ("chore(v0.0.0): release lab 0", "v0.0.0", "Lab 0 completion"),
+            ("chore(v2.0.0): release lab 2", "v2.0.0", "Lab 2 service package release"),
+            ("fix(v2.0.1): release a hotfix", "v2.0.1", "Lab 2 service package hotfix"),
+            ("chore(v0.0.0): release lab 0", "v0.0.0", "Lab 0 service package release"),
         ):
             with self.subTest(title=title):
                 self.assertEqual(release.version_from_title(title), tag)
                 self.assertEqual(release.release_message(tag), message)
-        for title in ("chore(lab-2): release", "chore(v02.0.0): release", "chore(v2.0): release",
+        for title in ("chore(lab-2): release", "chore(v02.0.0): release", "chore(v2.1.0): release",
+                      "chore(v2.0): release",
                       "chore(v2.0.0-SNAPSHOT): release", "chore(v2.0.0): release\nextra",
                       "chore(v2.0.0): release "):
             with self.subTest(title=title), self.assertRaises(ValueError):
@@ -60,12 +61,12 @@ class ReleaseTests(unittest.TestCase):
             with self.subTest(prs=prs), self.assertRaises(ValueError):
                 release.release_pr(prs, "team/project", "main-sha")
 
-    def test_new_tag_uses_completion_message_and_exact_source_sha(self):
+    def test_new_tag_uses_package_message_and_exact_source_sha(self):
         with patch.object(release, "validate_version", return_value=True), \
                 patch.object(release, "api", side_effect=[{"sha": "annotated-sha"}, {}]) as api:
             release.reserve_tag("team/project", "v2.0.0", "rebased-sha")
         self.assertEqual(api.call_args_list[0].args, ("repos/team/project/git/tags", {
-            "tag": "v2.0.0", "message": "Lab 2 completion", "object": "rebased-sha", "type": "commit",
+            "tag": "v2.0.0", "message": "Lab 2 service package release", "object": "rebased-sha", "type": "commit",
         }))
         self.assertEqual(api.call_args_list[1].args, ("repos/team/project/git/refs", {
             "ref": "refs/tags/v2.0.0", "sha": "annotated-sha",
@@ -93,12 +94,12 @@ class ReleaseGitTests(unittest.TestCase):
                 git("commit", "--allow-empty", "-qm", "chore: initial release")
                 sha = git("rev-parse", "HEAD")
                 self.assertTrue(release.validate_version("v2.0.0", sha))
-                git("tag", "-a", "v2.0.0", "-m", "Lab 2 completion")
-                git("tag", "-a", "v2.0.9", "-m", "Lab 2 hotfix")
+                git("tag", "-a", "v2.0.0", "-m", "Lab 2 service package release")
+                git("tag", "-a", "v2.0.1", "-m", "Lab 2 service package hotfix")
                 self.assertFalse(release.validate_version("v2.0.0", sha))
-                self.assertTrue(release.validate_version("v2.0.10", sha))
+                self.assertTrue(release.validate_version("v2.0.2", sha))
                 self.assertTrue(release.validate_version("v3.0.0", sha))
-                for tag in ("v1.0.1", "v2.0.8"):
+                for tag in ("v1.0.1", "v2.0.3"):
                     with self.subTest(tag=tag), self.assertRaises(ValueError):
                         release.validate_version(tag, sha)
                 with self.assertRaises(ValueError):
@@ -107,8 +108,25 @@ class ReleaseGitTests(unittest.TestCase):
                 pr["head"]["sha"] = sha
                 with self.assertRaisesRegex(ValueError, "already exists"):
                     release.check_release_pr(pr, "team/project")
-                pr["title"] = "fix(v2.0.10): release a hotfix"
+                pr["title"] = "fix(v2.0.2): release a hotfix"
                 release.check_release_pr(pr, "team/project")
+
+    def test_rejects_gaps_and_nonconforming_prior_tags(self):
+        with tempfile.TemporaryDirectory(prefix="release test ") as root:
+            env = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
+                       GIT_AUTHOR_NAME="Release Test", GIT_AUTHOR_EMAIL="test@example.invalid",
+                       GIT_COMMITTER_NAME="Release Test", GIT_COMMITTER_EMAIL="test@example.invalid")
+            with patch.dict(os.environ, env, clear=True), in_directory(root):
+                subprocess.run(["git", "init", "-q", "-b", "main"], check=True)
+                subprocess.run(["git", "commit", "--allow-empty", "-qm", "initial"], check=True)
+                sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+                subprocess.run(["git", "tag", "v2.0.0"], check=True)
+                subprocess.run(["git", "tag", "v2.0.2"], check=True)
+                with self.assertRaisesRegex(ValueError, "gap"):
+                    release.validate_version("v2.0.3", sha)
+                subprocess.run(["git", "tag", "v2.1.0"], check=True)
+                with self.assertRaisesRegex(ValueError, "Nonconforming"):
+                    release.validate_version("v2.0.3", sha)
 
 
 if __name__ == "__main__":

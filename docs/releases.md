@@ -7,18 +7,18 @@ CPR creates the release tag and GitHub release from the version in the release P
 To release CPR:
 
 1. Verify the lab deliverables.
-2. Open a PR from `dev` into `main`. Use `chore(vX.0.0): some description` for a lab release or `fix(vX.0.Y): some description` for a hotfix/patch of the lab.
+2. Open a PR from `dev` into `main`. Use `chore(vX.0.0): some description` for the first service package release or `fix(vX.0.Y): some description` for a later hotfix.
 3. Obtain one peer approval of the latest changes, resolve every review thread, and pass the required checks.
 4. Rebase the PR into `main`.
 5. Wait for the Release and Sync Dev with Main workflows to finish.
 
-Use `vX.0.0` for a completed lab and `vX.0.Y` for a hotfix. Each release needs an unused version greater than the existing release tags. PR checks validate the version before merge.
+Use the canonical `vX.0.Y` form. The first release for lab `X` is `vX.0.0`; every subsequent release for that lab increments `Y` exactly one. The middle component is always zero. PR checks reject gaps, invalid prior `v` tags, and versions already used for another commit. Existing tags remain immutable: nonconforming history is reported instead of being retagged.
 
 ## Automatic releases
 
 The [Release workflow](../.github/workflows/release.yml) runs on each push to `main`, including documentation-only updates. It finds the merged release PR and reads its exact version. A title such as `chore(v2.0.0): release lab 2` creates the annotated tag `v2.0.0` on the released commit and a matching GitHub release.
 
-The workflow sets the tag message, release name, and release notes to `Lab X completion` for `vX.0.0` or `Lab X hotfix` for a hotfix. It marks the GitHub release as latest. The PR title supplies the version; the release text is generated automatically.
+The workflow sets the tag message, release name, and release notes to `Lab X service package release` for `vX.0.0` or `Lab X service package hotfix` for later versions. It does not claim full-lab completion. It marks the GitHub release as latest. The PR title supplies the version; the release text is generated automatically.
 
 A workflow rerun reuses an existing tag only when it points to the same released commit. It does not create another version or move the tag. An older run cannot replace latest after a newer `main` update.
 

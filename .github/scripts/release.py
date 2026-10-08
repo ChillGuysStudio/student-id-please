@@ -11,9 +11,10 @@ import time
 
 TITLE = re.compile(
     r"(?:feat|fix|docs|style|refactor|test|chore)"
-    r"\((v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\): \S(?:[^\r\n]*\S)?"
+    r"\((v(?:0|[1-9][0-9]*)\.0\.(?:0|[1-9][0-9]*))\): \S(?:[^\r\n]*\S)?"
 )
-TAG = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
+TAG = re.compile(r"v(0|[1-9][0-9]*)\.0\.(0|[1-9][0-9]*)")
+VERSION_TAG = re.compile(r"^v")
 
 
 def version_from_title(title):
@@ -24,23 +25,56 @@ def version_from_title(title):
 
 
 def release_message(tag):
-    major, minor, patch = map(int, TAG.fullmatch(tag).groups())
-    kind = "completion" if minor == patch == 0 else "hotfix"
+    major, patch = map(int, TAG.fullmatch(tag).groups())
+    kind = "service package release" if patch == 0 else "service package hotfix"
     return f"Lab {major} {kind}"
+
+
+def _existing_versions(tags):
+    """Return canonical versions, rejecting old tags that cannot be audited."""
+    invalid = sorted(name for name in tags if VERSION_TAG.match(name) and not TAG.fullmatch(name))
+    if invalid:
+        raise ValueError(
+            "Nonconforming existing release tag(s): " + ", ".join(invalid)
+            + ". Leave them immutable and repair the release sequence."
+        )
+    versions = {}
+    for name in tags:
+        match = TAG.fullmatch(name)
+        if match:
+            major, patch = map(int, match.groups())
+            versions.setdefault(major, set()).add(patch)
+    gaps = [
+        f"v{major}.0.{patch}"
+        for major, patches in versions.items()
+        for patch in range(max(patches) + 1)
+        if patch not in patches
+    ]
+    if gaps:
+        raise ValueError(
+            "Existing release tags contain a gap: " + ", ".join(sorted(gaps))
+            + ". Tags are immutable; publish the missing version next."
+        )
+    return versions
 
 
 def validate_version(tag, sha):
     """Permit same-commit retries but never reuse a version for different code."""
     tags = subprocess.check_output(["git", "tag", "--list"], text=True).splitlines()
+    if not TAG.fullmatch(tag):
+        raise ValueError("Release version must use canonical vX.0.Y form.")
     if tag in tags:
         target = subprocess.check_output(["git", "rev-parse", f"{tag}^{{commit}}"], text=True).strip()
         if target != sha:
             raise ValueError(f"{tag} already identifies another commit. Use a new release version.")
         return False
-    version = tuple(map(int, TAG.fullmatch(tag).groups()))
-    existing = [tuple(map(int, match.groups())) for name in tags if (match := TAG.fullmatch(name))]
-    if existing and version <= max(existing):
-        raise ValueError("Release version must be greater than every existing release tag.")
+    versions = _existing_versions(tags)
+    major, patch = map(int, TAG.fullmatch(tag).groups())
+    expected = max(versions.get(major, {-1})) + 1
+    if patch != expected:
+        if patch == 0 and expected > 0:
+            raise ValueError(f"{tag} already has prior releases; next version is v{major}.0.{expected}.")
+        raise ValueError(f"Release versions for lab {major} must increment exactly one; next is v{major}.0.{expected}.")
     return True
 
 
