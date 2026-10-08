@@ -94,6 +94,7 @@ services:
       start_period: 5s
   player:
     image: tirppy/student-id-player-service:${PLAYER_VERSION:-${SERVICE_VERSION:-latest}}
+    pull_policy: always
     environment:
       DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
       JWT_PRIVATE_KEY_PATH: /app/data/player-private.pem
@@ -111,6 +112,7 @@ services:
     restart: unless-stopped
   session:
     image: tirppy/student-id-session-service:${SESSION_VERSION:-${SERVICE_VERSION:-latest}}
+    pull_policy: always
     environment:
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
       PLAYER_URL: http://player:8001
@@ -135,6 +137,7 @@ services:
     restart: unless-stopped
   player-public-key:
     image: tirppy/student-id-player-service:${PLAYER_VERSION:-${SERVICE_VERSION:-latest}}
+    pull_policy: always
     user: root
     entrypoint: [python, -c]
     command:
@@ -157,6 +160,7 @@ services:
     restart: 'no'
   moderation:
     image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
+    pull_policy: always
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
@@ -195,6 +199,7 @@ services:
     restart: unless-stopped
   moderation-publisher:
     image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
+    pull_policy: always
     command: [python, -m, moderation.publisher]
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
@@ -207,6 +212,7 @@ services:
     restart: unless-stopped
   discord-dms:
     image: sentientmoss/pad-discord-dms-service:${DISCORD_DMS_VERSION:-latest}
+    pull_policy: always
     environment:
       DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -239,6 +245,7 @@ services:
         condition: service_healthy
   applicant:
     image: mcittkmims/applicant-service:${APPLICANT_SERVICE_VERSION:-latest}
+    pull_policy: always
     environment:
       MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
     ports:
@@ -249,6 +256,7 @@ services:
     restart: unless-stopped
   credential:
     image: mcittkmims/credential-service:${CREDENTIAL_SERVICE_VERSION:-latest}
+    pull_policy: always
     environment:
       MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
     ports:
@@ -294,6 +302,7 @@ services:
       start_period: 20s
   university-record:
     image: maxnoragami/university-record-service:${UNIVERSITY_RECORD_VERSION:-latest}
+    pull_policy: always
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_MONGODB_HOST: university-mongodb
@@ -331,6 +340,7 @@ services:
       start_period: 10s
   server-rules:
     image: maxnoragami/server-rules-service:${SERVER_RULES_VERSION:-latest}
+    pull_policy: always
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_DATASOURCE_URL: jdbc:postgresql://rules-db:5432/server_rules

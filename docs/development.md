@@ -42,6 +42,13 @@ cd student-id-please
 	docker compose ps
 	```
 
+Service and helper containers use `pull_policy: always`, so startup refreshes the
+selected image tag. Tags default to `latest`; the existing version variables can
+select a lab/version tag for debugging. Docker selects the host's native platform
+from each published manifest; no AMD64 platform is forced. If the image lacks a
+matching platform, its owner must publish that platform rather than rely on
+runtime emulation.
+
 Services can run integrated or in mock mode.
 
 Use [the service references](services/README.md) for local ports and image configuration. Run `docker compose logs <service>` to inspect a failed container. Run `docker compose down` to stop the stack and keep its data. Do not add `--volumes` unless you intend to delete the stored data.
