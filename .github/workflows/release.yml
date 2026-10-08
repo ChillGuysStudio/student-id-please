@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: false
+      - name: Test release rules
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s tests -p test_release.py -v
+      - name: Resolve version and reserve release tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/release.py
+
+      # CPR creates GitHub releases only. Service repositories enable these DockerHub steps.
+      # - name: Check DockerHub secrets
+      #   env:
+      #     USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      #     REPOSITORY: ${{ secrets.DOCKERHUB_REPOSITORY }}
+      #   run: |
+      #     test -n "$USERNAME" && test -n "$TOKEN" && test -n "$REPOSITORY"
+      # - uses: docker/setup-buildx-action@v3
+      # - uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Publish versioned image
+      #   id: image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     push: true
+      #     tags: |
+      #       ${{ secrets.DOCKERHUB_REPOSITORY }}:${{ steps.release.outputs.version }}
+      #       ${{ secrets.DOCKERHUB_REPOSITORY }}:sha-${{ github.sha }}
+      #     labels: |
+      #       org.opencontainers.image.revision=${{ github.sha }}
+      #       org.opencontainers.image.version=${{ steps.release.outputs.version }}
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          MESSAGE: ${{ steps.release.outputs.message }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$MESSAGE" --notes "$MESSAGE" --latest=false
+          fi
+      - name: Update latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          # REPOSITORY: ${{ secrets.DOCKERHUB_REPOSITORY }}
+          # DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          MAIN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          test "$MAIN_SHA" = "$GITHUB_SHA" || { echo "A newer main HEAD exists; refusing to move latest backwards."; exit 1; }
+          # Service repositories enable this line with the DockerHub steps and env variables above.
+          # docker buildx imagetools create --tag "$REPOSITORY:latest" "$REPOSITORY@$DIGEST"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --latest
+          echo "Published $TAG at $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

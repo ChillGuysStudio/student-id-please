@@ -1,15 +1,15 @@
 ## Why?
 
-Describe the problem and why this change is needed.
+<!-- Explain the problem or goal. -->
 
 ## Changes
 
-Describe the resulting behavior and relevant design choices.
+<!-- Describe the changes that matter to the reviewer. -->
 
 ## How to Test?
 
-List the checks reviewers can run and the results already verified.
+<!-- List the commands you ran and their results. If a check did not run, give the reason. -->
 
-## Screenshots / Evidence (Optional)
+## Service images
 
-Attach relevant evidence when useful.
+<!-- For changed service pointers, list the source SHA and matching public image. Remove this section otherwise. -->
