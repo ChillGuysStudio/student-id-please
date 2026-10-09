@@ -44,8 +44,18 @@ class Lab2ConfigurationTests(unittest.TestCase):
         for owner in prepare_lab2.OWNERS:
             settings = read_env(directory / f"{owner}.env")
             if owner in ("player", "session"):
-                self.assertNotIn("AUTH_MODE", settings)
-                self.assertNotIn("GATEWAY_HOP_TOKEN", settings)
+                self.assertEqual(settings["AUTH_MODE"], "gateway")
+                self.assertEqual(settings["GATEWAY_ASSERTION_AUDIENCE"], receivers[owner]["Audience"])
+                self.assertEqual(settings["GATEWAY_ASSERTION_ISSUER"], "student-id-gateway")
+                self.assertEqual(json.loads(settings["SERVICE_TOKENS"]), {"gateway": receivers[owner]["HopToken"]})
+                self.assertEqual(settings["MAX_CONCURRENT_TASKS"], "100")
+                self.assertEqual(settings["TASK_TIMEOUT_SECONDS"], "30")
+                self.assertNotIn("GATEWAY_JWKS_URL", settings)
+                self.assertNotIn("PLAYER_JWKS_URL", settings)
+                if owner == "session":
+                    self.assertEqual(settings["GATEWAY_URL"], "http://gateway:8083")
+                    self.assertEqual(settings["GATEWAY_SERVICE_TOKEN"], credentials["session"])
+                    self.assertEqual(settings["JWT_PUBLIC_KEY_PATH"], "/keys/player-public.pem")
                 continue
             self.assertEqual(settings["AUTH_MODE"], "gateway")
             self.assertEqual(settings["GATEWAY_HOP_TOKEN"], receivers[owner]["HopToken"])
@@ -57,6 +67,9 @@ class Lab2ConfigurationTests(unittest.TestCase):
         rules = read_env(directory / "rules.env")
         self.assertEqual(rules["GATEWAY_RULES_RECEIVER_TOKEN"], receivers["rules"]["HopToken"])
         self.assertEqual(rules["RULES_SERVICE_TOKEN"], credentials["rules"])
+        config = read_env(self.root / ".env")
+        self.assertEqual(config["PLAYER_VERSION"], "2.0.1")
+        self.assertEqual(config["SESSION_VERSION"], "2.0.0")
         self.assertEqual((self.root / ".env").stat().st_mode & 0o777, 0o600)
         self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
 
@@ -80,6 +93,10 @@ class Lab2ConfigurationTests(unittest.TestCase):
         self.assertNotIn("http://session:8002", compose)
         self.assertNotIn("http://player:8001", compose)
         self.assertNotIn("EXTERNAL_SERVICES_MODE: mock", compose)
+        self.assertNotIn("PLAYER_JWKS_URL:", compose)
+        self.assertNotIn("OUTGOING_SERVICE_TOKEN:", compose)
+        self.assertIn("GATEWAY_URL: http://gateway:8083", compose)
+        self.assertIn("player-public.pem:/keys/player-public.pem:ro", compose)
         self.assertNotIn("player-public-key:", compose)
         self.assertIn("SPRING_PROFILES_ACTIVE: gateway", compose)
         self.assertIn("SESSION_URL: http://gateway:8083", compose)
