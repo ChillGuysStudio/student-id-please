@@ -8,7 +8,7 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the Lab 2 target topology.
 
-<img src="docs/architecture.jpg" alt="Legacy architecture diagram awaiting a human-authored Lab 2 update" width="1080"/>
+<img src="docs/architecture.png" alt="Legacy architecture diagram awaiting a human-authored Lab 2 update" width="1080"/>
 
 The figure and its [editable source](docs/architecture.drawio) are the unchanged legacy diagram, awaiting a human-authored Lab 2 update. Its WebSocket relay, direct inter-service REST links, and Session storage labels do not describe the target. [The human diagram handoff](docs/architecture.md#human-diagram-handoff) tracks the remaining work in issue #74.
 
