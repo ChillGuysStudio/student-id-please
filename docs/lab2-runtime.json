@@ -1,0 +1,243 @@
+{
+  "platform": "native linux/amd64",
+  "deployment": "Disposable Compose with local gateway and four Java source snapshots; published Moderation and DMs 2.0.2; legacy Player and Session images",
+  "gateway_source": "6a1a3b485e9e1ce153ef53f4eb371647cd160ad3",
+  "java_source_snapshots": {
+    "applicant": "4652297c5fc36f249257d4e7f79371c2341ffd6f",
+    "credential": "1488c422a031429c9572ac9bd046619f24792599",
+    "rules": "08b4536d42236adbb594936ccd60397d6e7409fe",
+    "university": "d66af6ac1f0365b9097289098186e09da008bdb4"
+  },
+  "public_images": {
+    "moderation": {
+      "reference": "sentientmoss/pad-moderation-service:2.0.2",
+      "source": "d95e72dd608c98bc88f37bb1e9ab55587d74fd4c",
+      "digest": "sha256:c616219a9590baeaaea919463fc3a8f407a55b87a22501ebd49d07e47fa6f687"
+    },
+    "discord-dms": {
+      "reference": "sentientmoss/pad-discord-dms-service:2.0.2",
+      "source": "4ccd6f329341ba714f701563fe75021704bebb46",
+      "digest": "sha256:9a6d717ad04409902363fae0cead3fbb29ff76eec2df5682fc8a5a57b6ad68e6"
+    },
+    "player": {
+      "reference": "tirppy/student-id-player-service:latest",
+      "source": "ce438c8585807dd7b9cefac8d392fba990a62a87",
+      "digest": "sha256:ea535ec34f418073058f2fe9954d600dc3c28fe81c3ca1e472840221eea6d32b"
+    },
+    "session": {
+      "reference": "tirppy/student-id-session-service:latest",
+      "source": "574b915a2bb06eef3a19a63a8a857bb614801690",
+      "digest": "sha256:1d5bd79b1a94d425ba838aea45a9a90b246d623bcb3e26499c8679ca62349f48"
+    }
+  },
+  "containers": [
+    {
+      "service": "applicant",
+      "state": "running",
+      "health": "no health check",
+      "restart_count": 0
+    },
+    {
+      "service": "credential",
+      "state": "running",
+      "health": "no health check",
+      "restart_count": 0
+    },
+    {
+      "service": "discord-dms",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "dms-db",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "gateway",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "moderation",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "moderation-db",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "moderation-publisher",
+      "state": "running",
+      "health": "no health check",
+      "restart_count": 0
+    },
+    {
+      "service": "mongodb",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "player",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "player-db",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "rabbitmq",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "redis",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "rules-db",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "server-rules",
+      "state": "running",
+      "health": "no health check",
+      "restart_count": 0
+    },
+    {
+      "service": "session",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "session-db",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "university-mongodb",
+      "state": "running",
+      "health": "healthy",
+      "restart_count": 0
+    },
+    {
+      "service": "university-record",
+      "state": "running",
+      "health": "no health check",
+      "restart_count": 0
+    }
+  ],
+  "public_probes": [
+    {
+      "probe": "gateway health",
+      "status": 200,
+      "code": null
+    },
+    {
+      "probe": "missing bearer",
+      "status": 401,
+      "code": "UNAUTHORIZED"
+    },
+    {
+      "probe": "Player bootstrap through public gateway",
+      "status": 201,
+      "code": null
+    },
+    {
+      "probe": "Player login through public gateway",
+      "status": 200,
+      "code": null
+    },
+    {
+      "probe": "legacy Player protected me",
+      "status": 401,
+      "code": "UNAUTHENTICATED"
+    },
+    {
+      "probe": "Player friendship recipient bootstrap",
+      "status": 201,
+      "code": null
+    },
+    {
+      "probe": "legacy Player protected friendship request",
+      "status": 401,
+      "code": "UNAUTHENTICATED"
+    },
+    {
+      "probe": "legacy Session protected list",
+      "status": 401,
+      "code": "UNAUTHENTICATED"
+    },
+    {
+      "probe": "Rules actor proof on missing resource",
+      "status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "probe": "DMs channel lookup with legacy Session",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "probe": "direct chat negotiation with legacy Session",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "probe": "Rules synthetic development admin proof",
+      "status": 200,
+      "code": null
+    },
+    {
+      "probe": "Applicant synthetic development admin proof",
+      "status": 200,
+      "code": null
+    },
+    {
+      "probe": "Credential synthetic development admin proof",
+      "status": 200,
+      "code": null
+    },
+    {
+      "probe": "University synthetic development admin proof",
+      "status": 200,
+      "code": null
+    },
+    {
+      "probe": "Moderation synthetic development admin proof",
+      "status": 200,
+      "code": null
+    }
+  ],
+  "internal_probes": [
+    {
+      "probe": "internal Rules missing delegation",
+      "status": 401,
+      "code": "UNAUTHORIZED"
+    },
+    {
+      "probe": "internal Rules scoped development delegation",
+      "status": 401,
+      "code": "UNAUTHENTICATED"
+    }
+  ]
+}
