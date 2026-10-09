@@ -2,15 +2,13 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The [legacy architecture diagram](architecture.jpg) and its [editable source](architecture.drawio) remain unchanged while the humans prepare the Lab 2 diagram. The legacy figure does not show the target topology described below. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The [architecture diagram](architecture.png) and its [editable source](architecture.drawio) show the Lab 2 topology. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
 
-## Human diagram handoff
+## Request paths
 
-The humans own the diagram update and rendering for [issue #74](https://github.com/ChillGuysStudio/student-id-please/issues/74). This prose change does not complete that issue's rendered-diagram acceptance.
+The client sends REST to the API gateway, and the gateway routes each request to one service. Ticket negotiation uses the same REST path. The client then opens a direct WebSocket to the Discord DMs service for live chat. The gateway does not relay chat frames.
 
-The pending human-authored figure must show all client-to-service REST through the public gateway and all service-to-service REST through the internal gateway. Inter-service REST must include the physical gateway hop, rather than direct connections explained by a legend. Realtime negotiation and chat-ticket REST also use the gateway. Only the subsequent WebSocket upgrade and live frames connect directly from the client to Discord DMs.
-
-The figure must identify the gateway as shared Go infrastructure. RabbitMQ events and service-owned storage connections are not REST proxy paths. Session Redis holds cached live views; PostgreSQL owns shift state, history, and locks. The legacy figure's relay, direct REST edges, and Session storage labels await these corrections. Keep the drawio nodes, edges, embedded Mermaid, and rendered image consistent when the humans deliver the update.
+All service-to-service REST passes through the gateway. The figure draws one bidirectional edge per service and labels each edge with the calls it carries. Storage links and the greyed RabbitMQ links are separate paths, not REST routes.
 
 ## Service ownership
 
@@ -83,7 +81,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 
 [HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details.
 
-This map describes the Lab 2 target, not the legacy figure. All client-to-service REST uses the public gateway, and all service-to-service REST uses the internal gateway. The final four rows are RabbitMQ event delivery, not REST calls. Broker events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway. These paths remain unverified as a complete deployment.
+This map matches the figure. All client-to-service REST uses the public gateway, and all service-to-service REST uses the internal gateway. The final four rows are RabbitMQ event delivery, not REST calls. The figure shows the broker greyed as Lab 4 scope. Broker events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway. These paths remain unverified as a complete deployment.
 
 ## Data and consistency
 
