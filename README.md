@@ -39,6 +39,10 @@ RabbitMQ events and service-owned storage connections are not REST routing paths
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for CPR rules. Follow [the development guide](docs/development.md) to run public images, install hooks, or check out only your two services. The default setup does not fetch private source.
 
+## Policy changes
+
+Rules introduced by updates to this README or the other project documentation apply after those updates are merged. Earlier commits, branches, pull requests, merges, tags, releases, and other repository actions are judged by the rules in effect when they occurred. Actions that followed the previous README and documentation are not violations of rules introduced later.
+
 ## Documentation
 
 - [HTTP conventions](docs/contracts/http.md)
