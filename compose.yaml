@@ -1,5 +1,20 @@
-name: student-id-lab1
+name: student-id-lab2
 services:
+  gateway:
+    image: ${GATEWAY_IMAGE:?Set GATEWAY_IMAGE to a published source-matched image}
+    pull_policy: always
+    env_file: .local/lab2/gateway.env
+    ports:
+      - '127.0.0.1:${GATEWAY_PORT:-8080}:8080'
+    volumes:
+      - ./.local/lab2/gateway-private.pem:/keys/gateway-private.pem:ro
+      - ./.local/lab2/player-public.pem:/keys/player-public.pem:ro
+    healthcheck:
+      test: [CMD, /gateway, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
   player-db:
     image: postgres:17-alpine
     environment:
@@ -54,13 +69,19 @@ services:
       retries: 20
   rabbitmq:
     image: rabbitmq:4.1-management-alpine
+    user: rabbitmq
+    hostname: rabbitmq
+    command: [sh, /run/start_broker.sh]
     environment:
       RABBITMQ_DEFAULT_USER: studentid
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+      APPLICANT_BROKER_PASSWORD: ${APPLICANT_BROKER_PASSWORD:?Set APPLICANT_BROKER_PASSWORD in .env}
+      CREDENTIAL_BROKER_PASSWORD: ${CREDENTIAL_BROKER_PASSWORD:?Set CREDENTIAL_BROKER_PASSWORD in .env}
     volumes:
       - broker-data:/var/lib/rabbitmq
+      - ./scripts/start_broker.sh:/run/start_broker.sh:ro
     healthcheck:
-      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      test: [CMD-SHELL, 'test -f /tmp/lab2-broker-users-ready && rabbitmq-diagnostics -q ping']
       interval: 5s
       timeout: 5s
       retries: 30
@@ -75,7 +96,7 @@ services:
       timeout: 3s
       retries: 20
   mongodb:
-    # Pinned to 7.0: MongoDB 8.x refuses to start on Linux kernel 6.19+ (SERVER-121912).
+    # MongoDB 8.x refuses to start on Linux kernel 6.19+.
     image: mongo:7.0
     command: [mongod, --replSet, rs0, --bind_ip_all]
     volumes:
@@ -93,17 +114,16 @@ services:
       retries: 30
       start_period: 5s
   player:
-    image: tirppy/student-id-player-service:${PLAYER_VERSION:-${SERVICE_VERSION:-latest}}
+    image: tirppy/student-id-player-service:${PLAYER_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/player.env
     environment:
       DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
       JWT_PRIVATE_KEY_PATH: /app/data/player-private.pem
-      SERVICE_TOKENS: '{"session":"${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}","moderation":"${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}"}'
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
-    ports:
-      - '127.0.0.1:8001:8001'
     volumes:
-      - player-keys:/app/data
+      - ./.local/lab2/player-private.pem:/app/data/player-private.pem:ro
+      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
     depends_on:
       player-db:
         condition: service_healthy
@@ -111,20 +131,24 @@ services:
         condition: service_healthy
     restart: unless-stopped
   session:
-    image: tirppy/student-id-session-service:${SESSION_VERSION:-${SERVICE_VERSION:-latest}}
+    image: tirppy/student-id-session-service:${SESSION_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/session.env
     environment:
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
-      PLAYER_URL: http://player:8001
-      PLAYER_JWKS_URL: http://player:8001/.well-known/jwks.json
+      PLAYER_URL: http://gateway:8083
+      PLAYER_JWKS_URL: http://gateway:8083/.well-known/jwks.json
       PLAYER_MODE: http
-      EXTERNAL_SERVICES_MODE: mock
+      EXTERNAL_SERVICES_MODE: http
+      APPLICANT_URL: http://gateway:8083
+      CREDENTIAL_URL: http://gateway:8083
+      UNIVERSITY_URL: http://gateway:8083
+      RULES_URL: http://gateway:8083
       OUTGOING_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
-      SERVICE_TOKENS: '{"moderation":"${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}","dms":"${DISCORD_DMS_SERVICE_TOKEN:?Set DISCORD_DMS_SERVICE_TOKEN in .env}"}'
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
-    ports:
-      - '127.0.0.1:8002:8002'
+    volumes:
+      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
     depends_on:
       session-db:
         condition: service_healthy
@@ -135,54 +159,27 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-  player-public-key:
-    image: tirppy/student-id-player-service:${PLAYER_VERSION:-${SERVICE_VERSION:-latest}}
-    pull_policy: always
-    user: root
-    entrypoint: [python, -c]
-    command:
-      - |
-        import json
-        import urllib.request
-        from pathlib import Path
-        import jwt
-        from cryptography.hazmat.primitives import serialization
-        jwks = json.load(urllib.request.urlopen("http://player:8001/.well-known/jwks.json"))
-        key = jwt.algorithms.RSAAlgorithm.from_jwk(jwks["keys"][0])
-        target = Path("/keys/player-public.pem")
-        target.write_bytes(key.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
-        target.chmod(0o444)
-    volumes:
-      - player-public-key:/keys
-    depends_on:
-      player:
-        condition: service_healthy
-    restart: 'no'
   moderation:
     image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/moderation.env
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
-      JWT_PUBLIC_KEY_FILE: /run/secrets/player-public.pem
-      JWT_ISSUER: student-id-please
-      JWT_AUDIENCE: student-id-players
-      SESSION_URL: http://session:8002
+      SESSION_URL: http://gateway:8083
       SESSION_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      APPLICANT_URL: http://applicant:8081
+      APPLICANT_URL: http://gateway:8083
       APPLICANT_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      CREDENTIAL_URL: http://credential:8082
+      CREDENTIAL_URL: http://gateway:8083
       CREDENTIAL_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://university-record:8006
+      UNIVERSITY_URL: http://gateway:8083
       UNIVERSITY_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      RULES_URL: http://server-rules:8005
+      RULES_URL: http://gateway:8083
       RULES_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      PLAYER_URL: http://player:8001
+      PLAYER_URL: http://gateway:8083
       PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-    ports:
-      - '127.0.0.1:8008:8000'
     volumes:
-      - player-public-key:/run/secrets:ro
+      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -192,9 +189,7 @@ services:
     depends_on:
       moderation-db:
         condition: service_healthy
-      player-public-key:
-        condition: service_completed_successfully
-      session:
+      gateway:
         condition: service_healthy
     restart: unless-stopped
   moderation-publisher:
@@ -213,21 +208,19 @@ services:
   discord-dms:
     image: sentientmoss/pad-discord-dms-service:${DISCORD_DMS_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/discord-dms.env
     environment:
       DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHAT_TICKET_SECRET: ${CHAT_TICKET_SECRET:?Set CHAT_TICKET_SECRET in .env}
-      JWT_PUBLIC_KEY_FILE: /run/secrets/player-public.pem
-      JWT_ISSUER: student-id-please
-      JWT_AUDIENCE: student-id-players
-      SESSION_URL: http://session:8002
+      SESSION_URL: http://gateway:8083
       SESSION_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://university-record:8006
+      UNIVERSITY_URL: http://gateway:8083
       UNIVERSITY_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
     ports:
-      - '127.0.0.1:8009:8000'
+      - '127.0.0.1:${DMS_PORT:-8009}:8000'
     volumes:
-      - player-public-key:/run/secrets:ro
+      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -237,32 +230,42 @@ services:
     depends_on:
       dms-db:
         condition: service_healthy
-      player-public-key:
-        condition: service_completed_successfully
       redis:
         condition: service_healthy
-      session:
+      gateway:
         condition: service_healthy
+    restart: unless-stopped
   applicant:
     image: mcittkmims/applicant-service:${APPLICANT_SERVICE_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/applicant.env
     environment:
+      SERVER_ADDRESS: 0.0.0.0
       MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
-    ports:
-      - '127.0.0.1:8081:8081'
+      SESSION_URL: http://gateway:8083
+      UNIVERSITY_URL: http://gateway:8083
+      RABBITMQ_URL: amqp://applicant:${APPLICANT_BROKER_PASSWORD}@rabbitmq:5672/
+      BROKER_PRODUCERS: '{"applicant":"applicant","credential":"credential","university_record":"university_record"}'
     depends_on:
       mongodb:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
   credential:
     image: mcittkmims/credential-service:${CREDENTIAL_SERVICE_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/credential.env
     environment:
       MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
-    ports:
-      - '127.0.0.1:8082:8082'
+      SESSION_URL: http://gateway:8083
+      UNIVERSITY_URL: http://gateway:8083
+      RABBITMQ_URL: amqp://credential:${CREDENTIAL_BROKER_PASSWORD}@rabbitmq:5672/
+      BROKER_PRODUCERS: '{"applicant":"applicant","credential":"credential","university_record":"university_record"}'
     depends_on:
       mongodb:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
   university-mongodb:
@@ -280,7 +283,7 @@ services:
         fi
         exec /usr/local/bin/docker-entrypoint.sh "$$@"
       - --
-    command: ["mongod", "--replSet", "rs0", "--keyFile", "/data/configdb/replica-set.key", "--bind_ip_all"]
+    command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key, --bind_ip_all]
     environment:
       MONGO_INITDB_ROOT_USERNAME: university_record_service
       MONGO_INITDB_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
@@ -290,11 +293,9 @@ services:
       test:
         - CMD-SHELL
         - >-
-          mongosh --quiet
-          --host 127.0.0.1
+          mongosh --quiet --host 127.0.0.1
           --username "$${MONGO_INITDB_ROOT_USERNAME}"
-          --password "$${MONGO_INITDB_ROOT_PASSWORD}"
-          --authenticationDatabase admin
+          --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin
           --eval 'try { quit(rs.status().ok === 1 ? 0 : 1) } catch (error) { quit(rs.initiate({_id:"rs0",members:[{_id:0,host:"university-mongodb:27017"}]}).ok === 1 ? 0 : 1) }'
       interval: 10s
       timeout: 5s
@@ -303,18 +304,18 @@ services:
   university-record:
     image: maxnoragami/university-record-service:${UNIVERSITY_RECORD_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/university_record.env
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_MONGODB_HOST: university-mongodb
+      SPRING_PROFILES_ACTIVE: gateway
+      MONGO_HOST: university-mongodb
       MONGO_DATABASE: university_records
       MONGO_ROOT_USERNAME: university_record_service
       MONGO_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
       SERVER_PORT: 8006
-      ADMIN_TOKEN: ${UNIVERSITY_ADMIN_TOKEN:?Set UNIVERSITY_ADMIN_TOKEN in .env}
-      APP_AUTH_SERVICECALLERS_MODERATION: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
-      APP_AUTH_SERVICECALLERS_SESSION: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
-    ports:
-      - '127.0.0.1:8006:8006'
+      TASK_TIMEOUT: ${JAVA_TASK_TIMEOUT:-30s}
+      MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
+    volumes:
+      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
     depends_on:
       university-mongodb:
         condition: service_healthy
@@ -328,12 +329,7 @@ services:
     volumes:
       - rules-data:/var/lib/postgresql
     healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          pg_isready
-          --username "$${POSTGRES_USER}"
-          --dbname "$${POSTGRES_DB}"
+      test: [CMD-SHELL, 'pg_isready --username "$${POSTGRES_USER}" --dbname "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -341,19 +337,18 @@ services:
   server-rules:
     image: maxnoragami/server-rules-service:${SERVER_RULES_VERSION:-latest}
     pull_policy: always
+    env_file: .local/lab2/rules.env
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_DATASOURCE_URL: jdbc:postgresql://rules-db:5432/server_rules
-      SPRING_DATASOURCE_USERNAME: server_rules
-      SPRING_DATASOURCE_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
+      SPRING_PROFILES_ACTIVE: gateway
+      DATABASE_URL: jdbc:postgresql://rules-db:5432/server_rules
+      POSTGRES_USER: server_rules
+      POSTGRES_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
       SERVER_PORT: 8005
-      ADMIN_TOKEN: ${RULES_ADMIN_TOKEN:?Set RULES_ADMIN_TOKEN in .env}
-      PLAYER_TOKEN: ${RULES_PLAYER_TOKEN:?Set RULES_PLAYER_TOKEN in .env}
-      SESSION_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
-      MODERATION_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
       CURSOR_SECRET: ${RULES_CURSOR_SECRET:?Set RULES_CURSOR_SECRET in .env}
-    ports:
-      - '127.0.0.1:8005:8005'
+      TASK_TIMEOUT: ${JAVA_TASK_TIMEOUT:-30s}
+      MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
+    volumes:
+      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
     depends_on:
       rules-db:
         condition: service_healthy
@@ -364,8 +359,6 @@ volumes:
   moderation-data:
   dms-data:
   broker-data:
-  player-keys:
-  player-public-key:
   mongo-data:
   university-mongo-data:
   rules-data:

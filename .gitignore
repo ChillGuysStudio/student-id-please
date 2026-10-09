@@ -1,6 +1,7 @@
 .env
 .env.*
 data/
+.local/
 *.pem
 __pycache__/
 .pytest_cache/

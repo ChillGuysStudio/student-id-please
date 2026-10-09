@@ -11,34 +11,39 @@ cd student-id-please
 
 ## Run public images
 
-The current Compose file uses legacy direct REST paths and has no gateway. These commands start that configuration, not a completed Lab 2 integrated stack. The Lab 2 target requires public gateway client REST, private internal gateway service REST, and no original `Authorization` downstream. Direct WebSocket connections and database connections bypass the gateway. See [integration principles](integration.md#connect-real-services).
+Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. DMs exposes `127.0.0.1:8009` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
 
-1. Copy the configuration template:
+This wiring does not prove released-image compatibility. Player and Session still need confirmed receiver configuration and compatible public images under [CPR #88](https://github.com/ChillGuysStudio/student-id-please/issues/88). The [disposable runtime results](lab2-runtime.md) separate working proof calls from blocked calls. Do not restore bearer forwarding or direct peer URLs to make a legacy image pass.
+
+1. Choose an explicit published gateway version or digest. Set `GATEWAY_IMAGE` to that reference. A local image is test-only, not a published release.
+2. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
 
 	```sh
-	cp .env.example .env
+	python3 scripts/prepare_lab2.py --gateway-image "$GATEWAY_IMAGE"
 	```
 
-2. Fill every blank in `.env` with a distinct URL-safe value. Keep the file out of commits.
-3. Validate the Compose configuration:
+	The command creates ignored `.env` and `.local/lab2/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
+
+3. Select source-matched service versions in `.env`. Keep `.env` and `.local/` out of commits. Player and Session receiver settings remain absent until their owner confirms them.
+4. Validate Compose without printing resolved values:
 
 	```sh
 	docker compose config --quiet
 	```
 
-4. Pull the public images:
+5. Pull the public images:
 
 	```sh
 	docker compose pull
 	```
 
-5. Start the deployment:
+6. Start the deployment:
 
 	```sh
-	docker compose up -d
+	docker compose up -d --wait
 	```
 
-6. Inspect container status:
+7. Inspect container status:
 
 	```sh
 	docker compose ps
@@ -51,9 +56,11 @@ from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
 
-Service mock flags select fixtures or real peers. They do not establish gateway integration.
+Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's existing peer settings select HTTP, not mocks. `scripts/start_broker.sh` creates the two broker users required by the Applicant and Credential constructors. It does not create exchanges or queues. The default `studentid` account and existing broker volume remain.
 
-Use [the service references](services/README.md) for local ports and image configuration. Run `docker compose logs <service>` to inspect a failed container. Run `docker compose down` to stop the stack and keep its data. Do not add `--volumes` unless you intend to delete the stored data.
+Inspect Java startup and make protected public gateway calls after `--wait`. A running container without a health check can still restart before its API binds. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
+
+Run `docker compose down` to stop the stack and keep its data. Add `--volumes` only for a disposable project whose stored data you intend to delete. The source snapshot override used for local testing stays under ignored `.local/lab2/`; it does not change CPR's service pointers or establish public-image publication.
 
 ## Install CPR hooks
 
