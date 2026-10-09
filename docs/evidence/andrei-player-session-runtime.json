@@ -390,5 +390,577 @@
     "native ARM64 runtime",
     "all-public-image deployment"
   ],
-  "cleanup": "Disposable Compose project and volumes removed after evidence collection"
+  "cleanup": "Initial run removed its project and volumes. Continuing andrei-player-session-current project is alive at coordinator request.",
+  "continuing_run": {
+    "checked_at": "2026-10-09T12:19:20.515787+00:00",
+    "project": "andrei-player-session-current",
+    "state": "kept alive for coordinated dependency fixes",
+    "rules_source": "c3ec3b20a5156886fb03e7c539095646f33784a3",
+    "rules_source_note": "Safe reviewed Rules24 snapshot, coordinator-confirmed tree identical to merged 5753cf5; local override, not public image evidence",
+    "containers": [
+      {
+        "service": "applicant",
+        "state": "running",
+        "health": "no health check",
+        "restarts": 0,
+        "image": "student-id-applicant:andrei-compose",
+        "source": "4652297c5fc36f249257d4e7f79371c2341ffd6f"
+      },
+      {
+        "service": "credential",
+        "state": "running",
+        "health": "no health check",
+        "restarts": 0,
+        "image": "student-id-credential:andrei-compose",
+        "source": "1488c422a031429c9572ac9bd046619f24792599"
+      },
+      {
+        "service": "discord-dms",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "sentientmoss/pad-discord-dms-service:2.0.2",
+        "source": "4ccd6f329341ba714f701563fe75021704bebb46"
+      },
+      {
+        "service": "dms-db",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "postgres:17-alpine",
+        "source": null
+      },
+      {
+        "service": "gateway",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "student-id-gateway:andrei-published-run",
+        "source": "b155070e75e057388e335630c2021329581221d9"
+      },
+      {
+        "service": "moderation",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "sentientmoss/pad-moderation-service:2.0.2",
+        "source": "d95e72dd608c98bc88f37bb1e9ab55587d74fd4c"
+      },
+      {
+        "service": "moderation-db",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "postgres:17-alpine",
+        "source": null
+      },
+      {
+        "service": "moderation-publisher",
+        "state": "running",
+        "health": "no health check",
+        "restarts": 0,
+        "image": "sentientmoss/pad-moderation-service:2.0.2",
+        "source": "d95e72dd608c98bc88f37bb1e9ab55587d74fd4c"
+      },
+      {
+        "service": "mongodb",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "mongo:7.0",
+        "source": null
+      },
+      {
+        "service": "player",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "tirppy/student-id-player-service:2.0.1",
+        "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe"
+      },
+      {
+        "service": "player-db",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "postgres:17-alpine",
+        "source": null
+      },
+      {
+        "service": "rabbitmq",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "rabbitmq:4.1-management-alpine",
+        "source": null
+      },
+      {
+        "service": "redis",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "redis:7.4-alpine",
+        "source": null
+      },
+      {
+        "service": "rules-db",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "postgres:18-alpine",
+        "source": null
+      },
+      {
+        "service": "server-rules",
+        "state": "running",
+        "health": "no health check",
+        "restarts": 0,
+        "image": "student-id-rules:andrei-rules24",
+        "source": "c3ec3b20a5156886fb03e7c539095646f33784a3"
+      },
+      {
+        "service": "session",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "tirppy/student-id-session-service:2.0.0",
+        "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1"
+      },
+      {
+        "service": "session-db",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "postgres:17-alpine",
+        "source": null
+      },
+      {
+        "service": "university-mongodb",
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0,
+        "image": "mongo:7.0",
+        "source": null
+      },
+      {
+        "service": "university-record",
+        "state": "running",
+        "health": "no health check",
+        "restarts": 0,
+        "image": "student-id-university:andrei-compose",
+        "source": "d66af6ac1f0365b9097289098186e09da008bdb4"
+      }
+    ],
+    "checks": [
+      {
+        "check": "gateway health",
+        "status": 200,
+        "code": null,
+        "request_id": "6c068471-6ae7-47c3-a9ec-b3844536a7a8"
+      },
+      {
+        "check": "register participant 0",
+        "status": 201,
+        "code": null,
+        "request_id": "2e46a25c-3bd8-4d5d-8fbd-3df5bce67660"
+      },
+      {
+        "check": "login participant 0",
+        "status": 200,
+        "code": null,
+        "request_id": "6244b17b-b3a4-4411-8bdc-a8dc9ede37cc"
+      },
+      {
+        "check": "register participant 1",
+        "status": 201,
+        "code": null,
+        "request_id": "f4ff1708-f5c7-492e-af3b-a712f0f53839"
+      },
+      {
+        "check": "login participant 1",
+        "status": 200,
+        "code": null,
+        "request_id": "e96e28d7-59c5-4b39-943c-9be7d009e590"
+      },
+      {
+        "check": "register participant 2",
+        "status": 201,
+        "code": null,
+        "request_id": "b95dd0c1-d8c2-45c3-912d-e1e865830daf"
+      },
+      {
+        "check": "login participant 2",
+        "status": 200,
+        "code": null,
+        "request_id": "19dc5950-df29-4bd7-a160-6ef36e05b5d4"
+      },
+      {
+        "check": "protected Player me",
+        "status": 200,
+        "code": null,
+        "request_id": "5800003c-e269-4280-a883-6da31367edc5"
+      },
+      {
+        "check": "missing bearer rejected",
+        "status": 401,
+        "code": "UNAUTHORIZED",
+        "request_id": "a0b8c1bf-6a2d-44a2-aa8a-81ad429017fd"
+      },
+      {
+        "check": "forged bearer rejected",
+        "status": 401,
+        "code": "UNAUTHORIZED",
+        "request_id": "473c2801-c3ff-46df-9182-05890a7cb986"
+      },
+      {
+        "check": "protected me with backend observation",
+        "status": 200,
+        "code": null,
+        "request_id": "8c723a28-191b-4dc5-9a6a-9ebb736d042c"
+      },
+      {
+        "check": "observed actual Player backend request",
+        "authorization_header_present": false,
+        "original_bearer_in_headers_or_decoded_gateway_context": false,
+        "fresh_gateway_assertion_present": true
+      },
+      {
+        "check": "create team",
+        "status": 201,
+        "code": null,
+        "request_id": "cad7a325-3aac-477a-8576-b6d1e4af597e"
+      },
+      {
+        "check": "friendship request 1",
+        "status": 201,
+        "code": null,
+        "request_id": "2fe957ba-9a4e-4d51-91a2-5a311b753cc9"
+      },
+      {
+        "check": "recipient friendship acceptance 1",
+        "status": 200,
+        "code": null,
+        "request_id": "6f7e6927-a555-4c4c-885c-189c363d4ce2"
+      },
+      {
+        "check": "add real friend to team 1",
+        "status": 200,
+        "code": null,
+        "request_id": "cc464d38-97d4-4e41-b8ca-4de858822f52"
+      },
+      {
+        "check": "friendship request 2",
+        "status": 201,
+        "code": null,
+        "request_id": "af8d01e2-7325-4ca8-aeb4-c1a6458d57b1"
+      },
+      {
+        "check": "recipient friendship acceptance 2",
+        "status": 200,
+        "code": null,
+        "request_id": "859fac89-4475-4b95-a80a-3eb74cb7e380"
+      },
+      {
+        "check": "add real friend to team 2",
+        "status": 200,
+        "code": null,
+        "request_id": "3ce2dc73-03d4-4cc7-bcdf-cb2d8c7ede63"
+      },
+      {
+        "check": "Session list",
+        "status": 200,
+        "code": null,
+        "request_id": "c10c8bdb-218c-4f6a-853a-117cec3426d6"
+      },
+      {
+        "check": "Session create with real delegated Player team read",
+        "status": 201,
+        "code": null,
+        "request_id": "d4ee4c2f-92ed-4c68-a13f-c0fc955357d2"
+      },
+      {
+        "check": "Session join 1",
+        "status": 200,
+        "code": null,
+        "request_id": "6c641bd9-fc97-43be-bb87-7e0966f14b27"
+      },
+      {
+        "check": "Session join 2",
+        "status": 200,
+        "code": null,
+        "request_id": "cafe208c-b808-453e-a029-cafbf6d395c6"
+      },
+      {
+        "check": "Session assign real participant roles",
+        "status": 200,
+        "code": null,
+        "request_id": "79351fd6-f62a-48e1-b4cb-b431684726ce"
+      },
+      {
+        "check": "Session read",
+        "status": 200,
+        "code": null,
+        "request_id": "016fdcb9-27f5-4d1b-8243-58f956d46009"
+      },
+      {
+        "check": "assign actual six-kind University permissions",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "request_id": "04825c74-dff2-4185-812b-ed7f67188037"
+      },
+      {
+        "check": "confirm actual University permissions 0",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "request_id": "e99bce7e-c1a2-4c34-bf4d-0844323ffc2a"
+      },
+      {
+        "check": "confirm actual University permissions 1",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "request_id": "dc991430-28df-41be-93f3-9406c51ba425"
+      },
+      {
+        "check": "confirm actual University permissions 2",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "request_id": "7109e28b-5ed2-4017-a102-622abfae7a2c"
+      },
+      {
+        "check": "DMs channels with real lobby participants",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "request_id": "8d70b2c4-b94b-4235-b499-455611eaefde"
+      },
+      {
+        "check": "DMs negotiation in real lobby",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "request_id": "f9a29540-6b38-4af6-9aa4-976f817e71bf"
+      },
+      {
+        "check": "Session start for direct chat eligibility",
+        "status": 403,
+        "code": "DEPENDENCY_REJECTED",
+        "request_id": "bc2cdb18-5f07-4d48-b7ed-f4bf61a928ed"
+      },
+      {
+        "check": "direct WebSocket connection and frame exchange",
+        "result": "not tested; negotiation did not return a URL"
+      }
+    ],
+    "sanitized_route_trace": [
+      {
+        "method": "GET",
+        "path": "/internal/v1/teams/998ce6c2-7174-4931-9167-f31f0af4335c",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/players/2baa410e-6d1e-46b5-8bc8-aa7a6fcd4f00",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/teams/998ce6c2-7174-4931-9167-f31f0af4335c",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/players/2002c7e5-e7e3-4a5f-8347-65cd940964a1",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/participants",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/teams/998ce6c2-7174-4931-9167-f31f0af4335c",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/players/b056c02e-e70d-42b5-a209-e187c6805a9e",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/participants",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/roles",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/record-permissions",
+        "caller": "gateway",
+        "port": 8006,
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/record-permissions/me",
+        "caller": "gateway",
+        "port": 8006,
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/record-permissions/me",
+        "caller": "gateway",
+        "port": 8006,
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/record-permissions/me",
+        "caller": "gateway",
+        "port": 8006,
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "discord-dms",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/record-permissions/2baa410e-6d1e-46b5-8bc8-aa7a6fcd4f00",
+        "caller": "gateway",
+        "port": 8006,
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/record-permissions/2baa410e-6d1e-46b5-8bc8-aa7a6fcd4f00",
+        "caller": "discord-dms",
+        "port": 8083,
+        "status": 403
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/context",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/teams/998ce6c2-7174-4931-9167-f31f0af4335c",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/players/2baa410e-6d1e-46b5-8bc8-aa7a6fcd4f00",
+        "caller": "session",
+        "port": 8083,
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/internal/v1/players/2002c7e5-e7e3-4a5f-8347-65cd940964a1",
+        "caller": "session",
+        "port": 8083,
+        "status": 403
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/sessions/99a8a53f-cd5c-4b03-8cfc-c858b090b3d1/start",
+        "caller": "gateway",
+        "port": 8002,
+        "status": 403
+      }
+    ],
+    "first_observed_start_dependency": "Session GET /internal/v1/players/{junior_id} through internal gateway returned 403; Rules metadata and University snapshot were not reached in this attempt"
+  }
 }

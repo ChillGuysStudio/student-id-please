@@ -27,7 +27,9 @@ An in-memory observer read the actual backend HTTP request for a successful prot
 
 Lobby DMs channel listing and gateway negotiation returned `403 FORBIDDEN`. Session start returned `403 DEPENDENCY_REJECTED`. This first run did not assign University's six record permissions and still used the old local Rules adapter. These results do not establish the final start failure after correct permissions and reviewed Rules #24.
 
-The next run uses the owner-provided shortest chat recipe to assign real permissions and trace the rejected start request. Reviewed Rules #24 and the reserved University snapshot route are separate owner work. This PR does not change either authorization policy.
+The continuing run loaded the safe reviewed Rules #24 snapshot at `c3ec3b20`, which the coordinator confirmed has the same tree as merged `5753cf5`. It submitted the recipe's six-kind permission assignment for the two real juniors. The PUT and all three participant `/record-permissions/me` reads reached University and returned `403 FORBIDDEN`. DMs' private Session context read returned `200`, but its University permission read returned `403`.
+
+The sanitized start trace found an earlier rejected request. Caller `session` reached the private gateway for its team lookup and own-player lookup with `200`. Its subsequent `GET /internal/v1/players/{junior_id}` returned `403`, producing public start `403 DEPENDENCY_REJECTED`. This attempt did not reach Rules metadata or the University snapshot. This PR records that failure; it does not broaden grants or change receiver authorization.
 
 No WebSocket URL was issued, so no direct connection or frame exchange was tested. No permission bypass, synthetic participant, database patch, or original Authorization forwarding was added. Full initialization, decision processing, and all-service limit demonstrations were not tested.
 
@@ -41,4 +43,4 @@ No WebSocket URL was issued, so no direct connection or frame exchange was teste
 - G5 and G9 gateway publication were not tested here. Player/Session anonymous manifests and image pulls passed; native workflow provenance remains separate owner evidence.
 - G1, G3, and G4 are not applicable to this configuration change.
 
-The initial disposable project and volumes were removed after collecting this evidence. A continuing isolated run for the start dependency is separate from this saved result.
+The initial disposable project and volumes were removed after collecting its evidence. The continuing `andrei-player-session-current` project remains alive at the coordinator's request. Its container states, exact local Rules source, request outcomes, and sanitized route trace are separate entries in the same evidence file.
