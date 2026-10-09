@@ -46,26 +46,28 @@ docs(lab-2): separate architecture from workflow rules
 A release PR from `dev` into `main` requires a version scope:
 
 ```text
-chore(v1.0.0): release lab 1
+chore(v2.0.0): release service package
 ```
 
-Use the same allowed types as commit messages. Lab numbers are non-negative integers. Release versions use `vX.Y.Z`. The validator does not infer the current lab or require the branch name to match the title.
+Use the same allowed types as commit messages. Lab numbers are non-negative integers. Release versions use `vX.0.Y`, where `X` is the lab number. The title identifies the version. Task branch names remain recommendations.
 
-Release versions must be unused and greater than the existing release tags. After the rebase merge, the Release workflow creates the annotated tag and GitHub release from the version scope. It sets the release text to `Lab X completion` for a lab release or `Lab X hotfix` for a hotfix, then marks the release as latest.
+Each repository starts a lab's package releases at `vX.0.0` and increments `Y` by exactly one for each subsequent release. New versions must be unused and greater than that repository's existing release versions. After the rebase merge, release automation derives the annotated tag and GitHub release from the version scope. A manually written release message or release notes are optional. No prescribed wording is required. See the [release procedure](docs/releases.md) for image publication, immutable retries, and branch synchronization.
 
 ## PR descriptions and review
 
 Complete `Why?`, `Changes`, and `How to Test?` in the [PR template](.github/pull_request_template.md). Replace the template instructions with your own text. State the commands you ran and their results. Use `Not run` with a reason when a check cannot run.
 
-Before merge, obtain one peer approval of the latest changes, resolve every review thread, and pass the required checks. CI validates every introduced commit, not just the final squash subject.
+Before merging a CPR pull request, obtain one peer approval of the latest changes, resolve every review thread, and pass the required checks. CI validates every introduced commit, not just the final squash subject. Only CPR pull requests require peer review and approval. Service repositories, including the gateway, do not require reviews or approvals.
 
 Reviewers check the changed contracts, service pointers, verification results, and files for secrets. CPR approval covers the public changes and integration evidence. It does not approve unseen private code.
+
+Rules are assessed at merge. Work on an open pull request breaks no rule when it departs from a convention, including commits, pushes, force pushes on allowed branches, and description edits. A pull request closed without merging carries no violation for anything performed on it. Fix flagged issues before merge.
 
 ## Service delivery
 
 Service repositories must remain private. Public container images are allowed.
 
-Each service repository documents its own workflow. Every update to its `main` branch must publish a public DockerHub image built from the new HEAD, including documentation-only updates. The `latest` tag must point to that image.
+Each service repository documents its own workflow. Private organization-owned service repositories are exempt from enforcing GitHub branch rulesets or branch protection because those features require a paid subscription. Their documented workflow and CI requirements still apply. Every update to a service `main` branch must publish a public DockerHub image built from the new HEAD, including documentation-only updates. The `latest` tag must point to that image.
 
 When changing a service pointer, identify the source SHA and the matching public image in the PR. Leave services you cannot access uninitialized. Do not require private-source checkout to run CPR checks.
 

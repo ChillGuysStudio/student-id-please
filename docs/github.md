@@ -1,10 +1,10 @@
 # Configure GitHub checks
 
-A repository administrator configures the branch settings separately from the workflow files.
+These branch settings apply to CPR. A repository administrator configures them separately from the workflow files. Private organization-owned service repositories are exempt from enforcing branch rulesets or branch protection because those features require a paid subscription.
 
 ## Protect main
 
-Configure the `main` ruleset to:
+Configure the CPR `main` ruleset to:
 
 - Require a PR and one peer approval of the latest changes.
 - Dismiss stale approvals and require review thread resolution.
@@ -13,11 +13,11 @@ Configure the `main` ruleset to:
 - Block branch deletion and force pushes.
 - Leave the bypass list empty.
 
-For release PRs, the validator requires `dev` to target `main` within the same repository and a version-scoped title. The `PR policy` job checks that the version is unused and greater than that repository's existing release tags.
+For release PRs, require `dev` to target `main` within the same repository and a version-scoped title. Versions follow the repository's `vX.0.Y` sequence, starting at `vX.0.0` and advancing one release at a time. New versions must be unused and greater than existing release versions. The [release procedure](releases.md) defines the sequence and optional release notes.
 
 ## Configure dev
 
-Require the same approvals and checks as `main`. Allow squash merges only, require linear history, block deletion, and allow force pushes.
+On CPR `dev`, require the same approvals and checks as `main`. Allow squash merges only, require linear history, block deletion, and allow force pushes. Service repositories do not require reviews or approvals.
 
 Keep the Sync App's always-on bypass on `dev` so the sync workflow can update the branch. Do not give it a bypass on `main`. Developers without a `dev` bypass still need PRs.
 

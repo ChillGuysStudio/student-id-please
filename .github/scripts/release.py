@@ -23,12 +23,6 @@ def version_from_title(title):
     return match[1]
 
 
-def release_message(tag):
-    major, minor, patch = map(int, TAG.fullmatch(tag).groups())
-    kind = "completion" if minor == patch == 0 else "hotfix"
-    return f"Lab {major} {kind}"
-
-
 def validate_version(tag, sha):
     """Permit same-commit retries but never reuse a version for different code."""
     tags = subprocess.check_output(["git", "tag", "--list"], text=True).splitlines()
@@ -81,7 +75,7 @@ def release_pr(prs, repository, sha):
 def reserve_tag(repository, tag, sha):
     if validate_version(tag, sha):
         annotated = api(f"repos/{repository}/git/tags", {
-            "tag": tag, "message": release_message(tag), "object": sha, "type": "commit",
+            "tag": tag, "message": "", "object": sha, "type": "commit",
         })
         api(f"repos/{repository}/git/refs", {"ref": f"refs/tags/{tag}", "sha": annotated["sha"]})
 
@@ -107,7 +101,7 @@ def main():
     tag = version_from_title(pr["title"])
     reserve_tag(repository, tag, sha)
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-        output.write(f"tag={tag}\nversion={tag[1:]}\nmessage={release_message(tag)}\n")
+        output.write(f"tag={tag}\nversion={tag[1:]}\n")
     print(f"Reserved {tag} for PR #{pr['number']} at {sha}.")
 
 
