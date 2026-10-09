@@ -2,6 +2,8 @@
 
 Owner handoff for CPR issues [#88](https://github.com/ChillGuysStudio/student-id-please/issues/88) and [#77](https://github.com/ChillGuysStudio/student-id-please/issues/77), checked on 2026-10-09. Andrei owns Compose wiring in [#96](https://github.com/ChillGuysStudio/student-id-please/issues/96), Adrian owns gateway routes in [#104](https://github.com/ChillGuysStudio/student-id-please/issues/104), and Max owns Rules and University alignment in [#94](https://github.com/ChillGuysStudio/student-id-please/issues/94).
 
+The [Session-start follow-up](player-session-start-followup.md) records the Gateway #15 rerun, focused permission-delegation fix #16, independently reproduced public University permission failures, and exact dispatch-to-acceptance mapping for peer adapters. CPR #118 has merged the confirmed Player/Session deployment settings. Those later results do not establish Session activation or direct chat frames.
+
 ## Source and release status
 
 | Service | Delivered source | Release |

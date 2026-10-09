@@ -1,0 +1,779 @@
+{
+  "checked_on": "2026-10-09",
+  "runs": {
+    "gateway_15_baseline": {
+      "gateway_source": "4a5c6e9ce1b417b28c048d02a8d58214896addeb",
+      "images": {
+        "player": {
+          "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+          "image": "tirppy/student-id-player-service",
+          "index": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+          "tags": {
+            "2.0.1": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+            "latest": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+            "lab-2": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b"
+          },
+          "children": [
+            {
+              "digest": "sha256:a650b221e454182d24d2033abc19de2d61b36401f43f53aeb3edc86f47d903db",
+              "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+              }
+            },
+            {
+              "digest": "sha256:6451e4a41e5091f1b25df7b2405d9650fd69022c33982aa0e74c9b09bbd18076",
+              "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+              }
+            }
+          ],
+          "dev": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+          "release": "https://github.com/Tirppy/student-id-player-service/releases/tag/v2.0.1",
+          "version": "2.0.1"
+        },
+        "session": {
+          "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+          "image": "tirppy/student-id-session-service",
+          "index": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+          "tags": {
+            "2.0.0": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+            "latest": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+            "lab-2": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c"
+          },
+          "children": [
+            {
+              "digest": "sha256:3835183615f1f853fba3d4c4d32e43f7b81eca44bea98429fbd2adcd7b7e979a",
+              "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+              }
+            },
+            {
+              "digest": "sha256:266f820c78f411992c67762347b6ddd188b4919bb45431b86816655a249051e5",
+              "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+              }
+            }
+          ],
+          "dev": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+          "release": "https://github.com/Tirppy/student-id-session-service/releases/tag/v2.0.0",
+          "version": "2.0.0"
+        }
+      },
+      "checks": [
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "35dfcc95-bb39-41c1-99a1-41a8cbe37269"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "45751b42-e12a-4c0c-ab4d-b599a41b68e7"
+        },
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "76280e37-b710-4103-901d-2a7d8039a5b8"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "cef4c9be-f286-4674-aaf8-341842b6bc9e"
+        },
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "bebe3294-8717-470a-8ea1-cf679ad71bbd"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "169d1242-5bbc-4ac9-ba3f-60a43b0af242"
+        },
+        {
+          "check": "create team",
+          "status": 201,
+          "code": null,
+          "request_id": "012b33e9-fe85-441c-bf3e-933418328629"
+        },
+        {
+          "check": "friendship",
+          "status": 201,
+          "code": null,
+          "request_id": "4794b003-d412-4457-9b4a-b4d84d00ddfd"
+        },
+        {
+          "check": "accept friendship",
+          "status": 200,
+          "code": null,
+          "request_id": "522e1c83-e14e-48e6-9fd5-733b49246981"
+        },
+        {
+          "check": "team member",
+          "status": 200,
+          "code": null,
+          "request_id": "fb5c836a-7458-4cd5-911b-e00c5875037d"
+        },
+        {
+          "check": "friendship",
+          "status": 201,
+          "code": null,
+          "request_id": "7793e0c2-b4a3-438a-ac47-f937f2564040"
+        },
+        {
+          "check": "accept friendship",
+          "status": 200,
+          "code": null,
+          "request_id": "710b7d4b-899b-4c5a-a88f-4410f329a749"
+        },
+        {
+          "check": "team member",
+          "status": 200,
+          "code": null,
+          "request_id": "10e90294-45f4-4f31-a100-0f918ff192bf"
+        },
+        {
+          "check": "create Session",
+          "status": 201,
+          "code": null,
+          "request_id": "b562bdb9-9338-4647-89cb-4fa5d8db745d"
+        },
+        {
+          "check": "join Session",
+          "status": 200,
+          "code": null,
+          "request_id": "8a8ac004-44d8-4e07-a076-952802116d5e"
+        },
+        {
+          "check": "join Session",
+          "status": 200,
+          "code": null,
+          "request_id": "f25c3204-df17-46c2-8bb0-0b9f5a3b6c2f"
+        },
+        {
+          "check": "assign roles",
+          "status": 200,
+          "code": null,
+          "request_id": "14aa4875-5bb7-43ca-b1e9-0c03bd55376a"
+        },
+        {
+          "check": "start reaches permission dependency",
+          "status": 403,
+          "code": "DEPENDENCY_REJECTED",
+          "request_id": "33af8acc-6099-46cb-b59e-bf428a1c399d"
+        }
+      ],
+      "dependency_trace": [
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/df0cc2b3-03fe-46a1-a9e4-68f312152a49",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/801a7607-4195-41cc-b467-072569c65169",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/df0cc2b3-03fe-46a1-a9e4-68f312152a49",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/95d8cc0c-5c16-430c-8631-51b2489464c9",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/df0cc2b3-03fe-46a1-a9e4-68f312152a49",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/0f5d1f09-9334-4cbd-8d99-04652484e97e",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/df0cc2b3-03fe-46a1-a9e4-68f312152a49",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/801a7607-4195-41cc-b467-072569c65169",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/95d8cc0c-5c16-430c-8631-51b2489464c9",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/0f5d1f09-9334-4cbd-8d99-04652484e97e",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/sessions/2d14ea60-be1f-47da-8437-5ac26b5ea9dc/record-permissions/95d8cc0c-5c16-430c-8631-51b2489464c9",
+          "status": 403
+        }
+      ],
+      "scope": "Actual published Player/Session and real Gateway. Other peers deliberately unavailable. No activation, University behavior, or chat claim."
+    },
+    "gateway_16_forwarding": {
+      "gateway_source": "09d13880a4eff283e16c6754ae130b9b51597e22",
+      "images": {
+        "player": {
+          "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+          "image": "tirppy/student-id-player-service",
+          "index": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+          "tags": {
+            "2.0.1": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+            "latest": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+            "lab-2": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b"
+          },
+          "children": [
+            {
+              "digest": "sha256:a650b221e454182d24d2033abc19de2d61b36401f43f53aeb3edc86f47d903db",
+              "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+              }
+            },
+            {
+              "digest": "sha256:6451e4a41e5091f1b25df7b2405d9650fd69022c33982aa0e74c9b09bbd18076",
+              "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+              }
+            }
+          ],
+          "dev": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+          "release": "https://github.com/Tirppy/student-id-player-service/releases/tag/v2.0.1",
+          "version": "2.0.1"
+        },
+        "session": {
+          "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+          "image": "tirppy/student-id-session-service",
+          "index": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+          "tags": {
+            "2.0.0": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+            "latest": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+            "lab-2": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c"
+          },
+          "children": [
+            {
+              "digest": "sha256:3835183615f1f853fba3d4c4d32e43f7b81eca44bea98429fbd2adcd7b7e979a",
+              "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+              }
+            },
+            {
+              "digest": "sha256:266f820c78f411992c67762347b6ddd188b4919bb45431b86816655a249051e5",
+              "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+              }
+            }
+          ],
+          "dev": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+          "release": "https://github.com/Tirppy/student-id-session-service/releases/tag/v2.0.0",
+          "version": "2.0.0"
+        }
+      },
+      "checks": [
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "346c5dfb-08b5-4cbe-92ed-89dcb1b18621"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "65aedb1f-dbc4-4ffa-bd4d-819e1169fcb8"
+        },
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "ec877724-7a40-49dc-85ed-eea76a213a7a"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "30434516-43f1-4f1c-96e8-3866bdc00c57"
+        },
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "0c5d860a-57fa-49fd-be8d-85fcfb2dc1ac"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "729f638c-43a4-42c0-ac73-a8a1022fcb53"
+        },
+        {
+          "check": "create team",
+          "status": 201,
+          "code": null,
+          "request_id": "d36859a3-de87-4e90-9eb4-102f9da7f9ae"
+        },
+        {
+          "check": "friendship",
+          "status": 201,
+          "code": null,
+          "request_id": "46f86b45-f2ce-48c0-bad6-be318ee0fbc2"
+        },
+        {
+          "check": "accept friendship",
+          "status": 200,
+          "code": null,
+          "request_id": "b785e95c-df35-40a9-b844-01f033bc53f5"
+        },
+        {
+          "check": "team member",
+          "status": 200,
+          "code": null,
+          "request_id": "8a9fe412-a007-4bc8-a5e9-eaa87d925be6"
+        },
+        {
+          "check": "friendship",
+          "status": 201,
+          "code": null,
+          "request_id": "85e383c8-1cb5-4b13-9a63-8a9af2d5530d"
+        },
+        {
+          "check": "accept friendship",
+          "status": 200,
+          "code": null,
+          "request_id": "9543fa78-efbf-4b4f-836b-38b863cebab6"
+        },
+        {
+          "check": "team member",
+          "status": 200,
+          "code": null,
+          "request_id": "8134cc35-f325-4068-92c2-8f7be16bcb75"
+        },
+        {
+          "check": "create Session",
+          "status": 201,
+          "code": null,
+          "request_id": "40b83171-03f9-467d-b4a6-2192d2d036f4"
+        },
+        {
+          "check": "join Session",
+          "status": 200,
+          "code": null,
+          "request_id": "d9c581b0-b86f-4ddf-be1b-d880804cfae9"
+        },
+        {
+          "check": "join Session",
+          "status": 200,
+          "code": null,
+          "request_id": "aa39ba87-4cbf-4a77-8662-ee2d9ca8b9f9"
+        },
+        {
+          "check": "assign roles",
+          "status": 200,
+          "code": null,
+          "request_id": "6587861c-597f-4695-a637-ae948422a609"
+        },
+        {
+          "check": "start reaches permission dependency",
+          "status": 503,
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "request_id": "19b08dde-54b4-43d2-99ff-9ddf352659d2"
+        }
+      ],
+      "dependency_trace": [
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/58363a22-52e3-4c85-9154-cf6a5dca4db6",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/abd1dac6-ab36-48b0-a58e-aafdecb63deb",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/58363a22-52e3-4c85-9154-cf6a5dca4db6",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/f605e843-e4e2-4316-a064-0a377a8ce7b9",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/58363a22-52e3-4c85-9154-cf6a5dca4db6",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/41319637-013a-4ff9-a20d-e68c5d4bed0b",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/58363a22-52e3-4c85-9154-cf6a5dca4db6",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/abd1dac6-ab36-48b0-a58e-aafdecb63deb",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/f605e843-e4e2-4316-a064-0a377a8ce7b9",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/41319637-013a-4ff9-a20d-e68c5d4bed0b",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/sessions/ab3cf862-813c-4914-9202-f057f85c71e0/record-permissions/f605e843-e4e2-4316-a064-0a377a8ce7b9",
+          "status": 503
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/sessions/ab3cf862-813c-4914-9202-f057f85c71e0/record-permissions/f605e843-e4e2-4316-a064-0a377a8ce7b9",
+          "status": 503
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/sessions/ab3cf862-813c-4914-9202-f057f85c71e0/record-permissions/f605e843-e4e2-4316-a064-0a377a8ce7b9",
+          "status": 503
+        }
+      ],
+      "scope": "Actual published Player/Session and real Gateway. Other peers deliberately unavailable. No activation, University behavior, or chat claim.",
+      "local_gateway_image": {
+        "reference": "student-id-gateway:start-fix",
+        "id": "sha256:40ed281d499a768b6b9b194637e11bea1289c35e2f62e79b7f3230c81a8cb220",
+        "architecture": "amd64",
+        "source_labels": {
+          "org.opencontainers.image.revision": "09d13880a4eff283e16c6754ae130b9b51597e22",
+          "org.opencontainers.image.source": "https://github.com/ChillGuysStudio/gateway-service"
+        },
+        "published": false
+      }
+    },
+    "gateway_16_public_university": {
+      "gateway_source": "09d13880a4eff283e16c6754ae130b9b51597e22",
+      "images": {
+        "player": {
+          "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+          "image": "tirppy/student-id-player-service",
+          "index": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+          "tags": {
+            "2.0.1": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+            "latest": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+            "lab-2": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b"
+          },
+          "children": [
+            {
+              "digest": "sha256:a650b221e454182d24d2033abc19de2d61b36401f43f53aeb3edc86f47d903db",
+              "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+              }
+            },
+            {
+              "digest": "sha256:6451e4a41e5091f1b25df7b2405d9650fd69022c33982aa0e74c9b09bbd18076",
+              "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+              }
+            }
+          ],
+          "dev": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+          "release": "https://github.com/Tirppy/student-id-player-service/releases/tag/v2.0.1",
+          "version": "2.0.1"
+        },
+        "session": {
+          "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+          "image": "tirppy/student-id-session-service",
+          "index": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+          "tags": {
+            "2.0.0": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+            "latest": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+            "lab-2": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c"
+          },
+          "children": [
+            {
+              "digest": "sha256:3835183615f1f853fba3d4c4d32e43f7b81eca44bea98429fbd2adcd7b7e979a",
+              "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+              }
+            },
+            {
+              "digest": "sha256:266f820c78f411992c67762347b6ddd188b4919bb45431b86816655a249051e5",
+              "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+              }
+            }
+          ],
+          "dev": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+          "release": "https://github.com/Tirppy/student-id-session-service/releases/tag/v2.0.0",
+          "version": "2.0.0"
+        }
+      },
+      "checks": [
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "e0f74ab0-7a1c-4717-bb09-00c0c89aab6c"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "1a939d7b-913b-4b4e-86ed-4dc0e3a501cf"
+        },
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "c3c87821-9de8-47ef-9d08-655885b8c561"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "4fd86bd5-2a85-47a1-99f5-b76a97ef66ce"
+        },
+        {
+          "check": "register",
+          "status": 201,
+          "code": null,
+          "request_id": "0b4345dd-1dc0-45c7-8258-e77bb2ee94fa"
+        },
+        {
+          "check": "login",
+          "status": 200,
+          "code": null,
+          "request_id": "b4bf3d88-660d-4db9-90c2-c929e59da226"
+        },
+        {
+          "check": "create team",
+          "status": 201,
+          "code": null,
+          "request_id": "c089caac-92af-4555-b69a-87f0b8019e24"
+        },
+        {
+          "check": "friendship",
+          "status": 201,
+          "code": null,
+          "request_id": "cae7d30d-fe1b-4d4b-ae5f-9911b915bbe6"
+        },
+        {
+          "check": "accept friendship",
+          "status": 200,
+          "code": null,
+          "request_id": "7f2dd595-a023-4c03-bc29-d19c8ea3916c"
+        },
+        {
+          "check": "team member",
+          "status": 200,
+          "code": null,
+          "request_id": "7112a206-1678-4ad1-87bb-e41da9280229"
+        },
+        {
+          "check": "friendship",
+          "status": 201,
+          "code": null,
+          "request_id": "3cab24b9-995c-429a-bb8e-f3f3cb833921"
+        },
+        {
+          "check": "accept friendship",
+          "status": 200,
+          "code": null,
+          "request_id": "0eb75dcc-cb4b-438d-9d6e-8035c08101ca"
+        },
+        {
+          "check": "team member",
+          "status": 200,
+          "code": null,
+          "request_id": "035906a0-def6-43e8-9e68-5e7fcf19216e"
+        },
+        {
+          "check": "create Session",
+          "status": 201,
+          "code": null,
+          "request_id": "a6d29395-a2c9-46a0-a5ec-6161021ec391"
+        },
+        {
+          "check": "join Session",
+          "status": 200,
+          "code": null,
+          "request_id": "5e37237f-ac4e-4fa0-8c2d-af96ee52b7d0"
+        },
+        {
+          "check": "join Session",
+          "status": 200,
+          "code": null,
+          "request_id": "d6f9398e-f5d8-491f-8f49-35f8408f514a"
+        },
+        {
+          "check": "assign roles",
+          "status": 200,
+          "code": null,
+          "request_id": "336c6219-1b59-47c1-a330-499ffda16a91"
+        },
+        {
+          "check": "owner assigns real University permissions",
+          "status": 403,
+          "code": "FORBIDDEN",
+          "request_id": "89a9e9d1-325d-4d50-bb70-831d096d6b92"
+        },
+        {
+          "check": "participant reads own University permissions",
+          "status": 403,
+          "code": "FORBIDDEN",
+          "request_id": "b80357f8-effe-4287-9bc4-f5366b0086fe"
+        },
+        {
+          "check": "participant reads own University permissions",
+          "status": 403,
+          "code": "FORBIDDEN",
+          "request_id": "546e6983-e0bd-4c70-9e75-f79f5b976dc2"
+        },
+        {
+          "check": "participant reads own University permissions",
+          "status": 403,
+          "code": "FORBIDDEN",
+          "request_id": "0fdf5510-4755-4955-9133-019497537348"
+        },
+        {
+          "check": "start reaches permission dependency",
+          "status": 403,
+          "code": "DEPENDENCY_REJECTED",
+          "request_id": "d73e050e-b63e-4d4b-9bca-6a88b45fcc40"
+        }
+      ],
+      "dependency_trace": [
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/1e46634a-176a-4505-bd27-5f112879e951",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/071fabab-b83d-4cbf-b2be-a4316fc32593",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/1e46634a-176a-4505-bd27-5f112879e951",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/d5c18168-7462-47f3-a200-5fded44b4d62",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/1e46634a-176a-4505-bd27-5f112879e951",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/dd1b9358-15d7-4ba2-b348-431e17222e0e",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/teams/1e46634a-176a-4505-bd27-5f112879e951",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/071fabab-b83d-4cbf-b2be-a4316fc32593",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/d5c18168-7462-47f3-a200-5fded44b4d62",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/players/dd1b9358-15d7-4ba2-b348-431e17222e0e",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/internal/v1/sessions/10958026-b181-490f-9ce0-1ded3bfec9b8/record-permissions/d5c18168-7462-47f3-a200-5fded44b4d62",
+          "status": 403
+        }
+      ],
+      "scope": "Actual published Player, Session and University with real SQL/Mongo and local Gateway. Other peers unavailable. No Session activation or chat claim.",
+      "local_gateway_image": {
+        "reference": "student-id-gateway:start-fix",
+        "id": "sha256:40ed281d499a768b6b9b194637e11bea1289c35e2f62e79b7f3230c81a8cb220",
+        "architecture": "amd64",
+        "source_labels": {
+          "org.opencontainers.image.revision": "09d13880a4eff283e16c6754ae130b9b51597e22",
+          "org.opencontainers.image.source": "https://github.com/ChillGuysStudio/gateway-service"
+        },
+        "published": false
+      },
+      "university": {
+        "image": "maxnoragami/university-record-service",
+        "version": "2.0.0",
+        "source": "eb1f91573dee425f3f03707a68274b2ba942dc3a",
+        "index": "sha256:b3dd337e998e543c0d598dcad7742dd1b1ced8904aad826dd2e214d69b4b77b7",
+        "children": [
+          {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:be4a12f215be47db2b61797ee0c5fbdd87c91a3b8fe511635589fa51b6de6a81",
+            "size": 2002,
+            "platform": {
+              "architecture": "amd64",
+              "os": "linux"
+            }
+          },
+          {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:f5033c44bcbc5cf7c1a1538713c01171de223e5d84977a745e228e15f8b03276",
+            "size": 2002,
+            "platform": {
+              "architecture": "arm64",
+              "os": "linux"
+            }
+          }
+        ],
+        "loaded_tag": "maxnoragami/university-record-service:verified-eb1f91573dee425f3f03707a68274b2ba942dc3a"
+      }
+    }
+  }
+}
