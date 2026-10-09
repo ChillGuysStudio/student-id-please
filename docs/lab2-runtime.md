@@ -1,5 +1,7 @@
 # Disposable Lab 2 runtime results
 
+> Historical source-build run. The later public-image activation and direct chat observation is [lab2-live-snapshot.md](lab2-live-snapshot.md). The failures below describe this older disposable run, not the current live stack.
+
 This run tests CPR #96 on native Linux AMD64. It uses the merged gateway runtime from [gateway PR #10](https://github.com/ChillGuysStudio/gateway-service/pull/10), four isolated Java source snapshots, and public Moderation and DMs `2.0.2` images. Player and Session still use their legacy public images. The [sanitized results](lab2-runtime.json) record exact source references, image digests, container states, and HTTP outcomes. They contain no credentials, keys, tokens, or tickets.
 
 ## Startup

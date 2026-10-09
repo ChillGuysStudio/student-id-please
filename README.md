@@ -22,7 +22,7 @@ Realtime negotiation uses REST through the gateway and returns a direct Discord 
 
 RabbitMQ events and service-owned storage connections are not REST routing paths and do not pass through the gateway.
 
-[Gateway foundation PR #2](https://github.com/ChillGuysStudio/gateway-service/pull/2) at `9d298ab` has MaxNoragami's formal approval for listeners, process health, transport limits, graceful shutdown, and the container foundation. Identity and routing have separate owners, and application limits, realtime integration, and image publication remain follow-up work. A published gateway image and a running full stack are not yet verified. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions.
+Gateway `2.0.2` and University `2.0.3` are published public native images. The [current live observation](docs/lab2-live-snapshot.md) records a real Session start, direct two-peer chat frames, image sources and remaining acceptance checks. The older [disposable-source run](docs/lab2-runtime.md) is historical. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions; the [guided Postman demo](postman/LAB2-GUIDED.md) covers real Gateway HTTP flows and bounded concurrent tasks.
 
 ## Team and services
 
