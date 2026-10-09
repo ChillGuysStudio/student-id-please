@@ -13,7 +13,7 @@ Configure the `main` ruleset to:
 - Block branch deletion and force pushes.
 - Leave the bypass list empty.
 
-For release PRs, the validator requires `dev` to target `main` within the same repository and a version-scoped title. The `PR policy` job checks that the version is unused and greater than that repository's existing release tags.
+For release PRs, require `dev` to target `main` within the same repository and a version-scoped title. Versions follow the repository's `vX.0.Y` sequence, starting at `vX.0.0` and advancing one release at a time. New versions must be unused and greater than existing release versions. The [release procedure](releases.md) defines the sequence and optional release notes.
 
 ## Configure dev
 

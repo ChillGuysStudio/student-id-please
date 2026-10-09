@@ -46,12 +46,12 @@ docs(lab-2): separate architecture from workflow rules
 A release PR from `dev` into `main` requires a version scope:
 
 ```text
-chore(v1.0.0): release lab 1
+chore(v2.0.0): release service package
 ```
 
-Use the same allowed types as commit messages. Lab numbers are non-negative integers. Release versions use `vX.Y.Z`. The validator does not infer the current lab or require the branch name to match the title.
+Use the same allowed types as commit messages. Lab numbers are non-negative integers. Release versions use `vX.0.Y`, where `X` is the lab number. The title identifies the version. Task branch names remain recommendations.
 
-Release versions must be unused and greater than the existing release tags. After the rebase merge, the Release workflow creates the annotated tag and GitHub release from the version scope. It sets the release text to `Lab X completion` for a lab release or `Lab X hotfix` for a hotfix, then marks the release as latest.
+Each repository starts a lab's package releases at `vX.0.0` and increments `Y` by exactly one for each subsequent release. New versions must be unused and greater than that repository's existing release versions. After the rebase merge, release automation derives the annotated tag and GitHub release from the version scope. A manually written release message or release notes are optional. No prescribed wording is required. See the [release procedure](docs/releases.md) for image publication, immutable retries, and branch synchronization.
 
 ## PR descriptions and review
 
