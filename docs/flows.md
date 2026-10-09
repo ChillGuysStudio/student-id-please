@@ -44,7 +44,7 @@ Player applies `max(0, score)` XP to each participant once per shift. Administra
 
 ## Recover chat
 
-In the Lab 2 target, the client negotiates realtime access through gateway REST and receives a direct Discord DMs WebSocket URL. The client connects directly to Discord DMs for the upgrade and frames. New tickets and history reads use gateway REST. [Gateway delivery status](architecture.md#gateway-delivery-status) distinguishes this target from the approved foundation.
+In the Lab 2 target, the client negotiates realtime access through gateway REST and receives a direct Discord DMs WebSocket URL. The client connects directly to Discord DMs for the upgrade and frames. New tickets and history reads use gateway REST. [Gateway authorization](architecture.md#gateway-authorization) describes identity checks and service permissions.
 
 Discord DMs issues a single-use chat ticket with a 30-second lifetime. It stores each message before acknowledgement and broadcast. A retry with the same author and client message ID returns the original acknowledgement.
 
