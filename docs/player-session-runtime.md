@@ -6,26 +6,26 @@ Owner handoff for CPR issues [#88](https://github.com/ChillGuysStudio/student-id
 
 | Service | Delivered source | Release |
 | --- | --- | --- |
-| Player | Released main and synchronized dev `8a49fc37d30bc8b3babc3192e0dc4bb389b75f8a` | [Release PR #10](https://github.com/Tirppy/student-id-player-service/pull/10) merged by rebase, [v2.0.0](https://github.com/Tirppy/student-id-player-service/releases/tag/v2.0.0) |
+| Player | Released main and synchronized dev `cf0f7846238400ef44da4e59e6c350728aa53dfe` | [Release PR #14](https://github.com/Tirppy/student-id-player-service/pull/14) merged by rebase, [v2.0.1](https://github.com/Tirppy/student-id-player-service/releases/tag/v2.0.1), includes [deadline fix #13](https://github.com/Tirppy/student-id-player-service/pull/13) |
 | Session | Released main and synchronized dev `5e59c041daee541e1697d5e745c6e26bf52e79a1`, includes [context fix #13](https://github.com/Tirppy/student-id-session-service/pull/13) | [Release PR #10](https://github.com/Tirppy/student-id-session-service/pull/10) merged by rebase, [v2.0.0](https://github.com/Tirppy/student-id-session-service/releases/tag/v2.0.0) |
 
 Both dev histories were repaired with explicit owner authorization and preserved backups. Main protections remain intact. Sync App `5249602` alone has the permanent dev synchronization bypass. All four required Actions secret names exist. Both publication workflows and dev synchronizations succeeded. This document contains no secret values. Real gateway acceptance is separate from source and publication checks.
 
 ## Published image evidence
 
-Anonymous registry reads verified both exact source labels and the following public indices and children. Numeric `2.0.0`, immutable `sha-<full main SHA>`, `latest` and `lab-2` resolve to the same index for each service.
+Anonymous registry reads verified both exact source labels and the following public indices and children. Each numeric version below, immutable `sha-<full main SHA>`, `latest` and `lab-2` resolve to the same index for that service. Player's earlier `v2.0.0` remains immutable.
 
 | Image | Index digest | AMD64 child | ARM64 child |
 | --- | --- | --- | --- |
-| `tirppy/student-id-player-service:2.0.0` | `sha256:c3b2ef2a9b210a3e910b7394d4161c78ad6d7f483ba69c49101911a5ff45532a` | `sha256:449982f216f8dc45156da30b6849a3622bb47b64e3f56ed37f22f99f23cc86b4` | `sha256:334ab4b71c44700b974e44be0e593534540c13047c8cb5ff68eba7a26804c607` |
+| `tirppy/student-id-player-service:2.0.1` | `sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b` | `sha256:a650b221e454182d24d2033abc19de2d61b36401f43f53aeb3edc86f47d903db` | `sha256:6451e4a41e5091f1b25df7b2405d9650fd69022c33982aa0e74c9b09bbd18076` |
 | `tirppy/student-id-session-service:2.0.0` | `sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c` | `sha256:3835183615f1f853fba3d4c4d32e43f7b81eca44bea98429fbd2adcd7b7e979a` | `sha256:266f820c78f411992c67762347b6ddd188b4919bb45431b86816655a249051e5` |
 
-[Player publication run](https://github.com/Tirppy/student-id-player-service/actions/runs/37923463004) and [Session publication run](https://github.com/Tirppy/student-id-session-service/actions/runs/37923731642) passed native builds and container startup/readiness on separate `ubuntu-latest` AMD64 and `ubuntu-24.04-arm` ARM64 runners. Both then assembled, published and reconciled their indices. These private run links require source access; public manifests provide independently readable platform and source evidence. Dev sync ran under the installed App and left dev equal to main in both repositories.
+[Player publication run](https://github.com/Tirppy/student-id-player-service/actions/runs/37925732240) and [Session publication run](https://github.com/Tirppy/student-id-session-service/actions/runs/37923731642) passed native builds and container startup/readiness on separate `ubuntu-latest` AMD64 and `ubuntu-24.04-arm` ARM64 runners. Logs identify `x86_64` and `aarch64` respectively. Both then assembled, published and reconciled their indices. These private run links require source access; public manifests provide independently readable platform and source evidence. Dev sync ran under the installed App and left dev equal to main in both repositories.
 
 ```sh
-docker pull tirppy/student-id-player-service:2.0.0
+docker pull tirppy/student-id-player-service:2.0.1
 docker pull tirppy/student-id-session-service:2.0.0
-docker buildx imagetools inspect tirppy/student-id-player-service:2.0.0
+docker buildx imagetools inspect tirppy/student-id-player-service:2.0.1
 docker buildx imagetools inspect tirppy/student-id-session-service:2.0.0
 ```
 
@@ -128,10 +128,36 @@ University owns once-only subject allocation. Session returns `reservation: null
 
 ## Evidence and remaining runtime checks
 
-Owned source CI previously passed Player 75 and Session 89 tests. Session #13's four focused cases passed, followed by its full required CI. These include mismatched actor, nonmember denial, workload rejection on actor context and foreground readiness without delegation. Earlier Docker receiver tests used actual Go assertion issuance and real owned databases, with mocked external Session peers. They did not run the assembled gateway.
+Current release CI passed Player 76 and Session 91 tests. Session #13's four focused cases passed, followed by its full required CI. These include mismatched actor, nonmember denial, workload rejection on actor context and foreground readiness without delegation. Earlier Docker receiver tests used actual Go assertion issuance and real owned databases, with mocked external Session peers. They did not run the assembled gateway.
 
 The pinned legacy Player image accepts its raw bearer but returns `401 UNAUTHENTICATED` for gateway actor proofs on `/players/me` and friendships. The rebuilt receiver accepts the same Go profile. Replacing the legacy image and using the exact settings above is required; restoring raw bearer forwarding would violate the contract.
 
-Publication evidence must list exact main/tag SHA, successful native AMD64 and ARM64 startup jobs, anonymous index and child digests, numeric `2.0.0`, immutable SHA reference, matching `latest`, and successful dev sync. Then run the actual public gateway against the published Player/Session images for `/players/me`, friendships and Session/chat reads with sanitized request IDs. Each service must demonstrate timeout and capacity denial followed by recovery. Current owned capacity code is `TASK_LIMIT_REACHED`; CPR documents `TASK_LIMIT_EXCEEDED`, an error-name alignment question for runtime owners. HTTP statuses are 503 for capacity and 504 for timeout.
+The actual PostgreSQL-lock run on Player `2.0.0` found its async authentication dependency performed a blocking database lookup. This stalled the event loop and produced the gateway's later `DEPENDENCY_TIMEOUT` instead of Player's service timeout/capacity response. Player #13 moves that lookup to the worker pool, preserves authorization and capacity accounting, and adds a focused regression. The fix is published in `2.0.1`.
+
+Current owned capacity code is `TASK_LIMIT_REACHED`; CPR documents `TASK_LIMIT_EXCEEDED`, an error-name alignment question for runtime owners. HTTP statuses are 503 for capacity and 504 for timeout.
+
+### Actual assembled-gateway run
+
+The final run passed **38 checks** through assembled gateway `6a1a3b485e9e1ce153ef53f4eb371647cd160ad3`, public Player `2.0.1`, public Session `2.0.0`, and real dedicated PostgreSQL databases. [Sanitized evidence](evidence/player-session-lab2.json) contains source/index/child references, native workflow summaries and request IDs.
+
+- Anonymous registration/login/refresh and protected `/players/me` passed.
+- Forged and expired Player bearers were rejected at the gateway.
+- Friendships, recipient-only acceptance and team membership passed. Spoofed actor/admin headers did not bypass permissions.
+- Session creation and joins performed actual Session-to-internal-gateway-to-Player delegated calls. Session list/read passed, and a nonparticipant was denied.
+- The gateway's own Session context policy passed before reaching the intentionally unavailable DMs peer. That request returned expected `502 DEPENDENCY_UNAVAILABLE`; it is not evidence of successful chat history, negotiation or frames.
+- With one task slot and a one-second receiver deadline, actual PostgreSQL table locks produced each service's `503 TASK_LIMIT_REACHED` and `504 TASK_TIMEOUT`. Capacity stayed occupied until the timed-out worker completed. Both services then returned 200 again.
+- Only the gateway public listener was bound to localhost. Public access to the internal Session path was denied. Receiver ports and the gateway internal listener were not published.
+
+The local Docker registry proxy rejected ordinary pulls even with isolated anonymous configuration. The verifier instead downloaded every original public child manifest, config and compressed layer anonymously, checked SHA256, and loaded a Docker archive. Loaded source labels, architecture and layer diff IDs matched the public config. No user Docker credentials were changed. Both native CI platforms separately started the published children through the normal release workflow.
+
+Commands in the delivery workspace:
+
+```powershell
+.\.venv-lab2\Scripts\python.exe tmp\verify_owned_publication.py
+.\.venv-lab2\Scripts\python.exe tmp\capture_owned_workflows.py
+.\.venv-lab2\Scripts\python.exe docker-project-check\verify_real_gateway.py
+```
+
+Source checks are `python -m pytest -q`, `python -m ruff check app tests .github/scripts`, and `python .github/scripts/check_docs.py` in each owned repository. The runtime helper uses ignored synthetic credentials and disposable containers. Its gateway was locally compiled from the pinned source; this run does not certify a published Gateway image or native Gateway ARM64 execution.
 
 Full gameplay and Lab 2 acceptance remain open until real peer images, route policies, delegation, receiver settings and required error/recovery checks agree. Source success alone does not close #77 or #88.

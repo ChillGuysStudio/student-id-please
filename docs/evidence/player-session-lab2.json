@@ -1,0 +1,376 @@
+{
+  "images": {
+    "player": {
+      "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+      "image": "tirppy/student-id-player-service",
+      "index": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+      "tags": {
+        "2.0.1": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+        "latest": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+        "lab-2": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b"
+      },
+      "children": [
+        {
+          "digest": "sha256:a650b221e454182d24d2033abc19de2d61b36401f43f53aeb3edc86f47d903db",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:6451e4a41e5091f1b25df7b2405d9650fd69022c33982aa0e74c9b09bbd18076",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        }
+      ],
+      "dev": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+      "release": "https://github.com/Tirppy/student-id-player-service/releases/tag/v2.0.1",
+      "version": "2.0.1"
+    },
+    "session": {
+      "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+      "image": "tirppy/student-id-session-service",
+      "index": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+      "tags": {
+        "2.0.0": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+        "latest": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+        "lab-2": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c"
+      },
+      "children": [
+        {
+          "digest": "sha256:3835183615f1f853fba3d4c4d32e43f7b81eca44bea98429fbd2adcd7b7e979a",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:266f820c78f411992c67762347b6ddd188b4919bb45431b86816655a249051e5",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        }
+      ],
+      "dev": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+      "release": "https://github.com/Tirppy/student-id-session-service/releases/tag/v2.0.0",
+      "version": "2.0.0"
+    }
+  },
+  "gateway_source": "6a1a3b485e9e1ce153ef53f4eb371647cd160ad3",
+  "scope": "Actual assembled gateway and anonymously downloaded published owned AMD64 images, real PostgreSQL and real Session-to-Player delegation. Other peers unavailable; no complete gameplay or chat frame claim.",
+  "checks": [
+    {
+      "check": "anonymous public JWKS",
+      "status": 200,
+      "code": null,
+      "request_id": "d92e20ac-4e00-4e01-ba05-41a378d4ca11"
+    },
+    {
+      "check": "anonymous register",
+      "status": 201,
+      "code": null,
+      "request_id": "b4ead0cf-3d32-46a4-8cc9-349c9b5a7960"
+    },
+    {
+      "check": "anonymous login",
+      "status": 200,
+      "code": null,
+      "request_id": "3537cad6-c019-47f0-82b2-a3b78d49b72a"
+    },
+    {
+      "check": "anonymous register",
+      "status": 201,
+      "code": null,
+      "request_id": "1c37d956-3464-4a99-a265-2ef58afa6208"
+    },
+    {
+      "check": "anonymous login",
+      "status": 200,
+      "code": null,
+      "request_id": "535b035b-e3e8-4d36-a55e-690c4b138a54"
+    },
+    {
+      "check": "anonymous register",
+      "status": 201,
+      "code": null,
+      "request_id": "a9d16d20-81ee-4fab-b156-8e8372da7af8"
+    },
+    {
+      "check": "anonymous login",
+      "status": 200,
+      "code": null,
+      "request_id": "7b55e14b-e854-4174-9073-e6f1ef79dccb"
+    },
+    {
+      "check": "protected Player me",
+      "status": 200,
+      "code": null,
+      "request_id": "26773bfe-7084-4d72-a987-72b5e2898cb4"
+    },
+    {
+      "check": "missing bearer rejected",
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "request_id": "f689fff4-0b19-4162-b92f-b7bce84d9e74"
+    },
+    {
+      "check": "forged bearer rejected",
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "request_id": "14f9a8f7-4a0b-4887-8bae-baed641b7a8e"
+    },
+    {
+      "check": "expired Player bearer rejected",
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "request_id": "d80ab155-e3c8-4715-bedd-c6b71eef7481"
+    },
+    {
+      "check": "create team",
+      "status": 201,
+      "code": null,
+      "request_id": "223991d1-990b-4c29-99b1-5df17fa64a5f"
+    },
+    {
+      "check": "protected friendship",
+      "status": 201,
+      "code": null,
+      "request_id": "37c4fde7-d23a-4f87-a24a-fb84d86e0820"
+    },
+    {
+      "check": "spoofed recipient denied",
+      "status": 403,
+      "code": "FRIENDSHIP_FORBIDDEN",
+      "request_id": "50ec6959-6cec-44f5-b1b5-7bb7850fafd9"
+    },
+    {
+      "check": "real recipient accepts",
+      "status": 200,
+      "code": null,
+      "request_id": "835e5e5c-7b23-4505-8509-64b9aca694a8"
+    },
+    {
+      "check": "add friend to team",
+      "status": 200,
+      "code": null,
+      "request_id": "94a447fc-86ee-47b6-8b82-720dedc16ed6"
+    },
+    {
+      "check": "protected friendship",
+      "status": 201,
+      "code": null,
+      "request_id": "46c18389-aa47-47f2-85f5-8fae4ce17aa0"
+    },
+    {
+      "check": "spoofed recipient denied",
+      "status": 403,
+      "code": "FRIENDSHIP_FORBIDDEN",
+      "request_id": "6748f069-ad0a-4d89-8e01-b2fd4b8c1dbf"
+    },
+    {
+      "check": "real recipient accepts",
+      "status": 200,
+      "code": null,
+      "request_id": "45fe8f2c-bdac-4129-b92f-430ae78ffdc8"
+    },
+    {
+      "check": "add friend to team",
+      "status": 200,
+      "code": null,
+      "request_id": "b11e3b69-e46b-44ed-88b5-fa7a3270d3e2"
+    },
+    {
+      "check": "Session create using actual delegated Player lookups",
+      "status": 201,
+      "code": null,
+      "request_id": "fe167bc7-cd29-4179-8757-c154d85170f1"
+    },
+    {
+      "check": "protected Session list",
+      "status": 200,
+      "code": null,
+      "request_id": "0dc9348f-cc24-4d16-b963-015442847bea"
+    },
+    {
+      "check": "protected Session read",
+      "status": 200,
+      "code": null,
+      "request_id": "799ad05c-e1db-4b4d-b207-170c9a0249ed"
+    },
+    {
+      "check": "Session nonparticipant denied",
+      "status": 403,
+      "code": "SESSION_FORBIDDEN",
+      "request_id": "d9729ed6-1232-441e-b58d-b1095eb45238"
+    },
+    {
+      "check": "join using delegated team and Player reads",
+      "status": 200,
+      "code": null,
+      "request_id": "140fd348-e66b-4e94-9115-9d365132bc8a"
+    },
+    {
+      "check": "join using delegated team and Player reads",
+      "status": 200,
+      "code": null,
+      "request_id": "0fe04b29-11b9-4aef-b3e6-f433d148f4f6"
+    },
+    {
+      "check": "Session policy passes before unavailable DMs peer",
+      "status": 502,
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "request_id": "5c0693a0-a108-49c0-9b87-db0d4972c4a4"
+    },
+    {
+      "check": "public internal path denied",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "request_id": "2f5598ec-1b8c-4114-aeb4-84af7ab2ecad"
+    },
+    {
+      "check": "anonymous refresh",
+      "status": 200,
+      "code": null,
+      "request_id": "938f22cc-7625-422c-b910-8d7985abec17"
+    },
+    {
+      "check": "refreshed protected Player read",
+      "status": 200,
+      "code": null,
+      "request_id": "6d624722-c508-4a53-b882-e1cfa467c6a7"
+    },
+    {
+      "check": "player capacity while running",
+      "status": 503,
+      "code": "TASK_LIMIT_REACHED",
+      "request_id": "52fc0a1c-acd5-4a72-bdb7-ec8a671255fa"
+    },
+    {
+      "check": "player timeout",
+      "status": 504,
+      "code": "TASK_TIMEOUT",
+      "request_id": "0d6d32c9-77bf-498b-b8f1-0b7ddecfd2f8"
+    },
+    {
+      "check": "player capacity retained until worker exits",
+      "status": 503,
+      "code": "TASK_LIMIT_REACHED",
+      "request_id": "78e88439-2b28-49b7-8988-a56bc0ae3104"
+    },
+    {
+      "check": "player recovery after capacity and timeout",
+      "status": 200,
+      "code": null,
+      "request_id": "40631ad6-0099-42f2-b03d-ee868cf159d4"
+    },
+    {
+      "check": "session capacity while running",
+      "status": 503,
+      "code": "TASK_LIMIT_REACHED",
+      "request_id": "daa75183-46d3-43cd-bb1e-7d413bbc1828"
+    },
+    {
+      "check": "session timeout",
+      "status": 504,
+      "code": "TASK_TIMEOUT",
+      "request_id": "95a755d2-7f92-4a21-a560-0a1165bbdb7b"
+    },
+    {
+      "check": "session capacity retained until worker exits",
+      "status": 503,
+      "code": "TASK_LIMIT_REACHED",
+      "request_id": "e05908de-d97f-48c5-a3c4-36c6554af0a3"
+    },
+    {
+      "check": "session recovery after capacity and timeout",
+      "status": 200,
+      "code": null,
+      "request_id": "8148493d-b340-461c-9390-81e0988f9583"
+    }
+  ],
+  "workflows": {
+    "player": {
+      "jobs": [
+        {
+          "name": "test",
+          "conclusion": "success"
+        },
+        {
+          "name": "probe",
+          "conclusion": "success"
+        },
+        {
+          "name": "native-build (ubuntu-latest, amd64)",
+          "conclusion": "success"
+        },
+        {
+          "name": "native-build (ubuntu-24.04-arm, arm64)",
+          "conclusion": "success"
+        },
+        {
+          "name": "assemble",
+          "conclusion": "success"
+        },
+        {
+          "name": "release",
+          "conclusion": "success"
+        },
+        {
+          "name": "reconcile",
+          "conclusion": "success"
+        }
+      ],
+      "summaries": [
+        "76 passed",
+        "aarch64",
+        "x86_64"
+      ],
+      "url": "https://github.com/Tirppy/student-id-player-service/actions/runs/37925732240",
+      "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+      "conclusion": "success"
+    },
+    "session": {
+      "jobs": [
+        {
+          "name": "test",
+          "conclusion": "success"
+        },
+        {
+          "name": "probe",
+          "conclusion": "success"
+        },
+        {
+          "name": "native-build (ubuntu-24.04-arm, arm64)",
+          "conclusion": "success"
+        },
+        {
+          "name": "native-build (ubuntu-latest, amd64)",
+          "conclusion": "success"
+        },
+        {
+          "name": "assemble",
+          "conclusion": "success"
+        },
+        {
+          "name": "release",
+          "conclusion": "success"
+        },
+        {
+          "name": "reconcile",
+          "conclusion": "success"
+        }
+      ],
+      "summaries": [
+        "91 passed",
+        "aarch64",
+        "x86_64"
+      ],
+      "url": "https://github.com/Tirppy/student-id-session-service/actions/runs/37923731642",
+      "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+      "conclusion": "success"
+    }
+  }
+}
