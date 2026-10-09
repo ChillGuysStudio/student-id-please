@@ -61,6 +61,8 @@ Before merging a CPR pull request, obtain one peer approval of the latest change
 
 Reviewers check the changed contracts, service pointers, verification results, and files for secrets. CPR approval covers the public changes and integration evidence. It does not approve unseen private code.
 
+Rules are assessed at merge. Work on an open pull request breaks no rule when it departs from a convention, including commits, pushes, force pushes on allowed branches, and description edits. A pull request closed without merging carries no violation for anything performed on it. Fix flagged issues before merge.
+
 ## Service delivery
 
 Service repositories must remain private. Public container images are allowed.
