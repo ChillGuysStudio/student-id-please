@@ -1,0 +1,14 @@
+{
+  "name": "student-id-lab2-newman",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local Lab 2 Newman runner and privacy-filtered htmlextra reports",
+  "scripts": {
+    "test": "node --test report.test.cjs"
+  },
+  "dependencies": {
+    "newman": "6.2.1",
+    "newman-reporter-htmlextra": "1.23.1",
+    "postman-collection": "4.5.0"
+  }
+}
