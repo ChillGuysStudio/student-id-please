@@ -12,11 +12,15 @@ Mocks do not decide admission policy inside Session or make missing authorizatio
 
 ## Connect real services
 
-An integrated deployment supplies peer URLs, credentials, verification keys, and broker routing. Every caller and receiver must agree on those settings before a request can succeed.
+The Lab 2 target sends every client REST request through the public gateway and every service REST request through the private internal gateway. This includes peer calls to `/api/v1` paths. The gateway validates client `Authorization` and never forwards the original header downstream. Receivers retain business checks against Session roles, participation, lifecycle, and resource permissions. A service credential does not prove the initiating player's permission.
 
-Player identity and service identity are separate. A trusted service credential does not prove the initiating player's permission. Internal calls that represent player actions carry verified player context, and receivers check the role and shift through Session.
+Realtime negotiation uses public gateway REST and returns a direct service WebSocket URL. The upgrade and frames do not pass through the gateway. Ticket requests and history recovery remain public gateway REST. Database connections also bypass the gateway.
 
-Integration checks use the public service images and the same request fixtures used for mock tests. They verify actual responses, dependency errors, persisted records, and delivered events. A process health check proves only that the process responds.
+An integrated deployment supplies internal gateway route prefixes as peer URLs, service credentials, receiver-hop credentials, verification keys, and broker routing. Every caller and receiver must agree on these settings. Direct-mode bearer forwarding is legacy standalone compatibility, not the integrated rule. See [HTTP authentication and authorization](contracts/http.md#authentication-and-authorization).
+
+Current Moderation and Discord DMs source has gateway receiver and outgoing adapters. Those adapters reject original `Authorization` and preserve domain checks. This source capability does not prove full-stack compatibility. CPR still records older service pointers, and its current Compose configuration has no gateway and uses direct peer URLs. Runtime assembly, compatible configuration, and real-peer verification remain separate work.
+
+Integration checks use the public service images and the same request fixtures used for mock tests. They verify actual responses, gateway routing, rejected direct REST bypasses, persisted records, and delivered events. They also check `503 TASK_LIMIT_EXCEEDED` and `504 TASK_TIMEOUT` at the gateway and each service. A process health check proves only that the process responds.
 
 Switching a mode flag does not establish compatibility. Real peers must agree on authentication headers, token issuer and audience, caller names, payload schemas, ports, and error behavior.
 

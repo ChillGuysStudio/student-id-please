@@ -11,6 +11,8 @@ cd student-id-please
 
 ## Run public images
 
+The current Compose file uses legacy direct REST paths and has no gateway. These commands start that configuration, not a completed Lab 2 integrated stack. The Lab 2 target requires public gateway client REST, private internal gateway service REST, and no original `Authorization` downstream. Direct WebSocket connections and database connections bypass the gateway. See [integration principles](integration.md#connect-real-services).
+
 1. Copy the configuration template:
 
 	```sh
@@ -49,7 +51,7 @@ from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
 
-Services can run integrated or in mock mode.
+Service mock flags select fixtures or real peers. They do not establish gateway integration.
 
 Use [the service references](services/README.md) for local ports and image configuration. Run `docker compose logs <service>` to inspect a failed container. Run `docker compose down` to stop the stack and keep its data. Do not add `--volumes` unless you intend to delete the stored data.
 
