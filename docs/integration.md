@@ -12,6 +12,8 @@ Mocks do not decide admission policy inside Session or make missing authorizatio
 
 ## Connect real services
 
+The [Player and Session runtime packet](player-session-runtime.md) records the owned receivers' exact environment names, gateway mappings, peer endpoint decisions, and remaining runtime checks for Lab 2.
+
 The Lab 2 target sends every client REST request through the public gateway and every service REST request through the private internal gateway. This includes peer calls to `/api/v1` paths. The gateway validates client `Authorization` and never forwards the original header downstream. Receivers retain business checks against Session roles, participation, lifecycle, and resource permissions. A service credential does not prove the initiating player's permission.
 
 Realtime negotiation uses public gateway REST and returns a direct service WebSocket URL. The upgrade and frames do not pass through the gateway. Ticket requests and history recovery remain public gateway REST. Database connections also bypass the gateway.
