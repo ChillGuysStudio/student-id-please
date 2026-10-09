@@ -2,15 +2,13 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The [legacy architecture diagram](architecture.jpg) and its [editable source](architecture.drawio) remain unchanged while the humans prepare the Lab 2 diagram. The legacy figure does not show the target topology described below. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The [architecture diagram](architecture.png) and its [editable source](architecture.drawio) show the services, request paths, storage, and planned event connections. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
 
-## Human diagram handoff
+## Request paths
 
-The humans own the diagram update and rendering for [issue #74](https://github.com/ChillGuysStudio/student-id-please/issues/74). This prose change does not complete that issue's rendered-diagram acceptance.
+The client sends REST to the API gateway, and the gateway routes each request to one service. Ticket negotiation uses the same REST path. The client then opens a direct WebSocket to the Discord DMs service for live chat. The gateway does not relay chat frames.
 
-The pending human-authored figure must show all client-to-service REST through the public gateway and all service-to-service REST through the internal gateway. Inter-service REST must include the physical gateway hop, rather than direct connections explained by a legend. Realtime negotiation and chat-ticket REST also use the gateway. Only the subsequent WebSocket upgrade and live frames connect directly from the client to Discord DMs.
-
-The figure must identify the gateway as shared Go infrastructure. RabbitMQ events and service-owned storage connections are not REST proxy paths. Session Redis holds cached live views; PostgreSQL owns shift state, history, and locks. The legacy figure's relay, direct REST edges, and Session storage labels await these corrections. Keep the drawio nodes, edges, embedded Mermaid, and rendered image consistent when the humans deliver the update.
+All service-to-service REST passes through the gateway. Blue bidirectional arrows represent HTTP requests and responses between the gateway and each service. Route labels identify the resources and inter-service calls on those paths. The purple bidirectional arrow connects the client directly to Discord DMs for WebSocket chat. Dashed storage links connect each service to its own databases. Grey RabbitMQ links represent planned event delivery.
 
 ## Service ownership
 
@@ -25,22 +23,15 @@ The figure must identify the gateway as shared Go infrastructure. RabbitMQ event
 | Moderation        | Final decisions, policy snapshots, subject bans, decision scores, and administrator disciplinary actions  | Source evidence, rule definitions, aggregate shift scores, or XP       |
 | Discord DMs       | Channels, membership, messages, chat tickets, and live delivery                                           | Accounts, shift roles, record permissions, or the truth of a message   |
 
-The gateway is shared Go infrastructure, not a ninth domain service. In the Lab 2 target, its public listener routes all client-to-service REST, including realtime negotiation. Its internal listener routes all service-to-service REST and is not publicly exposed. Services retain business authorization after the gateway verifies identity. Internal endpoints are not public routes.
+The gateway is shared Go infrastructure and owns no domain data. Its public listener routes all client-to-service REST, including realtime negotiation. Its internal listener routes all service-to-service REST and is not publicly exposed. Services retain business authorization after the gateway verifies identity. Internal endpoints are not public routes.
 
 REST negotiation returns a direct Discord DMs WebSocket URL. The client sends the upgrade and subsequent chat frames directly to Discord DMs. The gateway does not relay frames or hold the live data connection. Discord DMs owns ticket consumption, permission checks, message persistence, and live delivery.
 
-## Gateway delivery status
+## Gateway authorization
 
-[Foundation PR #2](https://github.com/ChillGuysStudio/gateway-service/pull/2) at `9d298ab9c161bb039196317466ed362e2817aafb` has MaxNoragami's formal approval and is squash-merged to gateway `dev` at `03c4dcf99b1b619f96ee52aaa6a43650cfb856c3`. It adds public and internal listeners, process health, JSON errors, request IDs, HTTP transport limits, graceful shutdown, and a static non-root container. Unknown application routes fail closed. Process health does not prove peer readiness.
+The gateway validates client bearer tokens and removes the original `Authorization` header before forwarding a request. A receiving service uses verified identity to check access to its own resources. Player owns accounts and token issuance; the gateway verifies those tokens at the request boundary.
 
-The target topology still depends on separately owned work:
-
-- Tirppy owns [identity and delegation](https://github.com/ChillGuysStudio/student-id-please/issues/88), with caller and receiver owners agreeing the exact contract before migration.
-- mcittkmims is the proposed owner of the separate [routing module](https://github.com/ChillGuysStudio/student-id-please/issues/75). Owner acknowledgement is still pending.
-- MaxNoragami owns [application task limits and native image publication](https://github.com/ChillGuysStudio/student-id-please/issues/87).
-- andyp1xe1 owns the foundation and Discord DMs integration for [realtime negotiation](https://github.com/ChillGuysStudio/student-id-please/issues/78).
-
-The foundation approval does not verify these integrations, a published gateway image, or a running full stack. The current [Compose configuration](../compose.yaml) still exposes localhost service APIs without gateway wiring. Existing service authentication contracts describe the direct-mode baseline. The Lab 2 target validates client tokens at the gateway and removes raw downstream `Authorization`; the exact assertion and delegation schema remains under owner coordination.
+Internal requests authenticate the calling service and retain the initiating player's identity when the operation requires it. Services check participation, roles, and resource permissions. Gateway routing does not grant access to another player's records or administrator operations.
 
 ## Storage
 
@@ -83,7 +74,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 
 [HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details.
 
-This map describes the Lab 2 target, not the legacy figure. All client-to-service REST uses the public gateway, and all service-to-service REST uses the internal gateway. The final four rows are RabbitMQ event delivery, not REST calls. Broker events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway. These paths remain unverified as a complete deployment.
+All client-to-service REST uses the public gateway, and all service-to-service REST uses the internal gateway. The final four rows describe planned RabbitMQ event delivery, shown in grey in the diagram. Broker events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway.
 
 ## Data and consistency
 
@@ -91,7 +82,7 @@ A `player_id` identifies a player account. A `subject_id` identifies a simulated
 
 Each service is the sole writer of its data. An event consumer's local copy does not become a new source of truth. Callers recheck authorization-sensitive data with its owner.
 
-A producer commits a domain change and its outbox record in one local transaction. It retains the record until RabbitMQ confirms publication. A consumer commits its domain update and deduplication record before acknowledging delivery. Business-ID constraints also prevent duplicate cases, decisions, or progression awards.
+The planned event flow uses an outbox and consumer deduplication. A producer commits a domain change and its outbox record in one local transaction. It retains the record until RabbitMQ confirms publication. A consumer commits its domain update and deduplication record before acknowledging delivery. Business-ID constraints also prevent duplicate cases, decisions, or progression awards.
 
 The design does not use distributed transactions or claim exactly-once delivery. A partly initialized case stays pending. Missing evidence or an unavailable dependency never becomes a negative admission decision.
 
@@ -101,10 +92,10 @@ Reusable reference data and presets can change through administrative CRUD. Shif
 
 Player, Session, Moderation, and Discord DMs use Python and FastAPI. Their work is mostly HTTP, storage, or live delivery. Blocking clients must not run on the WebSocket event loop.
 
-Applicant, Credential, Server Rules, and University Record use Java and Spring Boot. Typed models and validation fit their evidence and policy operations. Maintaining two stacks adds tooling, but the coursework requires two languages.
+Applicant, Credential, Server Rules, and University Record use Java and Spring Boot. Typed models and validation fit their evidence and policy operations.
 
 The shared gateway uses Go for HTTP listeners, request routing, identity verification, and task admission. It owns no domain database.
 
 PostgreSQL fits relational state and transaction constraints. MongoDB fits the varied evidence and reference record types. Both stores still enforce the shared contract.
 
-REST provides an immediate response to reads and commands. RabbitMQ carries results that consumers can process later and retry. Discord DMs uses WebSockets for live messages, then REST history to recover missed delivery. Redis Pub/Sub does not retain messages.
+REST provides an immediate response to reads and commands. RabbitMQ is planned for asynchronous results that consumers can process later and retry. Discord DMs uses WebSockets for live messages, then REST history to recover missed delivery. Redis Pub/Sub does not retain messages.

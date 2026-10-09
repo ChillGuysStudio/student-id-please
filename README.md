@@ -8,9 +8,9 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the Lab 2 target topology.
 
-<img src="docs/architecture.jpg" alt="Legacy architecture diagram awaiting a human-authored Lab 2 update" width="1080"/>
+<img src="docs/architecture.png" alt="Architecture diagram of the Lab 2 topology" width="1080"/>
 
-The figure and its [editable source](docs/architecture.drawio) are the unchanged legacy diagram, awaiting a human-authored Lab 2 update. Its WebSocket relay, direct inter-service REST links, and Session storage labels do not describe the target. [The human diagram handoff](docs/architecture.md#human-diagram-handoff) tracks the remaining work in issue #74.
+The figure and its [editable source](docs/architecture.drawio) show the Lab 2 topology. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. RabbitMQ appears greyed as Lab 4 scope.
 
 [Architecture](docs/architecture.md) explains ownership and technology choices. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
 
@@ -22,7 +22,7 @@ Realtime negotiation uses REST through the gateway and returns a direct Discord 
 
 RabbitMQ events and service-owned storage connections are not REST routing paths and do not pass through the gateway.
 
-[Gateway foundation PR #2](https://github.com/ChillGuysStudio/gateway-service/pull/2) at `9d298ab` has MaxNoragami's formal approval for listeners, process health, transport limits, graceful shutdown, and the container foundation. Identity and routing have separate owners, and application limits, realtime integration, and image publication remain follow-up work. A published gateway image and a running full stack are not yet verified. [Gateway delivery status](docs/architecture.md#gateway-delivery-status) records the scope and dependencies.
+[Gateway foundation PR #2](https://github.com/ChillGuysStudio/gateway-service/pull/2) at `9d298ab` has MaxNoragami's formal approval for listeners, process health, transport limits, graceful shutdown, and the container foundation. Identity and routing have separate owners, and application limits, realtime integration, and image publication remain follow-up work. A published gateway image and a running full stack are not yet verified. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions.
 
 ## Team and services
 
