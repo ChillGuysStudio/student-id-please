@@ -13,7 +13,7 @@ cd student-id-please
 
 Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. DMs exposes `127.0.0.1:8009` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
 
-This wiring does not prove released-image compatibility. Player and Session still need confirmed receiver configuration and compatible public images under [CPR #88](https://github.com/ChillGuysStudio/student-id-please/issues/88). The [disposable runtime results](lab2-runtime.md) separate working proof calls from blocked calls. Do not restore bearer forwarding or direct peer URLs to make a legacy image pass.
+Player `2.0.1` and Session `2.0.0` now use the [confirmed owner settings](player-session-runtime.md). The [current local runtime results](player-session-compose-results.md) show protected Player and Session requests passing through Gateway. Direct chat remains blocked. The [earlier disposable results](lab2-runtime.md) describe the legacy-image run, not the current images. Do not restore bearer forwarding or direct peer URLs when authorization fails.
 
 1. Choose an explicit published gateway version or digest. Set `GATEWAY_IMAGE` to that reference. A local image is test-only, not a published release.
 2. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
@@ -24,7 +24,7 @@ This wiring does not prove released-image compatibility. Player and Session stil
 
 	The command creates ignored `.env` and `.local/lab2/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
 
-3. Select source-matched service versions in `.env`. Keep `.env` and `.local/` out of commits. Player and Session receiver settings remain absent until their owner confirms them.
+3. Select source-matched service versions in `.env`. The generator selects Player `2.0.1` and Session `2.0.0`. It pins the gateway public key and configures their receiver-hop credentials through `SERVICE_TOKENS.gateway`. Session uses `GATEWAY_URL` and its distinct initiating credential. Keep `.env` and `.local/` out of commits.
 4. Validate Compose without printing resolved values:
 
 	```sh

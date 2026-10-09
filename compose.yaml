@@ -114,15 +114,15 @@ services:
       retries: 30
       start_period: 5s
   player:
-    image: tirppy/student-id-player-service:${PLAYER_VERSION:-latest}
+    image: tirppy/student-id-player-service:${PLAYER_VERSION:-2.0.1}
     pull_policy: always
     env_file: .local/lab2/player.env
     environment:
       DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
-      JWT_PRIVATE_KEY_PATH: /app/data/player-private.pem
+      JWT_PRIVATE_KEY_PATH: /keys/player-private.pem
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
-      - ./.local/lab2/player-private.pem:/app/data/player-private.pem:ro
+      - ./.local/lab2/player-private.pem:/keys/player-private.pem:ro
       - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
     depends_on:
       player-db:
@@ -131,24 +131,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
   session:
-    image: tirppy/student-id-session-service:${SESSION_VERSION:-latest}
+    image: tirppy/student-id-session-service:${SESSION_VERSION:-2.0.0}
     pull_policy: always
     env_file: .local/lab2/session.env
     environment:
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
-      PLAYER_URL: http://gateway:8083
-      PLAYER_JWKS_URL: http://gateway:8083/.well-known/jwks.json
+      GATEWAY_URL: http://gateway:8083
+      GATEWAY_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
       PLAYER_MODE: http
       EXTERNAL_SERVICES_MODE: http
-      APPLICANT_URL: http://gateway:8083
-      CREDENTIAL_URL: http://gateway:8083
-      UNIVERSITY_URL: http://gateway:8083
-      RULES_URL: http://gateway:8083
-      OUTGOING_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
       - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/lab2/player-public.pem:/keys/player-public.pem:ro
     depends_on:
       session-db:
         condition: service_healthy

@@ -1,0 +1,394 @@
+{
+  "checked_at": "2026-10-09T12:08:01.592504+00:00",
+  "scope": "Independent local Compose run with real published Player and Session, real databases and local gateway/Java source overrides. No complete gameplay or direct chat frame acceptance.",
+  "platform": "linux/amd64",
+  "cpr_base": "f065c68",
+  "gateway_source": "b155070e75e057388e335630c2021329581221d9",
+  "published_player_session": {
+    "tirppy/student-id-player-service": {
+      "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe",
+      "version": "2.0.1",
+      "index": "sha256:79296935ebbffd55cf1db0da10ab8509bae145c07b842fbe5f6b606c64b9fa6b",
+      "children": [
+        {
+          "digest": "sha256:a650b221e454182d24d2033abc19de2d61b36401f43f53aeb3edc86f47d903db",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:6451e4a41e5091f1b25df7b2405d9650fd69022c33982aa0e74c9b09bbd18076",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        }
+      ]
+    },
+    "tirppy/student-id-session-service": {
+      "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1",
+      "version": "2.0.0",
+      "index": "sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c",
+      "children": [
+        {
+          "digest": "sha256:3835183615f1f853fba3d4c4d32e43f7b81eca44bea98429fbd2adcd7b7e979a",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:266f820c78f411992c67762347b6ddd188b4919bb45431b86816655a249051e5",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        }
+      ]
+    }
+  },
+  "anonymous_image_verification": "passed",
+  "containers": [
+    {
+      "service": "applicant",
+      "state": "running",
+      "health": "no health check",
+      "restarts": 0,
+      "image": "student-id-applicant:andrei-compose",
+      "source": "4652297c5fc36f249257d4e7f79371c2341ffd6f"
+    },
+    {
+      "service": "credential",
+      "state": "running",
+      "health": "no health check",
+      "restarts": 0,
+      "image": "student-id-credential:andrei-compose",
+      "source": "1488c422a031429c9572ac9bd046619f24792599"
+    },
+    {
+      "service": "discord-dms",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "sentientmoss/pad-discord-dms-service:2.0.2",
+      "source": "4ccd6f329341ba714f701563fe75021704bebb46"
+    },
+    {
+      "service": "dms-db",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "postgres:17-alpine",
+      "source": null
+    },
+    {
+      "service": "gateway",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "student-id-gateway:andrei-published-run",
+      "source": "b155070e75e057388e335630c2021329581221d9"
+    },
+    {
+      "service": "moderation",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "sentientmoss/pad-moderation-service:2.0.2",
+      "source": "d95e72dd608c98bc88f37bb1e9ab55587d74fd4c"
+    },
+    {
+      "service": "moderation-db",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "postgres:17-alpine",
+      "source": null
+    },
+    {
+      "service": "moderation-publisher",
+      "state": "running",
+      "health": "no health check",
+      "restarts": 0,
+      "image": "sentientmoss/pad-moderation-service:2.0.2",
+      "source": "d95e72dd608c98bc88f37bb1e9ab55587d74fd4c"
+    },
+    {
+      "service": "mongodb",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "mongo:7.0",
+      "source": null
+    },
+    {
+      "service": "player",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "tirppy/student-id-player-service:2.0.1",
+      "source": "cf0f7846238400ef44da4e59e6c350728aa53dfe"
+    },
+    {
+      "service": "player-db",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "postgres:17-alpine",
+      "source": null
+    },
+    {
+      "service": "rabbitmq",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "rabbitmq:4.1-management-alpine",
+      "source": null
+    },
+    {
+      "service": "redis",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "redis:7.4-alpine",
+      "source": null
+    },
+    {
+      "service": "rules-db",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "postgres:18-alpine",
+      "source": null
+    },
+    {
+      "service": "server-rules",
+      "state": "running",
+      "health": "no health check",
+      "restarts": 0,
+      "image": "student-id-rules:andrei-compose",
+      "source": "08b4536d42236adbb594936ccd60397d6e7409fe"
+    },
+    {
+      "service": "session",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "tirppy/student-id-session-service:2.0.0",
+      "source": "5e59c041daee541e1697d5e745c6e26bf52e79a1"
+    },
+    {
+      "service": "session-db",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "postgres:17-alpine",
+      "source": null
+    },
+    {
+      "service": "university-mongodb",
+      "state": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "image": "mongo:7.0",
+      "source": null
+    },
+    {
+      "service": "university-record",
+      "state": "running",
+      "health": "no health check",
+      "restarts": 0,
+      "image": "student-id-university:andrei-compose",
+      "source": "d66af6ac1f0365b9097289098186e09da008bdb4"
+    }
+  ],
+  "checks": [
+    {
+      "check": "gateway health",
+      "status": 200,
+      "code": null,
+      "request_id": "906a63bc-81dc-4654-98d6-4c7544602d63"
+    },
+    {
+      "check": "register participant 0",
+      "status": 201,
+      "code": null,
+      "request_id": "44c5841e-9236-4bae-a312-8dc79c2ccde1"
+    },
+    {
+      "check": "login participant 0",
+      "status": 200,
+      "code": null,
+      "request_id": "7082b2c1-a2a9-4ac6-8168-b488c25d9e4e"
+    },
+    {
+      "check": "register participant 1",
+      "status": 201,
+      "code": null,
+      "request_id": "3c1f8a6a-8521-449f-a12f-20f27b8c875c"
+    },
+    {
+      "check": "login participant 1",
+      "status": 200,
+      "code": null,
+      "request_id": "26860219-4964-4911-8701-a72ba099892e"
+    },
+    {
+      "check": "register participant 2",
+      "status": 201,
+      "code": null,
+      "request_id": "c01c17ca-58f9-4235-91b9-3170613ac7bf"
+    },
+    {
+      "check": "login participant 2",
+      "status": 200,
+      "code": null,
+      "request_id": "d028fa48-fff8-4c2b-b65e-9d8843c3144c"
+    },
+    {
+      "check": "protected Player me",
+      "status": 200,
+      "code": null,
+      "request_id": "0ae7d7ef-5fab-4d3c-8413-c83326601c8a"
+    },
+    {
+      "check": "missing bearer rejected",
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "request_id": "1d0a6a88-c981-438a-9bab-774b1196c3ff"
+    },
+    {
+      "check": "forged bearer rejected",
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "request_id": "03bb377b-02fe-43e6-88e3-1af6ba725f6a"
+    },
+    {
+      "check": "protected me with backend observation",
+      "status": 200,
+      "code": null,
+      "request_id": "be53764e-9810-437f-8efc-ffef864bebd6"
+    },
+    {
+      "check": "observed actual Player backend request",
+      "authorization_header_present": false,
+      "original_bearer_in_headers_or_decoded_gateway_context": false,
+      "fresh_gateway_assertion_present": true
+    },
+    {
+      "check": "create team",
+      "status": 201,
+      "code": null,
+      "request_id": "3686e18b-219d-4ed6-9924-0c0a01601f20"
+    },
+    {
+      "check": "friendship request 1",
+      "status": 201,
+      "code": null,
+      "request_id": "4e74c7dd-be0d-40f4-b255-8c79a9b6fd6f"
+    },
+    {
+      "check": "recipient friendship acceptance 1",
+      "status": 200,
+      "code": null,
+      "request_id": "370faa70-5b95-4128-9a08-1d64be17a4ec"
+    },
+    {
+      "check": "add real friend to team 1",
+      "status": 200,
+      "code": null,
+      "request_id": "3cbf4a23-e9fd-466b-a58c-3f14ef76839a"
+    },
+    {
+      "check": "friendship request 2",
+      "status": 201,
+      "code": null,
+      "request_id": "0087806f-f7ac-42d0-8015-0ede85052a25"
+    },
+    {
+      "check": "recipient friendship acceptance 2",
+      "status": 200,
+      "code": null,
+      "request_id": "5c314200-a856-4cf9-8897-2e0178b57cfe"
+    },
+    {
+      "check": "add real friend to team 2",
+      "status": 200,
+      "code": null,
+      "request_id": "3085c1d9-7673-4635-8c24-3efb101ff5aa"
+    },
+    {
+      "check": "Session list",
+      "status": 200,
+      "code": null,
+      "request_id": "8f02e58d-e915-46d3-8cad-44faeb6daf54"
+    },
+    {
+      "check": "Session create with real delegated Player team read",
+      "status": 201,
+      "code": null,
+      "request_id": "0f187fc2-95eb-4273-b1ef-453ab6b04395"
+    },
+    {
+      "check": "Session join 1",
+      "status": 200,
+      "code": null,
+      "request_id": "cb87688f-f632-4857-8c1c-b768540bcf3c"
+    },
+    {
+      "check": "Session join 2",
+      "status": 200,
+      "code": null,
+      "request_id": "5f5c52ee-1d30-4c15-ae79-a416e53e61e8"
+    },
+    {
+      "check": "Session assign real participant roles",
+      "status": 200,
+      "code": null,
+      "request_id": "bb363788-c872-407a-967c-6dd5ff3fa4a2"
+    },
+    {
+      "check": "Session read",
+      "status": 200,
+      "code": null,
+      "request_id": "eeb07a6f-da7c-4324-8122-c0e4926713f2"
+    },
+    {
+      "check": "DMs channels with real lobby participants",
+      "status": 403,
+      "code": "FORBIDDEN",
+      "request_id": "dd53247b-c9db-4e92-99d7-83b65870fab0"
+    },
+    {
+      "check": "DMs negotiation in real lobby",
+      "status": 403,
+      "code": "FORBIDDEN",
+      "request_id": "9c1361d5-5ec2-4c04-9af8-db2ce720cb01"
+    },
+    {
+      "check": "Session start for direct chat eligibility",
+      "status": 403,
+      "code": "DEPENDENCY_REJECTED",
+      "request_id": "85b0f66a-5029-46e4-939a-53e73d3e5a90"
+    },
+    {
+      "check": "direct WebSocket connection and frame exchange",
+      "result": "not tested; negotiation did not return a URL"
+    },
+    {
+      "check": "expired correctly signed Player bearer rejected",
+      "status": 401,
+      "code": "UNAUTHORIZED",
+      "request_id": "84721421-1cbe-4f7c-87c2-193af1174c23"
+    }
+  ],
+  "unrun": [
+    "direct WebSocket connection and frame exchange: no URL issued",
+    "full game initialization and decision flow",
+    "all-service timeout/concurrent-limit demonstrations",
+    "native ARM64 runtime",
+    "all-public-image deployment"
+  ],
+  "cleanup": "Disposable Compose project and volumes removed after evidence collection"
+}
