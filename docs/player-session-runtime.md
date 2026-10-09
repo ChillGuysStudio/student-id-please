@@ -6,10 +6,28 @@ Owner handoff for CPR issues [#88](https://github.com/ChillGuysStudio/student-id
 
 | Service | Delivered source | Release |
 | --- | --- | --- |
-| Player | Reconciled dev `94664a0884c5baa2048975a0b9d3915e5c4578ed`, exact prior reviewed dev tree | [Release PR #10](https://github.com/Tirppy/student-id-player-service/pull/10), independent next version `v2.0.0` |
-| Session | Reconciled dev plus merged [context fix #13](https://github.com/Tirppy/student-id-session-service/pull/13), squash `c3afed31d41e045698430740b9f9cdfa54916061` | [Release PR #10](https://github.com/Tirppy/student-id-session-service/pull/10), independent next version `v2.0.0` |
+| Player | Released main and synchronized dev `8a49fc37d30bc8b3babc3192e0dc4bb389b75f8a` | [Release PR #10](https://github.com/Tirppy/student-id-player-service/pull/10) merged by rebase, [v2.0.0](https://github.com/Tirppy/student-id-player-service/releases/tag/v2.0.0) |
+| Session | Released main and synchronized dev `5e59c041daee541e1697d5e745c6e26bf52e79a1`, includes [context fix #13](https://github.com/Tirppy/student-id-session-service/pull/13) | [Release PR #10](https://github.com/Tirppy/student-id-session-service/pull/10) merged by rebase, [v2.0.0](https://github.com/Tirppy/student-id-session-service/releases/tag/v2.0.0) |
 
-Both dev histories were repaired with explicit owner authorization and preserved backups. Main protections remain intact. Sync App `5249602` alone has the permanent dev synchronization bypass. All four required Actions secret names exist. This document contains no secret values. Native publication and real gateway acceptance must be recorded separately from source checks.
+Both dev histories were repaired with explicit owner authorization and preserved backups. Main protections remain intact. Sync App `5249602` alone has the permanent dev synchronization bypass. All four required Actions secret names exist. Both publication workflows and dev synchronizations succeeded. This document contains no secret values. Real gateway acceptance is separate from source and publication checks.
+
+## Published image evidence
+
+Anonymous registry reads verified both exact source labels and the following public indices and children. Numeric `2.0.0`, immutable `sha-<full main SHA>`, `latest` and `lab-2` resolve to the same index for each service.
+
+| Image | Index digest | AMD64 child | ARM64 child |
+| --- | --- | --- | --- |
+| `tirppy/student-id-player-service:2.0.0` | `sha256:c3b2ef2a9b210a3e910b7394d4161c78ad6d7f483ba69c49101911a5ff45532a` | `sha256:449982f216f8dc45156da30b6849a3622bb47b64e3f56ed37f22f99f23cc86b4` | `sha256:334ab4b71c44700b974e44be0e593534540c13047c8cb5ff68eba7a26804c607` |
+| `tirppy/student-id-session-service:2.0.0` | `sha256:d1769b4a81845af085dbbce3d104b728e3264f56b06435df31ed9593988a492c` | `sha256:3835183615f1f853fba3d4c4d32e43f7b81eca44bea98429fbd2adcd7b7e979a` | `sha256:266f820c78f411992c67762347b6ddd188b4919bb45431b86816655a249051e5` |
+
+[Player publication run](https://github.com/Tirppy/student-id-player-service/actions/runs/37923463004) and [Session publication run](https://github.com/Tirppy/student-id-session-service/actions/runs/37923731642) passed native builds and container startup/readiness on separate `ubuntu-latest` AMD64 and `ubuntu-24.04-arm` ARM64 runners. Both then assembled, published and reconciled their indices. These private run links require source access; public manifests provide independently readable platform and source evidence. Dev sync ran under the installed App and left dev equal to main in both repositories.
+
+```sh
+docker pull tirppy/student-id-player-service:2.0.0
+docker pull tirppy/student-id-session-service:2.0.0
+docker buildx imagetools inspect tirppy/student-id-player-service:2.0.0
+docker buildx imagetools inspect tirppy/student-id-session-service:2.0.0
+```
 
 ## Exact receiver settings
 
