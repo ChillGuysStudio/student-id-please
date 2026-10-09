@@ -82,6 +82,7 @@ def prepare(root, gateway_image, gateway_port=8080, dms_port=8009):
     config = {name: secrets.token_urlsafe(32) for name in PASSWORDS}
     config.update({name: callers[owner] for name, owner in CALLER_VARIABLES.items()})
     config.update(GATEWAY_IMAGE=gateway_image, GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
+                  PLAYER_VERSION="2.0.1", SESSION_VERSION="2.0.0",
                   MODERATION_VERSION="2.0.2", DISCORD_DMS_VERSION="2.0.2",
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
@@ -101,7 +102,17 @@ def prepare(root, gateway_image, gateway_port=8080, dms_port=8009):
         caller_names[owner], credentials[caller] = caller, callers[owner]
         runtime[f"GATEWAY_{setting}_URL"] = url
         settings = {"HTTP_TASK_TIMEOUT_SECONDS": "30", "HTTP_MAX_CONCURRENT_TASKS": "100"}
-        if owner not in ("player", "session"):
+        if owner in ("player", "session"):
+            settings = {"AUTH_MODE": "gateway", "GATEWAY_PUBLIC_KEY_FILE": "/keys/gateway-public.pem",
+                        "GATEWAY_KEY_ID": "gateway-v1", "GATEWAY_ASSERTION_ISSUER": "student-id-gateway",
+                        "GATEWAY_ASSERTION_AUDIENCE": audience, "GATEWAY_ASSERTION_SECRET": "",
+                        "SERVICE_TOKENS": json.dumps({"gateway": hops[owner]}, separators=(",", ":")),
+                        "MAX_CONCURRENT_TASKS": "100", "TASK_TIMEOUT_SECONDS": "30",
+                        "JWT_ISSUER": "student-id-please", "JWT_AUDIENCE": "student-id-players"}
+            if owner == "session":
+                settings.update(GATEWAY_URL="http://gateway:8083", GATEWAY_SERVICE_TOKEN=callers[owner],
+                                JWT_PUBLIC_KEY_PATH="/keys/player-public.pem")
+        else:
             settings.update(AUTH_MODE="gateway", GATEWAY_KEY_ID="gateway-v1", GATEWAY_AUDIENCE=audience,
                             GATEWAY_PUBLIC_KEY_FILE="/keys/gateway-public.pem", GATEWAY_HOP_TOKEN=hops[owner],
                             GATEWAY_INTERNAL_URL="http://gateway:8083", GATEWAY_CALLER_TOKEN=callers[owner])
@@ -110,7 +121,6 @@ def prepare(root, gateway_image, gateway_port=8080, dms_port=8009):
         if owner == "rules":
             settings.update(GATEWAY_RULES_RECEIVER_TOKEN=hops[owner], INTERNAL_GATEWAY_URL="http://gateway:8083",
                             RULES_SERVICE_TOKEN=callers[owner])
-        # Player and Session receiver settings need the owner's confirmed configuration under CPR #88.
         save(directory / f"{owner}.env", env_text(settings))
     for name, values in (("GATEWAY_RECEIVERS", receiver_config), ("GATEWAY_CALLER_NAMES", caller_names),
                          ("GATEWAY_SERVICE_TOKENS", credentials)):
@@ -129,7 +139,7 @@ def main():
     except (ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Development configuration failed: {error}\n")
     print("Created ignored .env and .local/lab2 configuration. No credentials were printed.")
-    print("Player and Session receiver configuration and publication remain blocked by CPR #88.")
+    print("Player 2.0.1 and Session 2.0.0 use the confirmed owner gateway settings.")
 
 
 if __name__ == "__main__":
