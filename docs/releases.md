@@ -20,7 +20,7 @@ To publish a release:
 1. Integrate the changes through task PRs into `dev`, using squash merges.
 2. Choose the next version in the repository's sequence.
 3. Open a PR from that repository's `dev` into `main`. Use a version-scoped title, such as `chore(v2.0.0): release service package` or `fix(v2.0.1): release task timeout fix`.
-4. Pass the required checks and resolve review threads. Follow the repository's approval requirements. CPR requires one peer approval of the latest changes.
+4. Pass the required checks and resolve review threads. CPR requires one peer approval of the latest changes. Service repositories do not require reviews or approvals.
 5. Rebase the PR into `main`.
 6. Wait for release publication and the Sync Dev with Main workflow to finish.
 7. Verify the Git tag, GitHub release, and, for a service, the public versioned image and `latest` image.

@@ -57,7 +57,7 @@ Each repository starts a lab's package releases at `vX.0.0` and increments `Y` b
 
 Complete `Why?`, `Changes`, and `How to Test?` in the [PR template](.github/pull_request_template.md). Replace the template instructions with your own text. State the commands you ran and their results. Use `Not run` with a reason when a check cannot run.
 
-Before merge, obtain one peer approval of the latest changes, resolve every review thread, and pass the required checks. CI validates every introduced commit, not just the final squash subject.
+Before merging a CPR pull request, obtain one peer approval of the latest changes, resolve every review thread, and pass the required checks. CI validates every introduced commit, not just the final squash subject. Only CPR pull requests require peer review and approval. Service repositories, including the gateway, do not require reviews or approvals.
 
 Reviewers check the changed contracts, service pointers, verification results, and files for secrets. CPR approval covers the public changes and integration evidence. It does not approve unseen private code.
 
@@ -65,7 +65,7 @@ Reviewers check the changed contracts, service pointers, verification results, a
 
 Service repositories must remain private. Public container images are allowed.
 
-Each service repository documents its own workflow. Every update to its `main` branch must publish a public DockerHub image built from the new HEAD, including documentation-only updates. The `latest` tag must point to that image.
+Each service repository documents its own workflow. Private organization-owned service repositories are exempt from enforcing GitHub branch rulesets or branch protection because those features require a paid subscription. Their documented workflow and CI requirements still apply. Every update to a service `main` branch must publish a public DockerHub image built from the new HEAD, including documentation-only updates. The `latest` tag must point to that image.
 
 When changing a service pointer, identify the source SHA and the matching public image in the PR. Leave services you cannot access uninitialized. Do not require private-source checkout to run CPR checks.
 
