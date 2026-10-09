@@ -22,6 +22,8 @@ Internal player-context requests need both service authentication and the initia
 
 ## Configuration
 
+For gateway mode, use the confirmed receiver names, outgoing authentication and peer contracts in the [Player and Session runtime packet](../player-session-runtime.md). The settings below describe the existing standalone Compose configuration.
+
 The shared deployment reads [`.env.example`](../../.env.example).
 
 - `SESSION_DB_PASSWORD` supplies the database password.

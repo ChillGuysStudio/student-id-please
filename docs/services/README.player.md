@@ -20,6 +20,8 @@ When event fixtures replace RabbitMQ, they use the same typed progression handle
 
 ## Configuration
 
+For gateway mode, use the confirmed receiver names and published image evidence in the [Player and Session runtime packet](../player-session-runtime.md). The settings below describe the existing standalone Compose configuration.
+
 The shared deployment reads [`.env.example`](../../.env.example).
 
 - `PLAYER_DB_PASSWORD` supplies the database password.
