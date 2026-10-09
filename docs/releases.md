@@ -31,7 +31,7 @@ The PR title must contain the version and a short summary. Complete its `Why?`, 
 
 The [Release workflow](../.github/workflows/release.yml) runs on each push to `main`, including documentation-only updates. It finds the merged release PR and reads its exact version. A title such as `chore(v2.0.0): release service package` supplies the annotated tag `v2.0.0` and matching GitHub release for the released commit.
 
-A manually written release message or release notes are optional. Automation can supply default text. No particular wording is required. Optional notes describe the package changes. The workflow marks the current release as latest.
+A manually written release message or release notes are optional. Release notes are empty by default and can be added manually. No particular wording is required. Optional notes describe the package changes. The workflow marks the current release as latest.
 
 A workflow rerun reuses an existing tag only when it points to the same released commit. It does not create another version or move the tag. An older run cannot replace latest after a newer `main` update.
 
