@@ -63,10 +63,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
-          MESSAGE: ${{ steps.release.outputs.message }}
         run: |
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$MESSAGE" --notes "$MESSAGE" --latest=false
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --notes "" --latest=false
           fi
       - name: Update latest release
         env:

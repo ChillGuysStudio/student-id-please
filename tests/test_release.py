@@ -25,7 +25,7 @@ def in_directory(path):
         os.chdir(previous)
 
 
-def release_pr(title="chore(v2.0.0): release lab 2", sha="main-sha"):
+def release_pr(title="chore(v2.0.0): publish package", sha="main-sha"):
     return {
         "title": title, "number": 10, "merged_at": "2026-10-06T12:00:00Z",
         "merge_commit_sha": sha,
@@ -35,15 +35,14 @@ def release_pr(title="chore(v2.0.0): release lab 2", sha="main-sha"):
 
 
 class ReleaseTests(unittest.TestCase):
-    def test_title_and_automatic_messages(self):
-        for title, tag, message in (
-            ("chore(v2.0.0): release lab 2", "v2.0.0", "Lab 2 completion"),
-            ("fix(v2.0.1): release a hotfix", "v2.0.1", "Lab 2 hotfix"),
-            ("chore(v0.0.0): release lab 0", "v0.0.0", "Lab 0 completion"),
+    def test_version_from_title(self):
+        for title, tag in (
+            ("chore(v2.0.0): publish package", "v2.0.0"),
+            ("fix(v2.0.1): correct timeout handling", "v2.0.1"),
+            ("chore(v0.0.0): publish documentation", "v0.0.0"),
         ):
             with self.subTest(title=title):
                 self.assertEqual(release.version_from_title(title), tag)
-                self.assertEqual(release.release_message(tag), message)
         for title in ("chore(lab-2): release", "chore(v02.0.0): release", "chore(v2.0): release",
                       "chore(v2.0.0-SNAPSHOT): release", "chore(v2.0.0): release\nextra",
                       "chore(v2.0.0): release "):
@@ -60,16 +59,31 @@ class ReleaseTests(unittest.TestCase):
             with self.subTest(prs=prs), self.assertRaises(ValueError):
                 release.release_pr(prs, "team/project", "main-sha")
 
-    def test_new_tag_uses_completion_message_and_exact_source_sha(self):
-        with patch.object(release, "validate_version", return_value=True), \
-                patch.object(release, "api", side_effect=[{"sha": "annotated-sha"}, {}]) as api:
-            release.reserve_tag("team/project", "v2.0.0", "rebased-sha")
-        self.assertEqual(api.call_args_list[0].args, ("repos/team/project/git/tags", {
-            "tag": "v2.0.0", "message": "Lab 2 completion", "object": "rebased-sha", "type": "commit",
-        }))
-        self.assertEqual(api.call_args_list[1].args, ("repos/team/project/git/refs", {
-            "ref": "refs/tags/v2.0.0", "sha": "annotated-sha",
-        }))
+    def test_new_tag_has_empty_annotation_and_exact_source_sha(self):
+        for tag in ("v2.0.0", "v2.0.1"):
+            with self.subTest(tag=tag), \
+                    patch.object(release, "validate_version", return_value=True), \
+                    patch.object(release, "api", side_effect=[{"sha": "annotated-sha"}, {}]) as api:
+                release.reserve_tag("team/project", tag, "rebased-sha")
+            self.assertEqual(api.call_args_list[0].args, ("repos/team/project/git/tags", {
+                "tag": tag, "message": "", "object": "rebased-sha", "type": "commit",
+            }))
+            self.assertEqual(api.call_args_list[1].args, ("repos/team/project/git/refs", {
+                "ref": f"refs/tags/{tag}", "sha": "annotated-sha",
+            }))
+
+    def test_main_outputs_version_metadata_without_a_message(self):
+        for tag in ("v2.0.0", "v2.0.1"):
+            with self.subTest(tag=tag), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "output"
+                env = {"GITHUB_REPOSITORY": "team/project", "GITHUB_REF": "refs/heads/main",
+                       "GITHUB_SHA": "rebased-sha", "GITHUB_OUTPUT": str(output)}
+                pr = release_pr(f"chore({tag}): publish package", "rebased-sha")
+                with patch.dict(os.environ, env, clear=True), \
+                        patch.object(release, "validate_version", return_value=True), \
+                        patch.object(release, "api", side_effect=[[pr], {"sha": "annotated-sha"}, {}]):
+                    release.main()
+                self.assertEqual(output.read_text(), f"tag={tag}\nversion={tag[1:]}\n")
 
     def test_same_commit_retry_does_not_create_or_move_tag(self):
         with patch.object(release, "validate_version", return_value=False), \
