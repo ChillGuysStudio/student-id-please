@@ -39,6 +39,10 @@ Player access tokens carry a boolean `is_admin` derived from server-controlled a
 
 Player-facing responses never contain hidden generation data or another player's restricted records. Expected actions, correctness, and per-decision score deltas are visible only in authorized committed-decision responses. No endpoint previews a case's expected action before the player's decision commits. Events authenticate the producer as a service.
 
+### Retained workload requests
+
+The [retained initialization HTTP policy](retained-workload.md) defines exact internal workload requests for initialization, local status, identity reservation, and snapshot reads. Gateway's workload assertion proves the named caller and exact request bytes, not player authority. Receivers independently read fresh Session acceptance. A retained snapshot read requires explicit `session_id` and `attempt_id` query parameters and a matching local immutable snapshot. The existing empty-query actor-bound snapshot read remains separate. Invalid actor proof never falls back to workload access. Contract agreement alone does not enable a route.
+
 ### Legacy direct mode
 
 Standalone direct mode is Lab 1 compatibility, not the Lab 2 integrated rule. In that mode, services verify Player bearer tokens themselves. Player access tokens expire after 15 minutes. Refresh tokens expire after 7 days. Player stores refresh-token hashes, rotates refresh tokens after use, and revokes the refresh session on logout.
