@@ -20,7 +20,7 @@ class Lab3PostmanTests(unittest.TestCase):
         folders = {folder["name"]: folder["item"] for folder in self.collection["item"]}
         self.assertEqual(set(folders), {"Safe public smoke", "Private operator reads"})
         public = folders["Safe public smoke"]
-        self.assertEqual(len(public), 3)
+        self.assertEqual(len(public), 4)
         for item in public:
             request = item["request"]
             self.assertEqual(request["method"], "GET")
@@ -29,7 +29,7 @@ class Lab3PostmanTests(unittest.TestCase):
             self.assertNotIn("body", request)
         self.assertEqual(
             {item["request"]["url"] for item in public},
-            {"{{gateway_url}}/healthz", "{{gateway_url}}/internal/v1/status", "{{gateway_url}}/api/v1/players/me"},
+            {"{{gateway_url}}/healthz", "{{gateway_url}}/internal/v1/status", "{{gateway_url}}/internal/v1/discovery/instances", "{{gateway_url}}/api/v1/players/me"},
         )
 
     def test_private_folder_has_only_operator_gets_and_no_mutations(self):

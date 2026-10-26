@@ -25,6 +25,13 @@
           ] } }]
         },
         {
+          "name": "Private registry is not public",
+          "request": { "method": "GET", "url": "{{gateway_url}}/internal/v1/discovery/instances" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Public listener hides Discovery registry', () => pm.expect(pm.response.code).to.equal(404));"
+          ] } }]
+        },
+        {
           "name": "Protected player read denies anonymous caller",
           "request": { "method": "GET", "url": "{{gateway_url}}/api/v1/players/me" },
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
