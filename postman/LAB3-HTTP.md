@@ -10,7 +10,7 @@ From the CPR root, run the existing pinned runner against the public Gateway:
 ./scripts/run_lab2_newman.sh --lab3-safe --gateway-url http://127.0.0.1:8080
 ```
 
-The folder sends three anonymous GET requests. It checks Gateway liveness, denial of private status on public ingress, and denial of an unauthenticated Player read. It also checks that public responses do not expose Gateway's private attribution headers. A successful run says nothing about routing or registered replicas. The runner writes redacted HTML under ignored `.local/lab3-postman/`, and private raw results under that directory's `run-*` subdirectory.
+The folder sends four anonymous GET requests. It checks Gateway liveness, denial of private status and registry reads on public ingress, and denial of an unauthenticated Player read. It also checks that public responses do not expose Gateway's private attribution headers. A successful run says nothing about routing or registered replicas. The runner writes redacted HTML under ignored `.local/lab3-postman/`, and private raw results under that directory's `run-*` subdirectory.
 
 ## Run private operator reads separately
 

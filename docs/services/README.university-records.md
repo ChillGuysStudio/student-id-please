@@ -32,4 +32,6 @@ The shared deployment reads [`.env.example`](../../.env.example).
 
 [Service APIs](../contracts/api.md), [HTTP conventions](../contracts/http.md), and [event definitions](../contracts/events.md) define the shared behavior. [Integration principles](../integration.md) describe mocked and integrated deployments.
 
+The [retained workload agreement](../contracts/retained-workload.md) defines snapshot reads with explicit session/attempt context, independent local snapshot and reservation checks, and status polls for subscriber projections. Its receiver-before-policy rollout lists the remaining owner work. Merged reservation and event receiver repairs are not deployment evidence, and this agreement enables no Gateway route.
+
 The [University Record Postman collection](../../postman/university-record-service.json) provides request fixtures. [Verification cases](../verification.md) describe expected failure and retry behavior.
