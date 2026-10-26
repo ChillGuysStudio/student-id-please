@@ -2,13 +2,13 @@
 
 The payload types come from the [domain contract](domain.md), [case initialization](cases.md), and [service APIs](api.md).
 
-All events use the durable topic exchange `student-id.events.v1`. Messages use JSON and RabbitMQ persistent delivery. Publishers wait for broker confirms, and consumers acknowledge messages after processing. The `schema_version` is `1`. The event names, routing keys, and payload fields below are fixed. Removing or changing a field requires a new major schema and exchange version. Consumers accept additional optional fields.
+Version-1 events use the durable topic exchange `student-id.events.v1` and `schema_version = 1`. New Lab 3 `CaseInitialized` events use `student-id.events.v2` and `schema_version = 2`; the other events remain version 1. Messages use JSON and RabbitMQ persistent delivery. Publishers wait for broker confirms, and consumers acknowledge messages after processing. The event names, routing keys, and payload fields below are fixed. Removing or changing a required field requires a new major schema and exchange version. Consumers accept additional optional fields.
 
 ```text
 Event<T> = {event_id: Id, event_type: string, schema_version: Int,
             occurred_at: Time, producer: "applicant" | "credential" | "university_record" |
             "moderation" | "session", correlation_id: Id, payload: T}
-// CaseInitializedPayload is the three-variant union in the initialization section.
+// CaseInitializedPayload is the version-2 three-variant union in cases.md.
 DecisionScoredPayload = {decision_id: Id, session_id: Id, case_id: Id, moderator_id: Id,
                         action: Action, correct: Bool, score_delta: Int, penalty: Int}
 ShiftEndedPayload = {session_id: Id, participant_ids: Id[], processed_count: Int,
@@ -19,12 +19,16 @@ DisciplinaryPayload = {disciplinary_action_id: Id, player_id: Id, xp_penalty: In
 
 | Event | Routing key | Producer | Durable subscriber queues | Payload and correlation |
 | --- | --- | --- | --- | --- |
-| `CaseInitialized` | `case.initialized` | Applicant, Credential, or University Record | `applicant.case-initialized.v1`<br>`credential.case-initialized.v1`<br>`university-record.case-initialized.v1` | `CaseInitializedPayload`<br>`correlation_id = case_id` |
+| `CaseInitialized` (schema 2, exchange v2) | `case.initialized` | Applicant, Credential, or University Record | `applicant.case-initialized.v2`<br>`credential.case-initialized.v2`<br>`university-record.case-initialized.v2` | `CaseInitializedPayload`, including required `initialization_attempt_id`<br>`correlation_id = case_id`, never attempt ID |
 | `DecisionScored` | `decision.scored` | Moderation | `session.decision-scored.v1` | `DecisionScoredPayload`<br>`correlation_id = case_id` |
 | `ShiftEnded` | `shift.ended` | Session | `player.shift-ended.v1` | `ShiftEndedPayload`<br>`correlation_id = session_id` |
 | `DisciplinaryActionApplied` | `discipline.applied` | Moderation | `player.discipline-applied.v1` | `DisciplinaryPayload`<br>`correlation_id = disciplinary_action_id` |
 
 Each subscriber has its own queue. Replicas of one service share that service's queue. An initializer can consume its own case event as a deduplicated no-op, but it never republishes a consumed initialization event. A publication retry uses the original `event_id`. Consumers also deduplicate by the business ID in the payload. This protects against a producer that assigns two event IDs to one case, decision, shift, or disciplinary action.
+
+Version 2 requires the original Session initialization attempt reference in every source branch, including empty outsider bundles. Subscribers enforce [retained initialization authority](cases.md#retained-initialization-authority) before creating or resuming projections. The authenticated producer must be the retained selected initializer; `correlation_id`, `event_id`, and `case_id` are not substitutes for `initialization_attempt_id`.
+
+The old version-1 `CaseInitialized` shape, exchange, queues, and stored events remain historical and unchanged. Its payload has the original `CaseSeed` fields without `initialization_attempt_id` and the same three domain branches. Do not synthesize an attempt reference, upgrade stored envelopes, dual-publish a new case as version 1, or replay unverifiable version-1 messages to authorize new effects. An exact already-completed duplicate can be acknowledged as a no-op. Otherwise quarantine unverifiable history under the existing bounded failure policy and preserve its domain data. This is not a legacy authorization protocol.
 
 After a temporary failure, delayed queues retry the message after 1, 5, and 30 seconds. If all retries fail, the message moves to `<subscriber-queue>.dlq`, a durable queue for inspection and replay. A message with an invalid schema or a conflicting payload moves there without a retry. A replay keeps the original IDs and remains idempotent. A consumer never drops a failed message or requeues it without a retry limit.
 
