@@ -225,6 +225,25 @@ Rules does not subscribe to `CaseInitialized`, fetch generator presets, or recei
 
 ## University Record Service endpoints
 
+The following reservation types define the retained-initialization contract. The documented reservation paths already exist in this contract and in Applicant/Credential clients; current University source does **not** yet implement their controllers or these provenance DTOs. Its `UniversityIdentityDocument` stores identity/allocation fields only. These definitions are implementation requirements, not a claim of deployed behavior.
+
+```text
+IdentityReservationInput = {session_id: Id, attempt_id: Id, case_id: Id, subject_id: Id,
+                            first_name: string, last_name: string, role: ApplicantRole,
+                            university_status: UniversityStatus, major: string | null,
+                            admission_year: Int | null}
+InitializationBinding = {session_id: Id, attempt_id: Id, case_id: Id, subject_id: Id,
+                         entry_service: "applicant" | "credential" | "university_record",
+                         actor_id: Id, snapshot_id: Id, reference_at: Time,
+                         idempotency_key: Id, normalized_body_sha256: string,
+                         effect: "subject_reserve"}
+UniversityIdentity = {subject_id: Id, first_name: string, last_name: string,
+                      student_id: string | null, email: string,
+                      initialization_binding: InitializationBinding}
+```
+
+`idempotency_key` and `normalized_body_sha256` in the binding are copied unchanged from verified Session acceptance, not from the reservation's header or body. University derives actor, initializer, snapshot and reference time from that acceptance, verifies the referenced snapshot, and never trusts request fields as proof of those values. Role/status and identity fields remain subject to the [simulation rules](simulation.md#person-fields-and-identifiers).
+
 | Method and path | Authorized caller | Request | Success response |
 | --- | --- | --- | --- |
 | `POST /api/v1/admin/university-data` | Global admin | `UniversityDataInput` | `201 UniversityData` |
@@ -232,8 +251,8 @@ Rules does not subscribe to `CaseInitialized`, fetch generator presets, or recei
 | `GET /api/v1/admin/university-data/{reference_id}` | Global admin | None | `200 UniversityData` |
 | `PUT /api/v1/admin/university-data/{reference_id}` | Global admin | Full `UniversityDataInput` | `200 UniversityData`; kind, subject, and natural code cannot change |
 | `DELETE /api/v1/admin/university-data/{reference_id}` | Global admin | None | `204`; live references block deletion with `409 REFERENCE_IN_USE`, snapshots do not |
-| `POST /internal/v1/university-identities/reservations` | Applicant, Credential, or University Record initializer | `IdentityReservationInput` | `200 UniversityIdentity`; reserves an unpadded student sequence and university-email suffix in one transaction |
-| `GET /internal/v1/university-identities/{subject_id}` | Applicant, Credential, or University Record subscriber | Query `case_id: Id` | `200 UniversityIdentity`; reads an existing reservation for derivation without allocating one |
+| `POST /internal/v1/university-identities/reservations` | Selected initializer workload, verified against Session acceptance | `IdentityReservationInput`; `Idempotency-Key = case_id` | `200 UniversityIdentity`; commits identity and case/attempt provenance atomically, reusing valid reference identities |
+| `GET /internal/v1/university-identities/{subject_id}` | Applicant, Credential, or University Record subscriber workload with retained `case_project` authority | Required query `case_id: Id`, `session_id: Id`, `attempt_id: Id` | `200 UniversityIdentity` with the exact case binding; no allocation or new binding on read |
 | `POST /internal/v1/university-snapshots` | Session | `{session_id: Id, reference_at: Time}` | `201 {snapshot_id: Id, session_id: Id, reference_at: Time}`; copies and validates current reference data in one transaction |
 | `GET /internal/v1/university-snapshots/{snapshot_id}` | Applicant, Credential, University Record, or Session | None | `200 UniversitySnapshot`; full immutable reference data, internal only |
 | `PUT /api/v1/sessions/{session_id}/record-permissions` | Session owner while lobby is open | `{permissions: Permission[]}` | `200 {permissions: Permission[]}`<br>The body replaces all Junior Moderator permissions. |
@@ -250,9 +269,9 @@ Players cannot call the internal endpoint that returns all records. The Moderato
 
 University reference CRUD accepts entries of existing kinds. Adding a course or person requires no schema change, while a new kind or required field requires a shared schema update. Updates replace the full resource; the API accepts no arbitrary JSON patches. Reference subjects must obey the person-field table, and student IDs and canonical emails are unique among them. Administrators must remove live dependents before deleting a referenced program, course, or subject affiliation. Case snapshots contain copied values and remain intact after live reference deletion. The API provides no PUT, PATCH, or DELETE for generated case records or immutable university snapshots.
 
-Identity reservation is an internal University operation rather than a general Applicant CRUD endpoint. Reservation authorization binds Session's initialization attempt to the selected initializer, initiating Moderator, pinned snapshot, and reference time. University verifies that authority and binds the authenticated initializer's proposed case ID and subject before Session receives `CaseAccepted`. A player UUID or service credential alone does not establish that binding.
+Identity reservation is an internal University operation rather than a general Applicant CRUD endpoint. On POST, University calls the existing Session `GET /internal/v1/sessions/{session_id}/accepted-attempts/{attempt_id}` through Gateway under its own workload identity. Enforce [retained authority checks](cases.md#retained-initialization-authority), including version, `case_initialize` operation, `subject_reserve` effect, both allowed callers (University and the initiating initializer), and authenticated requesting service equal to `entry_service`. Bind the Session-pinned case, not a proposed replacement. Commit identity and binding before Session receives `CaseAccepted`; University's own initializer uses the same transaction locally. A player UUID or service credential alone cannot authorize the operation.
 
-Subscribers read the existing reservation after propagation and verify the persisted Session case. A delayed consumer verifies the retained initialization authority rather than treating an expired player token as authorization for a new action. The API uses case-oriented paths such as `/internal/v1/{service}/cases`. It omits the reference project's `/api/v1/applicants/next` endpoint and its claimed/actual whole-person payload.
+On GET, University verifies its own and the requesting subscriber's allowed callers, operation `case_initialize`, effect `case_project`, and current lifecycle with Session, then returns only the existing binding for the exact session/attempt/case/subject tuple. The subscriber independently compares that binding with Session acceptance and the event, including actor, initializer, snapshot/reference, original key/hash and reservation effect. Missing identities/bindings return 404; changed immutable identity/binding inputs return 409; disallowed caller/effect or lifecycle cannot authorize effects. Dependency failures and malformed proof fail closed without allocation. A delayed consumer uses retained acceptance past original JWT expiry, never a renewed actor privilege. Session's `reservation: null` is not replaced with invented evidence. The API uses case-oriented paths such as `/internal/v1/{service}/cases`; it omits `/api/v1/applicants/next` and claimed/actual whole-person payloads.
 
 ## Moderation Service endpoints
 

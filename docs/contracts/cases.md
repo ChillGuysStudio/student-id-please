@@ -3,11 +3,10 @@
 Session selects one initializer. The other two case services derive only their own records. See the [domain types](domain.md), [simulation data](simulation.md), and [event contract](events.md).
 
 ```text
-CaseStart = {session_id: Id, scenario: "eligible" | "forged" | "impersonation" | "outsider" | "random",
-             seed: string?, subject_id: Id?}
+CaseStart = {session_id: Id, attempt_id: Id, case_id: Id, scenario: "random"}
 CaseAccepted = {case_id: Id, session_id: Id, state: "pending"}
 LocalCaseStateResponse = {case_id: Id, session_id: Id, state: LocalCaseState}
-CaseSeed = {case_id: Id, session_id: Id,
+CaseSeed = {case_id: Id, session_id: Id, initialization_attempt_id: Id,
             scenario: "eligible" | "forged" | "impersonation" | "outsider",
             seed: string, subject_id: Id | null, university_snapshot_id: Id, reference_at: Time}
 GeneratedCredential = {credential: Credential, authentic: Bool}
@@ -19,18 +18,32 @@ CaseInitializedPayload =
 
 | Method and path | Owner and authorized caller | Request | Success response |
 | --- | --- | --- | --- |
-| `POST /internal/v1/applicant/cases` | Applicant owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
-| `POST /internal/v1/credential/cases` | Credential owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
-| `POST /internal/v1/university-record/cases` | University Record owns<br>Session calls | `CaseStart` with Moderator context | `202 CaseAccepted` |
+| `POST /internal/v1/applicant/cases` | Applicant owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
+| `POST /internal/v1/credential/cases` | Credential owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
+| `POST /internal/v1/university-record/cases` | University Record owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
 | `GET /internal/v1/applicant/cases/{case_id}/status` | Applicant owns<br>Session calls | None | `200 LocalCaseStateResponse` |
 | `GET /internal/v1/credential/cases/{case_id}/status` | Credential owns<br>Session calls | None | `200 LocalCaseStateResponse` |
 | `GET /internal/v1/university-record/cases/{case_id}/status` | University Record owns<br>Session calls | None | `200 LocalCaseStateResponse` |
 
 The event envelope's `producer` is the discriminator: `applicant` requires `claims`, `credential` requires `credentials`, and `university_record` requires `university_records`. Each payload has one domain section, including when its value is an empty array. The payload omits `source` and `generation_version`. Embedded `case_id` values must match the outer case, and entity IDs are unique within their owning service. A record's `subject_id` identifies its person; global academic-year and schedule records have null subjects.
 
-The initializer obtains the snapshot ID and reference time from verified Session context, resolves `random` once, and allocates the case ID and any new subject ID once. It commits its owned records, original event, and idempotency result together. Optional internal `seed` and `subject_id` inputs support reproducible fixtures and returning reference subjects; players cannot supply them. A seed contains 1 to 128 ASCII letters, digits, hyphens, underscores, or periods. Generate a random UUID string if omitted. A supplied subject must have an enrollment or affiliation in the pinned snapshot, or the command returns `422 UNKNOWN_SUBJECT`. The `outsider` scenario requires no subject; supplying one returns `422 INVALID_SCENARIO`. When a subject is supplied with `random`, select from `[eligible, forged, impersonation]`.
+Session allocates and retains both `attempt_id` and `case_id` before dispatch. Every initialization command requires those exact IDs; an initializer must not generate replacement IDs or fall back when either is absent. It obtains the snapshot ID and reference time from verified retained acceptance, resolves `random` once, and allocates any new subject ID once. It commits its owned records, original version-2 event, and idempotency result together. The initializer must complete the University binding below before returning `CaseAccepted`, whose case and session IDs must equal Session's pins.
 
-Consumers verify that the referenced snapshot belongs to the event's session and has the same `reference_at`. They use the authenticated initializer's original Session authorization and ignore player identities in event data. The Applicant, Credential, and University Record services are the authorized producers of initialization events. Consumers quarantine an event that reuses a snapshot from another shift as a schema or context conflict.
+Production `CaseStart` follows Session's existing dispatch: `scenario = random`, with no `seed` or `subject_id` override. The accepted player request contains only `entry_service`; it does not authorize arbitrary fixture inputs. Deterministic generator tests may supply a local seed or reference subject, but that is not another network authority mode. Generate a UUID-string seed once and persist it. Seeds contain 1 to 128 ASCII letters, digits, hyphens, underscores, or periods. A selected reference subject must have enrollment or affiliation in the pinned snapshot. Outsiders have null subjects; a reference-subject selection excludes `outsider`.
+
+## Retained initialization authority
+
+These requirements repair the propagation gap in [#182](https://github.com/ChillGuysStudio/student-id-please/issues/182); they are a contract, not evidence that the adapters exist. All peer REST uses the internal Gateway with bounded existing HTTP clients. Workload authentication identifies the caller, not the accepted actor.
+
+1. The initializer accepts commands only from authenticated Session through Gateway and looks up `GET /internal/v1/sessions/{session_id}/accepted-attempts/{attempt_id}` under its own workload identity. Require acceptance version `1`, operation `case_initialize`, matching session/attempt/case IDs, its own canonical name as `entry_service`, retained `actor_role = moderator`, membership in `allowed_callers`, and effect `case_initialize` in `allowed_effects`. Verify the snapshot belongs to that session and has the retained `reference_at`. When a synchronous actor proof is present, its subject must equal retained `actor_id`. Session workload dispatch can resume retained work without that transient proof, but cannot invent actor authority.
+2. The initializer's `Idempotency-Key` is exactly `attempt_id`, Session's case `request_id`, not the player's original key. Acceptance's `idempotency_key` remains the original player request key. Require `normalized_body_sha256` to equal SHA-256 of UTF-8 `json.dumps({"entry_service": entry_service}, sort_keys=True, separators=(",", ":"))` with Python's default ASCII escaping. It is not a hash of `CaseStart`, generated scenario/seed/subject, or raw Gateway bytes. Retain and compare this hash and original key unchanged on retries. Do not replace either with a downstream key or digest. Only the fixed dispatch body above is derivable from this existing accepted request. Changed pins or command data under the same attempt conflict.
+3. Before new effects, require `lifecycle.session_status = active`, `attempt_status` in `accepted`, `pending`, or `ready`, and `effects_allowed = true` from a fresh lookup for that operation. Ended, completed, failed, superseded, missing, mismatched, or noncurrent attempts authorize nothing. A 404, forbidden caller, timeout, malformed response, or contradictory binding fails closed; transient failures may retry within existing bounds, never become successful empty evidence.
+4. For a non-null subject, the selected initializer invokes University's existing [reservation operation](api.md#university-record-service-endpoints), or the same local operation when University initializes. University independently verifies retained acceptance, `subject_reserve`, the selected initializer, actor, snapshot, reference time, and pinned case, then commits the subject binding in its existing identity record before `CaseAccepted`. A reference identity keeps its existing identifiers and facts. A null-subject outsider skips reservation but not Session authority checks.
+5. A subscriber uses the version-2 event's `initialization_attempt_id` for the same Session lookup. Require effect `case_project`, its own allowed caller, and authenticated event producer equal to retained `entry_service`. Match session, attempt, case, snapshot and reference time. For a non-null subject, read University's real reservation using those same IDs and match its persisted binding to acceptance and the event before deriving records. University applies the same check locally. `lifecycle.reservation = null` from Session proves no subject binding. Neither event correlation nor workload identity substitutes for these checks.
+
+An accepted asynchronous task may finish after the original `actor_expires_at` if its current retained scope still permits the effect. Retained actor/token metadata is not a bearer, refresh grant, admin permission, or authority for a new player action. Never store, replay, or forward the original bearer JWT for retained work. `attempt_id` here is an application initialization identity; it is not a Lab 3 outbound HTTP attempt ID. Each actual HTTP send still receives its own transport accounting identity, including lookup and retry sends.
+
+Consumers quarantine cross-session snapshots and conflicting or unverifiable bindings without overwriting existing data. Completed exact duplicates remain no-ops and grant no new effects. [Version-1 history](events.md) must not be relabeled or treated as retained proof.
 
 ## Deterministic choices and source precedence
 
