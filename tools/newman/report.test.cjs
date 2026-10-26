@@ -108,3 +108,37 @@ test('argument validation prevents ambiguous render/run modes', () => {
     assert.throws(() => sanitize([]), /At least one/);
     assert.throws(() => sanitize([{}]), /Not a Newman/);
 });
+
+test('Lab 3 report omits control credentials, webhook, headers and private IDs', () => {
+    const raw = fixture({ failure: true });
+    const canaries = ['CONTROL_CANARY_123456789', 'WEBHOOK_CANARY_123456789', 'INSTANCE_CANARY_123456789'];
+    raw.environment.values.push({ key: 'control_token', value: canaries[0] }, { key: 'discord_webhook_url', value: canaries[1] });
+    raw.run.executions[0].request.header.push({ key: 'X-Control-Token', value: canaries[0] });
+    raw.run.executions[0].response.header.push({ key: 'X-Gateway-Instance-Id', value: canaries[2] });
+    raw.run.executions[0].response.stream = { data: [...Buffer.from(canaries.join(' '))] };
+    raw.run.executions[0].item.name = 'Discovery status schema';
+    raw.run.executions[0].assertions[0].assertion = 'Authenticated Discovery status returns 200';
+    const lab3 = path.resolve(__dirname, '../../postman/lab3-http.postman_collection.json');
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lab3-redaction-'));
+    try {
+        const safe = sanitize([raw], lab3);
+        const output = path.join(directory, 'report.html');
+        const html = render(safe, output);
+        verifyNoSecrets([raw], html);
+        for (const canary of canaries) {
+            assert.ok(!JSON.stringify(safe).includes(canary));
+            assert.ok(!fs.readFileSync(output, 'utf8').includes(canary));
+            assert.ok(!fs.readFileSync(path.join(directory, 'report.summary.json'), 'utf8').includes(canary));
+        }
+        assert.equal(safe.reportMetadata.failed, true);
+        assert.ok(html.includes('Discovery status schema'));
+    } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('Lab 3 folder flags cannot trigger the stateful Lab 2 run or overload', () => {
+    assert.equal(parseArgs(['--lab3-safe']).lab3, 'Safe public smoke');
+    assert.equal(parseArgs(['--lab3-private']).lab3, 'Private operator reads');
+    assert.throws(() => parseArgs(['--lab3-safe', '--with-overload']), /cannot run with overload/);
+    assert.throws(() => parseArgs(['--lab3-private', '--lab3-safe']), /Choose one/);
+    assert.throws(() => parseArgs(['--lab3-safe', '--from-json', 'private.json']), /cannot be combined/);
+});
