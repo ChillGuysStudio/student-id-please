@@ -1,0 +1,87 @@
+{
+  "description": "Synthetic contract examples, not signed proofs or runtime authorization results.",
+  "acceptance": {
+    "version": 1,
+    "operation": "case_initialize",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "attempt_id": "22222222-2222-4222-8222-222222222222",
+    "case_id": "33333333-3333-4333-8333-333333333333",
+    "snapshot_id": "44444444-4444-4444-8444-444444444444",
+    "team_id": "55555555-5555-4555-8555-555555555555",
+    "actor_id": "66666666-6666-4666-8666-666666666666",
+    "actor_role": "moderator",
+    "actor_token_id": "synthetic-player-token-id",
+    "actor_expires_at": 1793009700,
+    "accepted_at": "2026-10-26T10:00:00Z",
+    "entry_service": "applicant",
+    "reference_at": "2026-10-26T09:00:00Z",
+    "rule_version": "77777777-7777-4777-8777-777777777777",
+    "idempotency_key": "88888888-8888-4888-8888-888888888888",
+    "normalized_body_sha256": "34d255b6a7f842e0fa486b2b7fd68084788f943d1a63eb77f7b7b9c2ba5e0436",
+    "allowed_callers": ["applicant", "credential", "university_record"],
+    "allowed_effects": ["case_initialize", "subject_reserve", "case_project"]
+  },
+  "lifecycle": {
+    "session_status": "active",
+    "attempt_status": "pending",
+    "checked_at": "2026-10-26T10:16:00Z",
+    "effects_allowed": true,
+    "reservation": null
+  },
+  "snapshot": {
+    "snapshot_id": "44444444-4444-4444-8444-444444444444",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "reference_at": "2026-10-26T09:00:00Z",
+    "entries": []
+  },
+  "binding": {
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "attempt_id": "22222222-2222-4222-8222-222222222222",
+    "case_id": "33333333-3333-4333-8333-333333333333",
+    "subject_id": "99999999-9999-4999-8999-999999999999",
+    "entry_service": "applicant",
+    "actor_id": "66666666-6666-4666-8666-666666666666",
+    "snapshot_id": "44444444-4444-4444-8444-444444444444",
+    "reference_at": "2026-10-26T09:00:00Z",
+    "idempotency_key": "88888888-8888-4888-8888-888888888888",
+    "normalized_body_sha256": "34d255b6a7f842e0fa486b2b7fd68084788f943d1a63eb77f7b7b9c2ba5e0436",
+    "effect": "subject_reserve"
+  },
+  "routes": [
+    {"id": "W1", "method": "GET", "path": "/internal/v1/sessions/{session_id}/accepted-attempts/{attempt_id}", "callers": ["applicant", "credential", "university_record"], "query": [], "key": null},
+    {"id": "W2", "method": "POST", "path": "/internal/v1/applicant/cases", "callers": ["session"], "query": [], "key": "attempt_id"},
+    {"id": "W3", "method": "POST", "path": "/internal/v1/credential/cases", "callers": ["session"], "query": [], "key": "attempt_id"},
+    {"id": "W4", "method": "POST", "path": "/internal/v1/university-record/cases", "callers": ["session"], "query": [], "key": "attempt_id"},
+    {"id": "W5", "method": "GET", "path": "/internal/v1/applicant/cases/{case_id}/status", "callers": ["session"], "query": [], "key": null},
+    {"id": "W6", "method": "GET", "path": "/internal/v1/credential/cases/{case_id}/status", "callers": ["session"], "query": [], "key": null},
+    {"id": "W7", "method": "GET", "path": "/internal/v1/university-record/cases/{case_id}/status", "callers": ["session"], "query": [], "key": null},
+    {"id": "W8", "method": "POST", "path": "/internal/v1/university-identities/reservations", "callers": ["applicant", "credential", "university_record"], "query": [], "key": "case_id"},
+    {"id": "W9", "method": "GET", "path": "/internal/v1/university-identities/{subject_id}", "callers": ["applicant", "credential", "university_record"], "query": ["case_id", "session_id", "attempt_id"], "key": null},
+    {"id": "W10", "method": "GET", "path": "/internal/v1/university-snapshots/{snapshot_id}", "callers": ["applicant", "credential", "university_record"], "query": ["session_id", "attempt_id"], "key": null}
+  ],
+  "requests": [
+    {"route": "W1", "caller": "university_record", "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/accepted-attempts/22222222-2222-4222-8222-222222222222", "query": "", "body": "", "key": null},
+    {"route": "W2", "caller": "session", "path": "/internal/v1/applicant/cases", "query": "", "body": "{\"session_id\":\"11111111-1111-4111-8111-111111111111\",\"attempt_id\":\"22222222-2222-4222-8222-222222222222\",\"case_id\":\"33333333-3333-4333-8333-333333333333\",\"scenario\":\"random\"}", "key": "22222222-2222-4222-8222-222222222222"},
+    {"route": "W3", "caller": "session", "path": "/internal/v1/credential/cases", "query": "", "body": "{\"session_id\":\"11111111-1111-4111-8111-111111111111\",\"attempt_id\":\"22222222-2222-4222-8222-222222222222\",\"case_id\":\"33333333-3333-4333-8333-333333333333\",\"scenario\":\"random\"}", "key": "22222222-2222-4222-8222-222222222222"},
+    {"route": "W4", "caller": "session", "path": "/internal/v1/university-record/cases", "query": "", "body": "{\"session_id\":\"11111111-1111-4111-8111-111111111111\",\"attempt_id\":\"22222222-2222-4222-8222-222222222222\",\"case_id\":\"33333333-3333-4333-8333-333333333333\",\"scenario\":\"random\"}", "key": "22222222-2222-4222-8222-222222222222"},
+    {"route": "W5", "caller": "session", "path": "/internal/v1/applicant/cases/33333333-3333-4333-8333-333333333333/status", "query": "", "body": "", "key": null},
+    {"route": "W6", "caller": "session", "path": "/internal/v1/credential/cases/33333333-3333-4333-8333-333333333333/status", "query": "", "body": "", "key": null},
+    {"route": "W7", "caller": "session", "path": "/internal/v1/university-record/cases/33333333-3333-4333-8333-333333333333/status", "query": "", "body": "", "key": null},
+    {"route": "W8", "caller": "applicant", "path": "/internal/v1/university-identities/reservations", "query": "", "body": "{\"session_id\":\"11111111-1111-4111-8111-111111111111\",\"attempt_id\":\"22222222-2222-4222-8222-222222222222\",\"case_id\":\"33333333-3333-4333-8333-333333333333\",\"subject_id\":\"99999999-9999-4999-8999-999999999999\",\"first_name\":\"Eliza\",\"last_name\":\"Caraman\",\"role\":\"staff\",\"university_status\":\"active\",\"major\":null,\"admission_year\":null}", "key": "33333333-3333-4333-8333-333333333333"},
+    {"route": "W9", "caller": "credential", "path": "/internal/v1/university-identities/99999999-9999-4999-8999-999999999999", "query": "case_id=33333333-3333-4333-8333-333333333333&session_id=11111111-1111-4111-8111-111111111111&attempt_id=22222222-2222-4222-8222-222222222222", "body": "", "key": null},
+    {"route": "W10", "caller": "credential", "path": "/internal/v1/university-snapshots/44444444-4444-4444-8444-444444444444", "query": "session_id=11111111-1111-4111-8111-111111111111&attempt_id=22222222-2222-4222-8222-222222222222", "body": "", "key": null}
+  ],
+  "wire_variants": [
+    {"id": "missing-context", "query": "session_id=11111111-1111-4111-8111-111111111111", "expected": "deny"},
+    {"id": "duplicate-context", "query": "session_id=11111111-1111-4111-8111-111111111111&attempt_id=22222222-2222-4222-8222-222222222222&attempt_id=22222222-2222-4222-8222-222222222222", "expected": "deny"},
+    {"id": "unknown-query", "query": "session_id=11111111-1111-4111-8111-111111111111&attempt_id=22222222-2222-4222-8222-222222222222&case_id=33333333-3333-4333-8333-333333333333", "expected": "deny"},
+    {"id": "cross-session", "query": "session_id=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&attempt_id=22222222-2222-4222-8222-222222222222", "expected": "deny"}
+  ],
+  "owner_cases": [
+    "initializer", "subscriber", "expired-actor", "synchronous", "completed-duplicate",
+    "missing-context", "duplicate-context", "unknown-query", "conflicting-context", "cross-session",
+    "wrong-snapshot", "local-snapshot-mismatch", "forged-proof", "wrong-caller-effect", "stale-scope",
+    "dependency-failure", "wrong-key-hash", "missing-binding", "null-session-reservation",
+    "changed-binding", "subscriber-status", "transport-retry"
+  ]
+}

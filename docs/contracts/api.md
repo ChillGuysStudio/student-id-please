@@ -225,7 +225,7 @@ Rules does not subscribe to `CaseInitialized`, fetch generator presets, or recei
 
 ## University Record Service endpoints
 
-The following reservation types define the retained-initialization contract. The documented reservation paths already exist in this contract and in Applicant/Credential clients; current University source does **not** yet implement their controllers or these provenance DTOs. Its `UniversityIdentityDocument` stores identity/allocation fields only. These definitions are implementation requirements, not a claim of deployed behavior.
+The following reservation types define the retained-initialization contract. University reservation, producer, and subscriber receiver repairs are merged, but are not deployed. The [retained HTTP policy](retained-workload.md) defines the remaining snapshot-read and narrow Gateway agreement. Source support and contract agreement do not establish runtime readiness.
 
 ```text
 IdentityReservationInput = {session_id: Id, attempt_id: Id, case_id: Id, subject_id: Id,
@@ -254,7 +254,7 @@ UniversityIdentity = {subject_id: Id, first_name: string, last_name: string,
 | `POST /internal/v1/university-identities/reservations` | Selected initializer workload, verified against Session acceptance | `IdentityReservationInput`; `Idempotency-Key = case_id` | `200 UniversityIdentity`; commits identity and case/attempt provenance atomically, reusing valid reference identities |
 | `GET /internal/v1/university-identities/{subject_id}` | Applicant, Credential, or University Record subscriber workload with retained `case_project` authority | Required query `case_id: Id`, `session_id: Id`, `attempt_id: Id` | `200 UniversityIdentity` with the exact case binding; no allocation or new binding on read |
 | `POST /internal/v1/university-snapshots` | Session | `{session_id: Id, reference_at: Time}` | `201 {snapshot_id: Id, session_id: Id, reference_at: Time}`; copies and validates current reference data in one transaction |
-| `GET /internal/v1/university-snapshots/{snapshot_id}` | Applicant, Credential, University Record, or Session | None | `200 UniversitySnapshot`; full immutable reference data, internal only |
+| `GET /internal/v1/university-snapshots/{snapshot_id}` | Retained Applicant, Credential, or University Record workload; existing actor-bound callers also include Session | Retained mode requires exactly query `session_id: Id`, `attempt_id: Id`; actor-bound mode has no query | `200 UniversitySnapshot`; fresh retained acceptance and actual local snapshot must match before disclosure; full immutable reference data, internal only |
 | `PUT /api/v1/sessions/{session_id}/record-permissions` | Session owner while lobby is open | `{permissions: Permission[]}` | `200 {permissions: Permission[]}`<br>The body replaces all Junior Moderator permissions. |
 | `GET /api/v1/sessions/{session_id}/record-permissions/me` | Participant | None | `200 Permission`<br>The Moderator has no direct record permissions. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/university-records` | Junior Moderator in active shift | Required query `kind: RecordKind` with pagination | `200 Page<UniversityRecord>`<br>An unassigned `kind` returns `403`. |

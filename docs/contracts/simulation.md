@@ -18,16 +18,15 @@ UniversityDataInput = {kind: UniversityDataKind, subject_id: Id | null,
 UniversityData = UniversityDataInput & {reference_id: Id}
 UniversitySnapshot = {snapshot_id: Id, session_id: Id, reference_at: Time,
                       entries: UniversityData[]}
-IdentityReservationInput = {case_id: Id, subject_id: Id, first_name: string, last_name: string,
-                            role: ApplicantRole, university_status: UniversityStatus,
-                            major: string | null, admission_year: Int | null}
-UniversityIdentity = {subject_id: Id, first_name: string, last_name: string,
-                      student_id: string | null, email: string}
 ```
+
+Identity reservation uses the [API types](api.md#university-record-service-endpoints), including required session/attempt context and the returned immutable `initialization_binding`.
 
 For reference data, `kind = course` uses `CourseDefinition`; the per-case `Course` type records the result of looking up a course and that person's registration. `kind = registration` links a subject to a course and uses `UniversityRegistration`. Enrollment, registration, Outlook membership, and FCIM messages require a non-null `subject_id`. Programs, course definitions, academic years, and schedules use `subject_id = null`. Each reference subject has one enrollment or affiliation row. Course and program codes are unique, and each `(subject_id, course_id)` pair has one registration. Snapshot creation validates references and rejects overlapping academic periods. Programs last from 1 to 8 years. Course titles and program names contain 1 to 120 characters.
 
 At shift start, Session creates one immutable university snapshot and pins its ID alongside the rule version. Applicant and Credential fetch that snapshot through internal REST, while University reads its copy. The snapshot supplies reusable university data without copying another service's generated case. Services may cache a snapshot by ID but cannot replace it with current editable data. An outage leaves initialization pending or returns `503` before acceptance. Services do not substitute fallback facts.
+
+The [retained snapshot policy](retained-workload.md#minimal-retained-snapshot-context) requires explicit session/attempt context and fresh Session authority before hidden reads, even when the data is cached. University compares the actual local immutable snapshot with acceptance. A snapshot cache or ID alone grants no access. Existing synchronous actor-bound reads keep their current semantics.
 
 Editing or deleting live reference data affects future snapshots. Services retain existing snapshots for the lifetime of their shifts and cases. A `snapshot_id` identifies a data snapshot. Generator versions use a separate identifier. Event-schema changes follow the existing RabbitMQ `schema_version` contract.
 
