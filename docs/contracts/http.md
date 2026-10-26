@@ -8,6 +8,8 @@ Public gateway paths start with `/api/v1`. Internal paths start with `/internal/
 
 Realtime negotiation uses public gateway REST and returns a direct Discord DMs WebSocket URL. The upgrade and frames bypass the gateway, even though the path starts with `/api/v1`. Database connections also bypass the gateway. See the [request paths and interaction map](../architecture.md).
 
+The [Lab 3 discovery and resilience contract](lab3.md) defines private control-plane endpoints, status fields, replica routing, and caller failure accounting. Its direct registration and probe paths are an explicit exception to business REST routing. Its control mutations use resource and operation identities rather than the business idempotency cache. Existing business authentication and response schemas remain unchanged.
+
 Requests and non-empty responses use `application/json`. Field names use `snake_case`. Services serialize UUIDs in canonical lowercase hyphenated form before comparison or deterministic generation.
 
 | Notation | Meaning |
@@ -74,6 +76,8 @@ The Lab 2 target requires finite task deadlines and concurrent task limits on ev
 An existing case that is not ready returns `409 CASE_NOT_READY` with `Retry-After: 1`. It does not return an empty result that a caller could treat as an absence of facts. A rate-limit response also includes `Retry-After` in seconds. The endpoint tables list success responses. These common errors apply to every relevant endpoint.
 
 Internal reads time out after 2 seconds. A caller can retry a safe read or a command that carries the original idempotency key. It retries at most twice with backoff. When a dependency fails, the caller returns `503` instead of inventing facts or a decision result. Services use the same pagination, timeout, and size limits.
+
+In the Lab 3 target, [bounded calls and failure accounting](lab3.md#bounded-calls-and-failure-accounting) use a default 2-second outbound timeout and a 7-second rolling failure window. No layer automatically replays business writes after a failure or replica change. An explicit command retry still needs its original key and shared durable results. Gateway owns backend failure reports, while service callers account for their own Gateway hop.
 
 Example error response:
 
