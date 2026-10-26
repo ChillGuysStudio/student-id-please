@@ -46,6 +46,7 @@ Rules introduced by updates to this README or the other project documentation ap
 ## Documentation
 
 - [HTTP conventions](docs/contracts/http.md)
+- [Lab 3 discovery and resilience contract](docs/contracts/lab3.md)
 - [Domain types](docs/contracts/domain.md)
 - [Service APIs](docs/contracts/api.md)
 - [Case initialization](docs/contracts/cases.md)
