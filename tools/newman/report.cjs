@@ -7,10 +7,11 @@ const { STATUS_CODES } = require('node:http');
 
 const ROOT = path.resolve(__dirname, '../..');
 const COLLECTION = path.join(ROOT, 'postman/lab2-guided-demo.postman_collection.json');
+const LAB3_COLLECTION = path.join(ROOT, 'postman/lab3-http.postman_collection.json');
 const DEFAULT_OUTPUT = path.join(ROOT, '.local/lab2-postman/newman-htmlextra.html');
 
-function definitions() {
-    const source = JSON.parse(fs.readFileSync(COLLECTION, 'utf8'));
+function definitions(collection = COLLECTION) {
+    const source = JSON.parse(fs.readFileSync(collection, 'utf8'));
     const items = new Map();
     const assertions = new Set();
     function visit(group, folder = 'Requests', inheritedEvents = []) {
@@ -31,9 +32,9 @@ function definitions() {
 
 // Only public collection labels and numerical run metrics reach the reporter.
 // No raw URL, header, body, environment, script, failure message or stack is copied.
-function sanitize(inputs) {
+function sanitize(inputs, collection = COLLECTION) {
     if (!inputs.length) throw new Error('At least one Newman JSON file is required.');
-    const { items, assertions: knownAssertions } = definitions();
+    const { items, assertions: knownAssertions } = definitions(collection);
     const stats = {};
     const folders = new Map();
     const executions = [];
@@ -93,12 +94,16 @@ function sanitize(inputs) {
     const overload = executions.some(e => e.item.name.startsWith('28 '));
     const recovery = executions.some(e => e.item.name.startsWith('29 '));
     const scope = overload && recovery ? 'Includes the recorded overload and recovery requests (28–29).' : 'Does not include a complete overload/recovery demonstration (28–29).';
-    const description = `Saved run started ${date}. ${inputs.length} recorded phase(s), combined without replaying requests. URL placeholders are intentional privacy redactions, not actual targets. ${scope} No Session activation, task-timeout test or direct WebSocket frames are demonstrated by this collection. Report timestamp is the rendering time.`;
+    const lab3 = collection === LAB3_COLLECTION;
+    const description = lab3
+        ? `Saved run started ${date}. Read-only Lab 3 HTTP checks only. URL placeholders are privacy redactions. This report does not prove round-robin, breaker timing, health polling, critical load, direct WebSockets or notification receipt.`
+        : `Saved run started ${date}. ${inputs.length} recorded phase(s), combined without replaying requests. URL placeholders are intentional privacy redactions, not actual targets. ${scope} No Session activation, task-timeout test or direct WebSocket frames are demonstrated by this collection. Report timestamp is the rendering time.`;
     return {
-        collection: { info: { name: 'Lab 2 — Guided Gateway HTTP demo', description }, item: [...folders].map(([name, item]) => ({ name, item })) },
+        collection: { info: { name: lab3 ? 'Lab 3 — Read-only HTTP checks' : 'Lab 2 — Guided Gateway HTTP demo', description }, item: [...folders].map(([name, item]) => ({ name, item })) },
         run: { stats, timings: { started, completed, responseAverage: responseCount ? timeTotal / responseCount : 0 }, transfers: { responseTotal }, executions, failures,
             ...(runError ? { error: { message: 'Run error; private details omitted.' } } : {}) },
-        reportMetadata: { started: date, phases, scope, failed: runError || failures.length > 0 || Object.values(stats).some(s => s.failed > 0) }
+        reportMetadata: { started: date, phases, scope: lab3 ? 'Read-only Lab 3 HTTP checks; no registry mutations or scaling proof.' : scope,
+            failed: runError || failures.length > 0 || Object.values(stats).some(s => s.failed > 0) }
     };
 }
 
@@ -125,8 +130,8 @@ function render(safe, output) {
             item: { id: execution.item.id, name: execution.item.name } })));
     emitter.exports = [];
     new Reporter(emitter, {
-        export: output, title: `Lab 2 — ${safe.run.executions.length} requests · ${safe.reportMetadata.phases.length} saved phase(s)`, titleSize: 4,
-        browserTitle: 'Lab 2 — Newman htmlextra report', skipSensitiveData: true, omitHeaders: true,
+        export: output, title: `${safe.collection.info.name} — ${safe.run.executions.length} requests`, titleSize: 4,
+        browserTitle: `${safe.collection.info.name} — Newman htmlextra report`, skipSensitiveData: true, omitHeaders: true,
         omitRequestBodies: true, omitResponseBodies: true, showEnvironmentData: false, showGlobalData: false,
         logs: false, showFolderDescription: true, timezone: 'UTC'
     }, { newmanVersion: require('newman/package.json').version, reporters: ['htmlextra'] });
@@ -145,7 +150,7 @@ function verifyNoSecrets(inputs, html) {
         for (const scope of [input.environment, input.globals]) {
             for (const entry of scope?.values || []) {
                 const value = entry.value;
-                if (typeof value === 'string' && value.length >= 8 && /password|token|secret|ticket/i.test(entry.key)) {
+                if (typeof value === 'string' && value.length >= 8 && /password|token|secret|ticket|webhook/i.test(entry.key)) {
                     const escaped = value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' }[c]));
                     if (html.includes(value) || html.includes(escaped)) throw new Error('Private environment value detected in report.');
                 }
@@ -156,11 +161,19 @@ function verifyNoSecrets(inputs, html) {
 }
 
 function parseArgs(args) {
-    const options = { inputs: [], output: DEFAULT_OUTPUT, gateway: 'http://127.0.0.1:18080', environment: path.join(ROOT, 'postman/lab2-guided-demo.postman_environment.json'), overload: false };
+    const options = { inputs: [], output: DEFAULT_OUTPUT, gateway: 'http://127.0.0.1:18080', environment: path.join(ROOT, 'postman/lab2-guided-demo.postman_environment.json'), overload: false, lab3: null };
     for (let i = 0; i < args.length; i++) {
         const flag = args[i];
         if (flag === '--help' || flag === '-h') { options.help = true; continue; }
         if (flag === '--with-overload') { options.overload = true; continue; }
+        if (flag === '--lab3-safe' || flag === '--lab3-private') {
+            if (options.lab3) throw new Error('Choose one Lab 3 folder.');
+            options.lab3 = flag === '--lab3-safe' ? 'Safe public smoke' : 'Private operator reads';
+            options.environment = path.join(ROOT, 'postman/lab3-http.postman_environment.json');
+            options.output = path.join(ROOT, '.local/lab3-postman/newman-htmlextra.html');
+            if (options.lab3 === 'Safe public smoke') options.gateway = 'http://127.0.0.1:8080';
+            continue;
+        }
         if (!['--from-json', '--output', '--gateway-url', '--environment'].includes(flag)) throw new Error(`Unknown option: ${flag}`);
         const value = args[++i];
         if (!value || value.startsWith('--')) throw new Error(`Missing value for ${flag}`);
@@ -169,11 +182,13 @@ function parseArgs(args) {
     }
     if (!options.output.endsWith('.html')) throw new Error('--output must end in .html');
     if (options.inputs.length && options.overload) throw new Error('--with-overload cannot be combined with --from-json');
+    if (options.lab3 && options.overload) throw new Error('Lab 3 read-only folders cannot run with overload.');
+    if (options.lab3 && options.inputs.length) throw new Error('Lab 3 folders cannot be combined with --from-json.');
     return options;
 }
 
 function help() {
-    console.log(`Usage: scripts/run_lab2_newman.sh [options]\n\nDefault: run requests 01–27 through the public Gateway and generate an htmlextra HTML report.\nThis creates disposable players, friendships, a team, a lobby and record permissions.\n\n  --from-json FILE     Render an existing Newman JSON without making requests; repeat for phases\n  --with-overload      Also run 28 under the 100-slot helper, then 29 after recovery\n                      Requires the helper's localhost Gateway at http://127.0.0.1:18080\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:18080)\n  --environment FILE   Postman environment (default: blank guided-demo environment)\n  --output FILE.html   Report path (default: .local/lab2-postman/newman-htmlextra.html)\n  --help              Show this help\n\nPrivate raw results/environments stay under ignored .local/lab2-postman/.\nReports redact URLs, all bodies/headers, environments, logs and raw diagnostics.\nSession activation and direct WebSocket frames are not tested.`);
+    console.log(`Usage: scripts/run_lab2_newman.sh [options]\n\nDefault: run Lab 2 requests 01–27; these create disposable service data.\n  --lab3-safe         Read-only public Gateway smoke at 127.0.0.1:8080\n  --lab3-private      Read-only Discovery operator checks; supply a private environment\n  --from-json FILE     Render a saved Lab 2 Newman JSON without sending requests\n  --with-overload      Lab 2 helper at 127.0.0.1:18080, then recovery\n  --gateway-url URL    Public Gateway (Lab 2 default: http://127.0.0.1:18080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. Lab 3 folders do not mutate registry state or prove scaled routing.`);
 }
 
 async function executePhase(collection, environment) {
@@ -186,11 +201,11 @@ async function executePhase(collection, environment) {
 async function runLive(options) {
     const { spawn } = require('node:child_process');
     const { once } = require('node:events');
-    const { source } = definitions();
+    const { source } = definitions(options.lab3 ? LAB3_COLLECTION : COLLECTION);
     const gateway = new URL(options.gateway);
     if (!['http:', 'https:'].includes(gateway.protocol) || gateway.username || gateway.password || gateway.search || gateway.hash) throw new Error('Use an HTTP(S) public Gateway URL without credentials, query or fragment.');
     if (options.overload && options.gateway !== 'http://127.0.0.1:18080') throw new Error('--with-overload requires http://127.0.0.1:18080; the existing helper has a fixed local target.');
-    const privateRoot = path.join(ROOT, '.local/lab2-postman');
+    const privateRoot = path.join(ROOT, options.lab3 ? '.local/lab3-postman' : '.local/lab2-postman');
     fs.mkdirSync(privateRoot, { recursive: true, mode: 0o700 });
     const directory = fs.mkdtempSync(path.join(privateRoot, 'run-'));
     let environment = JSON.parse(fs.readFileSync(options.environment, 'utf8'));
@@ -208,7 +223,12 @@ async function runLive(options) {
         console.log(`${label}: ${stat.requests.total} requests, ${stat.assertions.total - stat.assertions.failed}/${stat.assertions.total} assertions passed`);
         return !raw.run.error && !raw.run.failures.length && !Object.values(stat).some(value => value.failed > 0);
     }
-    const first = { ...source, item: source.item.slice(0, 3) };
+    const first = options.lab3 ? { ...source, item: source.item.filter(folder => folder.name === options.lab3) } : { ...source, item: source.item.slice(0, 3) };
+    if (options.lab3 === 'Private operator reads') {
+        const values = Object.fromEntries(environment.values.filter(entry => entry.enabled !== false).map(entry => [entry.key, entry.value]));
+        if (values.control_name !== 'operator' || !values.control_token || values.control_token === 'REPLACE_IN_PRIVATE_COPY' || !values.discovery_url) throw new Error('Private operator checks require a private environment with a Discovery URL and operator credential.');
+    }
+    if (options.lab3) { await execute(first, 'lab3-read-only'); return results; }
     if (!await execute(first, '01-27') || !options.overload) return results;
     const step = number => ({ ...source, item: [{ ...source.item[3], item: source.item[3].item.filter(item => item.name.startsWith(`${number} `)) }] });
     const helper = spawn('python3', [path.join(ROOT, 'postman/lab2-overload.py'), '--hold-seconds', '7'], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -244,7 +264,7 @@ async function main() {
     let inputs;
     if (options.inputs.length) inputs = options.inputs.map(file => JSON.parse(fs.readFileSync(file, 'utf8')));
     else inputs = await runLive(options);
-    const safe = sanitize(inputs);
+    const safe = sanitize(inputs, options.lab3 ? LAB3_COLLECTION : COLLECTION);
     let html;
     try { html = render(safe, options.output); verifyNoSecrets(inputs, html); }
     catch (error) { fs.rmSync(options.output, { force: true }); throw error; }
