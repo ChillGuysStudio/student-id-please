@@ -1,0 +1,56 @@
+{
+  "description": "Synthetic decision-result contract examples. Not signed tokens, an authorization implementation, a durable cache, or runtime evidence.",
+  "base_fixture": "decision-readiness-v1/fixtures.json",
+  "request_origin": "moderation_decision_ingress",
+  "context_only_delegation": {
+    "typ": "gateway-delegation+jwt",
+    "v": 1,
+    "iss": "student-id-gateway",
+    "aud": "student-id-gateway",
+    "azp": "moderation",
+    "sub": "66666666-6666-4666-8666-666666666666",
+    "actor_jti": "synthetic-moderator-token-id",
+    "actor_exp": 1793009700,
+    "is_admin": false,
+    "iat": 1793008800,
+    "exp": 1793008830,
+    "scopes": [
+      {
+        "target": "session",
+        "method": "GET",
+        "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/context",
+        "exact_path": true,
+        "query": "player_id=66666666-6666-4666-8666-666666666666"
+      }
+    ]
+  },
+  "owner_lookup": {
+    "owner": "moderation",
+    "match_fields": ["caller", "key", "endpoint", "request_fingerprint"],
+    "gateway_knows_result_exists": false,
+    "new_key_on_retry": false,
+    "maximum_policy_requests_on_result_lookup": 0,
+    "maximum_new_decision_rows": 0,
+    "maximum_new_outbox_rows": 0
+  },
+  "result_examples": [
+    {"id": "scored-current-cleared", "session_status": "active", "current_case": "none", "stored_result": "match", "same_key": true, "same_body": true, "owner_http": 201},
+    {"id": "later-case-current", "session_status": "active", "current_case": "different", "stored_result": "match", "same_key": true, "same_body": true, "owner_http": 201},
+    {"id": "ended-matching-result", "session_status": "ended", "current_case": "none", "stored_result": "match", "same_key": true, "same_body": true, "owner_http": 201}
+  ],
+  "denials": [
+    {"id": "changed-body", "stage": "owner", "stored_result": "fingerprint_mismatch", "same_key": true, "same_body": false, "http": 409},
+    {"id": "noncurrent-new-key", "stage": "owner", "stored_result": "missing", "session_status": "active", "current_case": "different", "same_key": false, "http": 409},
+    {"id": "lobby-new-key", "stage": "owner", "stored_result": "missing", "session_status": "lobby", "same_key": false, "http": 403},
+    {"id": "ending-new-key", "stage": "owner", "stored_result": "missing", "session_status": "ending", "same_key": false, "http": 403},
+    {"id": "ended-new-key", "stage": "owner", "stored_result": "missing", "session_status": "ended", "same_key": false, "http": 403},
+    {"id": "wrong-actor", "stage": "gateway_ingress", "http": 403},
+    {"id": "expired-player", "stage": "gateway_ingress", "http": 401},
+    {"id": "expired-context-grant", "stage": "gateway_exchange", "http": 401},
+    {"id": "cross-session-context", "stage": "gateway_exchange", "http": 403},
+    {"id": "context-to-readiness-escalation", "stage": "gateway_exchange", "http": 403},
+    {"id": "context-to-policy-escalation", "stage": "gateway_exchange", "http": 403},
+    {"id": "context-to-evidence-escalation", "stage": "gateway_exchange", "http": 403},
+    {"id": "context-to-snapshot-escalation", "stage": "gateway_exchange", "http": 403}
+  ]
+}

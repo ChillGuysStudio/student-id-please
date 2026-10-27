@@ -35,13 +35,23 @@ Grant issuance at Gateway and fresh business checks at receivers are distinct st
 
 ### Public Moderation decision ingress
 
-When a player calls `POST /api/v1/sessions/{session_id}/decisions` on the public Gateway listener with `{case_id, action, reason}` and a canonical UUID `Idempotency-Key`, Gateway verifies the Player bearer token and checks fresh Session authority for the active shift, assigned Moderator role, and current case. Gateway then issues a `gateway-delegation+jwt` bound to `azp = moderation`.
+When a player calls `POST /api/v1/sessions/{session_id}/decisions` on the public Gateway listener with `{case_id, action, reason}` and a canonical UUID `Idempotency-Key`, Gateway verifies the Player bearer token, current Session participation, and assigned Moderator role. Administrator privilege and Session ownership do not replace that role. Gateway issues fresh decision dependencies only when the shift is active and this case is current. Otherwise it uses the context-only boundary below.
 
 That delegation derives its Session and evidence scopes from the accepted path `session_id` and decision body `case_id`:
 
 1. Exact Session context read: `target = session`, `method = GET`, `path = /internal/v1/sessions/{session_id}/context`, `exact_path = true`, and `query = "player_id={sub}"`.
 2. Exact Session readiness read: `target = session`, `method = GET`, `path = /api/v1/sessions/{session_id}/cases/{case_id}/status`, `exact_path = true`, and `query = ""`.
 3. Existing Moderation evidence reads for `applicant`, `credential`, and `university-record` pinned to the same `case_id` and `session_id`, plus `POST /internal/v1/policy/evaluations` on `target = rules` with `exact_path = true` and `query = ""`.
+
+### Completed results without fresh case authority
+
+This boundary preserves [business idempotency](http.md#idempotency) after scoring clears the current case, a later case starts, or the shift ends. It does not authorize another decision. The request shape, bearer verification, assigned Moderator role, and exact path and body pins remain mandatory.
+
+If the Session is not active or the requested case is not current, Gateway forwards the decision POST to Moderation with only the exact `R1` context scope for this Session and actor. The delegation has `azp = moderation`, the same verified actor, and the existing bounded lifetime. It contains no `R2`, evidence, Rules evaluation, snapshot, initialization, event, prefix, or wildcard scope. A context-only delegation cannot be narrowed into any of those permissions.
+
+Gateway does not know whether the request matches a committed decision. It neither queries Moderation's idempotency store nor caches a result. Moderation independently reads current Session context and verifies the actor's assigned Moderator role. It may then return its durable result only when the caller, original key, endpoint, and request fingerprint match. A changed body under the same key returns `409`. A new key or missing result cannot bypass the receiver's active-shift and current-case checks, call evidence or policy dependencies, or commit a decision or outbox row.
+
+The context read remains available for this narrow result lookup in `lobby`, `ending`, or `ended` state and after the current case changes. Those states still authorize no new decision readiness or evaluation. Wrong actors, expired credentials, malformed requests, and cross-session grants remain denied. No new proof type, header, replay flag, or compatibility mode is introduced. The [synthetic result fixtures](decision-replay-v1/fixtures.json) describe this boundary without claiming production persistence or runtime delivery.
 
 ### Moderation-to-Rules policy hop narrowing
 
@@ -58,7 +68,7 @@ Every scope in both delegations requires `exact_path = true` and an explicit `qu
 
 ## Independent receiver and Session checks
 
-Possession of a valid delegation or request assertion does not replace receiver business checks. Both `moderation` and `rules` call `R1` and `R2` through the internal Gateway listener before evaluating a case.
+Possession of a valid delegation or request assertion does not replace receiver business checks. Both `moderation` and `rules` call `R1` and `R2` through the internal Gateway listener before evaluating a new case decision. Returning a matching committed result uses only the context read and durable lookup described above. It never evaluates the case again.
 
 From the fresh `R1` `SessionContext` response, the caller verifies all of the following conditions:
 
