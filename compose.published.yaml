@@ -1,0 +1,20 @@
+# Image selection only. This does not configure Lab 3 registration or secrets.
+services:
+  gateway:
+    image: maxnoragami/gateway-service@sha256:4e71221c4cb1ba5541df2b1fda513e6a71e14e66969517dde817b9335090eb05
+  player:
+    image: tirppy/student-id-player-service@sha256:eedfb11d66a3c32bdb712f5436edcbd7c22f665ab27544563158426cf7bd9c11
+  session:
+    image: tirppy/student-id-session-service@sha256:1d6b696c051301e4debcabe4cb0c0e5661a7a158bf093371581d718ded5ad904
+  moderation:
+    image: sentientmoss/pad-moderation-service@sha256:02397ef574b136ceee3344267508b38843160b09db749dcc1dc3d31195dc8bd4
+  moderation-publisher:
+    image: sentientmoss/pad-moderation-service@sha256:02397ef574b136ceee3344267508b38843160b09db749dcc1dc3d31195dc8bd4
+  applicant:
+    image: mcittkmims/applicant-service@sha256:0b8969e92aa1aa2d7ca0dff5bb6456f6046b6ae2f9cc7c602e2c336903639d27
+  credential:
+    image: mcittkmims/credential-service@sha256:b8d5c9e54fd1723adb5df29bca42d3fb12193ab0054c469a506a43109c40c5e5
+  server-rules:
+    image: maxnoragami/server-rules-service@sha256:f886214982f9fd0724b3d032614b35d356fc91251274e1a1ac96be9519e41571
+  university-record:
+    image: maxnoragami/university-record-service@sha256:3684c1c9b8af686f7d7b833e406a67ff0319e2125fd3c386b2d05ed8da618b84
