@@ -1,0 +1,570 @@
+{
+  "description": "Synthetic contract examples for actor-bound decision readiness, not signed tokens, active Gateway routes, or runtime authorization results.",
+  "actor": {
+    "sub": "66666666-6666-4666-8666-666666666666",
+    "actor_jti": "synthetic-moderator-token-id",
+    "actor_exp": 1793009700,
+    "is_admin": false
+  },
+  "session_context": {
+    "session": {
+      "session_id": "11111111-1111-4111-8111-111111111111",
+      "team_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "owner_id": "55555555-5555-4555-8555-555555555555",
+      "status": "active",
+      "participants": [
+        {"player_id": "66666666-6666-4666-8666-666666666666", "role": "moderator"},
+        {"player_id": "55555555-5555-4555-8555-555555555555", "role": "junior_moderator"},
+        {"player_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "role": "junior_moderator"}
+      ],
+      "rule_version": "77777777-7777-4777-8777-777777777777",
+      "started_at": "2026-10-26T09:00:00Z",
+      "university_snapshot_id": "44444444-4444-4444-8444-444444444444",
+      "current_case_id": "33333333-3333-4333-8333-333333333333",
+      "processed_count": 0,
+      "score": 0,
+      "penalties": 0
+    },
+    "player": {
+      "player_id": "66666666-6666-4666-8666-666666666666",
+      "role": "moderator"
+    }
+  },
+  "routes": [
+    {
+      "id": "R1",
+      "method": "GET",
+      "path": "/internal/v1/sessions/{session_id}/context",
+      "callers": ["moderation", "rules"],
+      "target": "session",
+      "audience": "student-id-session-service",
+      "profile": "gateway-request+jwt",
+      "query": ["player_id"],
+      "key": null
+    },
+    {
+      "id": "R2",
+      "method": "GET",
+      "path": "/api/v1/sessions/{session_id}/cases/{case_id}/status",
+      "callers": ["moderation", "rules"],
+      "target": "session",
+      "audience": "student-id-session-service",
+      "profile": "gateway-request+jwt",
+      "query": [],
+      "key": null
+    }
+  ],
+  "grant_origins": {
+    "moderation_decision_ingress": {
+      "listener": "public",
+      "method": "POST",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/decisions",
+      "query": "",
+      "key": "88888888-8888-4888-8888-888888888888",
+      "body": "{\"case_id\":\"33333333-3333-4333-8333-333333333333\",\"action\":\"accept\",\"reason\":\"Verified enrollment and credentials.\"}",
+      "body_sha256": "b93cbf2d7622540bad54aee9817648d68c57252a074bd54de9602e8980d0a90b",
+      "idempotency_sha256": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+      "delegation": {
+        "typ": "gateway-delegation+jwt",
+        "v": 1,
+        "iss": "student-id-gateway",
+        "aud": "student-id-gateway",
+        "azp": "moderation",
+        "sub": "66666666-6666-4666-8666-666666666666",
+        "actor_jti": "synthetic-moderator-token-id",
+        "actor_exp": 1793009700,
+        "is_admin": false,
+        "iat": 1793008800,
+        "exp": 1793008830,
+        "scopes": [
+          {
+            "target": "session",
+            "method": "GET",
+            "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/context",
+            "exact_path": true,
+            "query": "player_id=66666666-6666-4666-8666-666666666666"
+          },
+          {
+            "target": "session",
+            "method": "GET",
+            "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+            "exact_path": true,
+            "query": ""
+          },
+          {
+            "target": "applicant",
+            "method": "GET",
+            "path": "/internal/v1/applicants/33333333-3333-4333-8333-333333333333",
+            "exact_path": true,
+            "query": "session_id=11111111-1111-4111-8111-111111111111"
+          },
+          {
+            "target": "credential",
+            "method": "GET",
+            "path": "/internal/v1/cases/33333333-3333-4333-8333-333333333333/credential-results",
+            "exact_path": true,
+            "query": "session_id=11111111-1111-4111-8111-111111111111"
+          },
+          {
+            "target": "university-record",
+            "method": "GET",
+            "path": "/internal/v1/cases/33333333-3333-4333-8333-333333333333/university-records",
+            "exact_path": true,
+            "query": "session_id=11111111-1111-4111-8111-111111111111"
+          },
+          {
+            "target": "rules",
+            "method": "POST",
+            "path": "/internal/v1/policy/evaluations",
+            "exact_path": true,
+            "query": ""
+          }
+        ]
+      }
+    },
+    "rules_policy_hop": {
+      "listener": "internal",
+      "caller": "moderation",
+      "method": "POST",
+      "path": "/internal/v1/policy/evaluations",
+      "query": "",
+      "key": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "body": "{\"session_id\":\"11111111-1111-4111-8111-111111111111\",\"case_id\":\"33333333-3333-4333-8333-333333333333\",\"rule_version\":\"77777777-7777-4777-8777-777777777777\",\"claims\":{\"first_name\":\"Eliza\",\"last_name\":\"Caraman\",\"student_id\":null,\"major\":null,\"year\":null,\"university_status\":\"active\",\"courses\":[],\"role\":\"staff\",\"email\":\"eliza.caraman@fcim.utm.md\"},\"subject_id\":\"99999999-9999-4999-8999-999999999999\",\"reference_at\":\"2026-10-26T09:00:00Z\",\"credentials\":[],\"validations\":[],\"university_records\":[],\"active_bans\":[],\"prior_decisions\":[]}",
+      "body_sha256": "2191b27d7444f6de34ef7d8bd28405fc8e98567bd181e0372ffcb3614e4c540c",
+      "idempotency_sha256": "50d86b120e98f07660afbbced8b9bcc875f8747ec369c205aaab35bb8d169849",
+      "delegation": {
+        "typ": "gateway-delegation+jwt",
+        "v": 1,
+        "iss": "student-id-gateway",
+        "aud": "student-id-gateway",
+        "azp": "rules",
+        "sub": "66666666-6666-4666-8666-666666666666",
+        "actor_jti": "synthetic-moderator-token-id",
+        "actor_exp": 1793009700,
+        "is_admin": false,
+        "iat": 1793008805,
+        "exp": 1793008830,
+        "scopes": [
+          {
+            "target": "session",
+            "method": "GET",
+            "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/context",
+            "exact_path": true,
+            "query": "player_id=66666666-6666-4666-8666-666666666666"
+          },
+          {
+            "target": "session",
+            "method": "GET",
+            "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+            "exact_path": true,
+            "query": ""
+          }
+        ]
+      }
+    }
+  },
+  "requests": [
+    {
+      "id": "moderation-context",
+      "route": "R1",
+      "caller": "moderation",
+      "origin": "moderation_decision_ingress",
+      "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/context",
+      "query": "player_id=66666666-6666-4666-8666-666666666666",
+      "body": "",
+      "key": null,
+      "assertion": {
+        "typ": "gateway-request+jwt",
+        "v": 1,
+        "iss": "student-id-gateway",
+        "aud": "student-id-session-service",
+        "azp": "moderation",
+        "sub": "66666666-6666-4666-8666-666666666666",
+        "actor_jti": "synthetic-moderator-token-id",
+        "actor_exp": 1793009700,
+        "is_admin": false,
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "method": "GET",
+        "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/context",
+        "query_sha256": "c882ac0d8dee07d490bd5e53177969cc40133634d486deaf3482a29972afa2e3",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "idempotency_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "id": "moderation-readiness",
+      "route": "R2",
+      "caller": "moderation",
+      "origin": "moderation_decision_ingress",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+      "query": "",
+      "body": "",
+      "key": null,
+      "assertion": {
+        "typ": "gateway-request+jwt",
+        "v": 1,
+        "iss": "student-id-gateway",
+        "aud": "student-id-session-service",
+        "azp": "moderation",
+        "sub": "66666666-6666-4666-8666-666666666666",
+        "actor_jti": "synthetic-moderator-token-id",
+        "actor_exp": 1793009700,
+        "is_admin": false,
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "method": "GET",
+        "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+        "query_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "idempotency_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "id": "rules-context",
+      "route": "R1",
+      "caller": "rules",
+      "origin": "rules_policy_hop",
+      "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/context",
+      "query": "player_id=66666666-6666-4666-8666-666666666666",
+      "body": "",
+      "key": null,
+      "assertion": {
+        "typ": "gateway-request+jwt",
+        "v": 1,
+        "iss": "student-id-gateway",
+        "aud": "student-id-session-service",
+        "azp": "rules",
+        "sub": "66666666-6666-4666-8666-666666666666",
+        "actor_jti": "synthetic-moderator-token-id",
+        "actor_exp": 1793009700,
+        "is_admin": false,
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "method": "GET",
+        "path": "/internal/v1/sessions/11111111-1111-4111-8111-111111111111/context",
+        "query_sha256": "c882ac0d8dee07d490bd5e53177969cc40133634d486deaf3482a29972afa2e3",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "idempotency_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "id": "rules-readiness",
+      "route": "R2",
+      "caller": "rules",
+      "origin": "rules_policy_hop",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+      "query": "",
+      "body": "",
+      "key": null,
+      "assertion": {
+        "typ": "gateway-request+jwt",
+        "v": 1,
+        "iss": "student-id-gateway",
+        "aud": "student-id-session-service",
+        "azp": "rules",
+        "sub": "66666666-6666-4666-8666-666666666666",
+        "actor_jti": "synthetic-moderator-token-id",
+        "actor_exp": 1793009700,
+        "is_admin": false,
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "method": "GET",
+        "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+        "query_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "idempotency_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "session_workload_polls": [
+    {"id": "W5", "caller": "session", "profile": "gateway-workload+jwt", "method": "GET", "path": "/internal/v1/applicant/cases/33333333-3333-4333-8333-333333333333/status", "query": "", "body": "", "key": null},
+    {"id": "W6", "caller": "session", "profile": "gateway-workload+jwt", "method": "GET", "path": "/internal/v1/credential/cases/33333333-3333-4333-8333-333333333333/status", "query": "", "body": "", "key": null},
+    {"id": "W7", "caller": "session", "profile": "gateway-workload+jwt", "method": "GET", "path": "/internal/v1/university-record/cases/33333333-3333-4333-8333-333333333333/status", "query": "", "body": "", "key": null}
+  ],
+  "status_responses": {
+    "ready": {
+      "http_status": 200,
+      "body": {
+        "case_id": "33333333-3333-4333-8333-333333333333",
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "state": "ready",
+        "ready_services": ["applicant", "credential", "university_record"]
+      },
+      "expected_caller_outcome": "allow_evaluation"
+    },
+    "pending_partial": {
+      "http_status": 200,
+      "body": {
+        "case_id": "33333333-3333-4333-8333-333333333333",
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "state": "pending",
+        "ready_services": ["applicant", "university_record"]
+      },
+      "expected_caller_outcome": "deny_case_not_ready",
+      "caller_error_status": 409,
+      "caller_error_code": "CASE_NOT_READY"
+    },
+    "ready_missing_owner": {
+      "http_status": 200,
+      "body": {
+        "case_id": "33333333-3333-4333-8333-333333333333",
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "state": "ready",
+        "ready_services": ["applicant", "credential"]
+      },
+      "expected_caller_outcome": "deny_malformed_status",
+      "caller_error_status": 503
+    },
+    "mismatched_case_pin": {
+      "http_status": 200,
+      "body": {
+        "case_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        "session_id": "11111111-1111-4111-8111-111111111111",
+        "state": "ready",
+        "ready_services": ["applicant", "credential", "university_record"]
+      },
+      "expected_caller_outcome": "deny_malformed_status",
+      "caller_error_status": 503
+    },
+    "upstream_unavailable": {
+      "http_status": 503,
+      "body": {
+        "code": "DEPENDENCY_UNAVAILABLE",
+        "message": "Session status dependency is unavailable.",
+        "request_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        "details": []
+      },
+      "expected_caller_outcome": "deny_dependency_unavailable",
+      "caller_error_status": 503
+    }
+  },
+  "negative_cases": [
+    {
+      "id": "wrong-caller",
+      "category": "caller",
+      "caller": "applicant",
+      "route": "R2",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+      "query": "",
+      "body": "",
+      "key": null,
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "missing-proof",
+      "category": "proof",
+      "caller": "moderation",
+      "route": "R2",
+      "delegation": null,
+      "assertion_profile": null,
+      "expected": "deny",
+      "status": 401
+    },
+    {
+      "id": "expired-proof",
+      "category": "proof",
+      "caller": "rules",
+      "route": "R2",
+      "now": 1793008831,
+      "delegation_exp": 1793008830,
+      "actor_exp": 1793009700,
+      "expected": "deny",
+      "status": 401
+    },
+    {
+      "id": "mixed-proof",
+      "category": "proof",
+      "caller": "moderation",
+      "route": "R2",
+      "headers": ["X-Gateway-Delegation", "X-Gateway-Chat-Capability", "Authorization"],
+      "assertion_profile": "gateway-workload+jwt",
+      "expected": "deny",
+      "status": 401
+    },
+    {
+      "id": "wrong-actor",
+      "category": "authority",
+      "caller": "moderation",
+      "route": "R2",
+      "sub": "55555555-5555-4555-8555-555555555555",
+      "role": "junior_moderator",
+      "is_owner": true,
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "wrong-session",
+      "category": "scope",
+      "caller": "rules",
+      "route": "R2",
+      "path": "/api/v1/sessions/ffffffff-ffff-4fff-8fff-ffffffffffff/cases/33333333-3333-4333-8333-333333333333/status",
+      "query": "",
+      "body": "",
+      "key": null,
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "wrong-case",
+      "category": "scope",
+      "caller": "moderation",
+      "route": "R2",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/dddddddd-dddd-4ddd-8ddd-dddddddddddd/status",
+      "query": "",
+      "body": "",
+      "key": null,
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "noncurrent-case",
+      "category": "lifecycle",
+      "caller": "moderation",
+      "route": "R2",
+      "session_status": "active",
+      "current_case_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "requested_case_id": "33333333-3333-4333-8333-333333333333",
+      "expected": "deny",
+      "status": 409
+    },
+    {
+      "id": "lobby-session",
+      "category": "lifecycle",
+      "caller": "moderation",
+      "route": "R2",
+      "session_status": "lobby",
+      "current_case_id": null,
+      "expected": "deny",
+      "status": 409
+    },
+    {
+      "id": "ended-session",
+      "category": "lifecycle",
+      "caller": "rules",
+      "route": "R2",
+      "session_status": "ended",
+      "current_case_id": null,
+      "expected": "deny",
+      "status": 409
+    },
+    {
+      "id": "extra-query",
+      "category": "wire",
+      "caller": "moderation",
+      "route": "R2",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+      "query": "session_id=11111111-1111-4111-8111-111111111111",
+      "body": "",
+      "key": null,
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "extra-body",
+      "category": "wire",
+      "caller": "rules",
+      "route": "R2",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+      "query": "",
+      "body": "{}",
+      "key": null,
+      "expected": "deny",
+      "status": 400
+    },
+    {
+      "id": "extra-key",
+      "category": "wire",
+      "caller": "moderation",
+      "route": "R2",
+      "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases/33333333-3333-4333-8333-333333333333/status",
+      "query": "",
+      "body": "",
+      "key": "88888888-8888-4888-8888-888888888888",
+      "expected": "deny",
+      "status": 400
+    },
+    {
+      "id": "scope-prefix",
+      "category": "grant-scope",
+      "caller": "moderation",
+      "scope": {
+        "target": "session",
+        "method": "GET",
+        "path": "/api/v1/sessions/11111111-1111-4111-8111-111111111111/cases",
+        "exact_path": false,
+        "query": ""
+      },
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "scope-wildcard",
+      "category": "grant-scope",
+      "caller": "rules",
+      "scope": {
+        "target": "session",
+        "method": "GET",
+        "path": "/api/v1/sessions/*/cases/*/status",
+        "exact_path": true
+      },
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "callback-rescope",
+      "category": "grant-scope",
+      "caller": "rules",
+      "parent_case_id": "33333333-3333-4333-8333-333333333333",
+      "callback_case_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "expected": "deny",
+      "status": 403
+    },
+    {
+      "id": "pending-status",
+      "category": "readiness",
+      "caller": "moderation",
+      "status_fixture": "pending_partial",
+      "expected": "deny",
+      "status": 409
+    },
+    {
+      "id": "malformed-status",
+      "category": "readiness",
+      "caller": "rules",
+      "status_fixture": "ready_missing_owner",
+      "expected": "deny",
+      "status": 503
+    },
+    {
+      "id": "unavailable-status",
+      "category": "readiness",
+      "caller": "moderation",
+      "status_fixture": "upstream_unavailable",
+      "expected": "deny",
+      "status": 503
+    }
+  ],
+  "owner_cases": [
+    "moderation-readiness",
+    "rules-readiness",
+    "non-owner-moderator",
+    "session-owner-polls-separate",
+    "wrong-caller",
+    "missing-proof",
+    "expired-proof",
+    "mixed-proof",
+    "wrong-actor",
+    "wrong-session",
+    "wrong-case",
+    "noncurrent-case",
+    "lobby-session",
+    "ended-session",
+    "extra-query",
+    "extra-body",
+    "extra-key",
+    "scope-prefix",
+    "scope-wildcard",
+    "callback-rescope",
+    "pending-status",
+    "malformed-status",
+    "unavailable-status"
+  ]
+}

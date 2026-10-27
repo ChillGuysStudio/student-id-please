@@ -41,7 +41,7 @@ Player-facing responses never contain hidden generation data or another player's
 
 ### Retained workload requests
 
-The [retained initialization HTTP policy](retained-workload.md) defines exact internal workload requests for initialization, local status, identity reservation, and snapshot reads. Gateway's workload assertion proves the named caller and exact request bytes, not player authority. Receivers independently read fresh Session acceptance. A retained snapshot read requires explicit `session_id` and `attempt_id` query parameters and a matching local immutable snapshot. The existing empty-query actor-bound snapshot read remains separate. Invalid actor proof never falls back to workload access. Contract agreement alone does not enable a route.
+The [retained initialization HTTP policy](retained-workload.md) defines exact internal workload requests for initialization, local status, identity reservation, and snapshot reads. Gateway's workload assertion proves the named caller and exact request bytes, not player authority. Receivers independently read fresh Session acceptance. A retained snapshot read requires explicit `session_id` and `attempt_id` query parameters and a matching local immutable snapshot. The existing empty-query actor-bound snapshot read remains separate. Invalid actor proof never falls back to workload access. The [decision readiness HTTP policy](decision-readiness.md) defines the separate actor-bound aggregate case-status read for Moderation and Server Rules. Contract agreement alone does not enable a route.
 
 ### Legacy direct mode
 
