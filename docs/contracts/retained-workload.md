@@ -31,7 +31,7 @@ Query-bearing requests have exactly the listed parameters, each once. Parameter 
 
 `CaseStart` has exactly `session_id`, `attempt_id`, `case_id`, and `scenario = random`. It has no seed, subject, actor, snapshot, or reference-time override. Session supplies its already-pinned attempt and case. `IdentityReservationInput` has exactly the ten fields in the API definition. Its nullable fields remain present, and the simulation identity constraints still apply. Gateway checks shape and key equality. Receivers check values and business authority, not just possession of a Gateway assertion.
 
-No row authorizes a wildcard method, path prefix, initializer switch, event alias, snapshot creation, public case-status call, or unrelated evidence read. In particular, Moderation's internal call to `/api/v1/sessions/{session_id}/cases/{case_id}/status` still needs a separate actor-bound policy. It is not a Session workload poll.
+No row authorizes a wildcard method, path prefix, initializer switch, event alias, snapshot creation, public case-status call, or unrelated evidence read. In particular, Moderation's internal call to `/api/v1/sessions/{session_id}/cases/{case_id}/status` still needs a [separate actor-bound policy](decision-readiness.md). It is not a Session workload poll.
 
 ## Proof on both hops
 
