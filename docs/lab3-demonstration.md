@@ -116,16 +116,18 @@ This procedure is for a prepared, trusted operator laptop. A clean git clone wit
 
 1. Exact published sources and native multi-architecture images are already present on the machine.
 2. Stable UUID slot identifiers (`INSTANCE_ID`) and replica network origins are already configured.
-   `compose.yaml` declares slot 2 of each domain service as `<service>-slot-2`. It reuses the slot 1 image and settings, and `compose.published.yaml` pins both slots to the same digest. Set these keys in `.env` for slot 2. `.env.example` lists them.
+   `compose.yaml` runs Discovery, the Gateway, and two replicas of each domain service. Slot 1 keeps the service name, such as `applicant`, and adds the alias `applicant-slot-1`. Slot 2 is the service `applicant-slot-2` with the alias of the same name. Each replica registers `INSTANCE_HTTP_URL` as `http://<service>-slot-<n>:<port>`. Pass `-f compose.yaml -f compose.published.yaml` to run the pinned images.
 
-   - `<SERVICE>_SLOT2_INSTANCE_ID`: a UUID that no other live replica uses.
-   - `<SERVICE>_SLOT2_CONTROL_TOKEN`: the slot's outgoing control-plane credential.
-   - `CONTROL_PLANE_TOKENS`: the receiver token map. Discord DMs reads `DMS_CONTROL_PLANE_TOKENS` instead.
-   - `DISCOVERY_URL`: the private Discovery origin.
-   - `DMS_SLOT2_PORT`: the host port for the slot 2 WebSocket. The default is `18009`.
+   `.env` supplies the identities. `scripts/prepare_lab2.py` generates them, and `.env.example` lists the names.
 
-   Slot 1 identity still comes from the ignored override files.
-3. Secrets and control tokens are already generated and trusted locally in ignored environment and Compose override files, specifically `.env`, `workspace.local/releases/compose/override.json`, and `workspace.local/releases/compose/domain-slot2-override.json`. These ignored local files are not distributed.
+   - `<SERVICE>_SLOT1_INSTANCE_ID` and `<SERVICE>_SLOT2_INSTANCE_ID`: one UUID per domain replica. `GATEWAY_INSTANCE_ID` and `DISCOVERY_INSTANCE_ID` cover the other two registrants.
+   - `<SERVICE>_CONTROL_TOKEN`: the outgoing control-plane credential of a service. Both slots share it. Gateway, Discovery, and `OPERATOR` have one each.
+   - `DISCOVERY_URL`: optional. It defaults to the Compose Discovery at `http://discovery-slot-1:8081`.
+   - `DISCOVERY_DISCORD_WEBHOOK_URL`: optional. Leave it empty to send no alerts.
+   - `DMS_PORT` and `DMS_SLOT2_PORT`: the host ports of the two WebSocket listeners, `8009` and `18009` by default.
+
+   Compose builds each receiver's `CONTROL_PLANE_TOKENS` map from the Discovery and operator tokens. Discord DMs uses `http://gateway-slot-1:8083` for `SESSION_URL` and `UNIVERSITY_URL`, so the breaker sees Gateway's registered origin.
+3. Secrets and control tokens are already generated and trusted locally in ignored environment and Compose override files, specifically `.env` and `.local/lab2/`. The operator override files under `workspace.local/releases/compose/` stay valid but are no longer required. These ignored local files are not distributed.
 4. Database, broker, and Redis volumes are preserved. Do not run `docker compose down --volumes`.
 5. WebSocket flags distinguish local and remote connections. Setting `GATEWAY_ALLOW_INSECURE_WS` and `GATEWAY_ALLOW_LOCAL_WS` permits unencrypted local testing against `ws://localhost:18009`. A remote demonstration requires the laptop's reachable address and secure `wss`. A remote client pointing to its own localhost is invalid.
 6. Whole-stack restarts, data mutations, and failure injections are not an automatic startup routine upon presentation. Use existing verified historical proofs rather than re-executing business writes. Do not mutate real accounts, emails, or moderation decisions during the demonstration.
@@ -149,7 +151,7 @@ python3 .github/scripts/check_docs.py
 To validate the operator Compose setup without exposing secrets, pass the `--quiet` flag. Never run `docker compose config` without `--quiet` because doing so prints resolved credentials to standard output:
 
 ```sh
-docker compose -f compose.yaml -f workspace.local/releases/compose/override.json -f workspace.local/releases/compose/domain-slot2-override.json config --quiet
+docker compose -f compose.yaml -f compose.published.yaml config --quiet
 ```
 
 ### Inspect running containers

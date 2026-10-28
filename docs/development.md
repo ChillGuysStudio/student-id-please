@@ -27,7 +27,7 @@ Player `2.0.1` and Session `2.0.0` now use the [confirmed owner settings](player
 	The command creates ignored `.env` and `.local/lab2/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
 
 3. Select source-matched service versions in `.env`. The generator selects Player `2.0.1` and Session `2.0.0`. It pins the gateway public key and configures their receiver-hop credentials through `SERVICE_TOKENS.gateway`. Session uses `GATEWAY_URL` and its distinct initiating credential. Keep `.env` and `.local/` out of commits.
-4. Set the slot 2 keys that `.env.example` lists after `DMS_SLOT2_PORT`. `scripts/prepare_lab2.py` does not generate them. Then validate Compose without printing resolved values:
+4. Validate Compose without printing resolved values. `scripts/prepare_lab2.py` also generates the Lab 3 instance IDs and control tokens that `.env.example` lists:
 
 	```sh
 	docker compose config --quiet

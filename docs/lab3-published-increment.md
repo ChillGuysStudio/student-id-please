@@ -20,9 +20,9 @@ Each selected package passed official native AMD64 and ARM64 publication, anonym
 
 ## Image selection is not bootstrap configuration
 
-[compose.published.yaml](../compose.published.yaml) selects immutable images for services already defined in the base Compose file, including each domain service's `-slot-2` replica. It also keeps Moderation's API and publisher on one source. Apply it after the deployment's required configuration files. It contains no credentials, replica identities, port changes, registration settings, or database edits.
+[compose.published.yaml](../compose.published.yaml) selects immutable images for services already defined in the base Compose file, including each domain service's `-slot-2` replica. It also keeps Moderation's API and publisher on one source. Apply it after the deployment's required configuration files. It contains no credentials, replica identities, port changes, registration settings, or database edits. `compose.yaml` pins Discovery itself, so the overlay has no Discovery entry.
 
-The base Compose file does not define Discovery. Its exact image is recorded in the inventory, but this image-only overlay does not create an unconfigured Discovery process. The operator still needs a valid Lab 3 deployment with concrete replica origins, unique stable identities, existing authenticated control settings, and durable removal storage. The historical [Lab 2 preparation](development.md) is not a complete Lab 3 bootstrap procedure.
+The base Compose file defines Discovery with the recorded image and registration settings from `.env`. Concrete replica origins, unique stable identities, control credentials, and durable removal storage come from `compose.yaml` and the generated `.env`. The historical [Lab 2 preparation](development.md) now also generates the Lab 3 identities and tokens, but it does not start a verified deployment.
 
 ## Runtime observations
 
