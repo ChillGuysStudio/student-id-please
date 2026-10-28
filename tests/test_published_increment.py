@@ -15,7 +15,10 @@ class PublishedIncrement(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.record = json.loads((ROOT / "docs/releases/lab3-increment-20261027.json").read_text())
-        cls.rows = cls.record["services"]
+        cls.update = json.loads((ROOT / "docs/releases/lab3-package-updates-20261028.json").read_text())
+        combined = {row["service"]: row for row in cls.record["services"]}
+        combined.update({row["service"]: row for row in cls.update["updates"]})
+        cls.rows = list(combined.values())
 
     def test_nine_unique_published_sources_and_native_images(self):
         self.assertEqual(len(self.rows), 9)
@@ -60,6 +63,19 @@ class PublishedIncrement(unittest.TestCase):
         self.assertFalse(self.record["cumulative_grade_claimed"])
         self.assertEqual([row["service"] for row in self.record["excluded"]], ["discord-dms"])
         self.assertIn(198, self.record["excluded"][0]["issues"])
+
+    def test_previous_release_is_preserved_and_updates_do_not_claim_dms_publication(self):
+        self.assertEqual(self.update["previous_inventory"], "lab3-increment-20261027.json")
+        self.assertEqual(self.update["previous_cpr_release"], "v3.0.0")
+        self.assertEqual(self.update["previous_cpr_source"], "80e0063a75d898573396596f1fd10c6b83526ec5")
+        self.assertEqual({row["service"] for row in self.update["updates"]},
+                         {"session", "credential", "moderation", "university_record"})
+        self.assertFalse(self.update["cumulative_grade_claimed"])
+        native = self.update["dms_native_runtime_only"]
+        for key in ["official_version_or_channels_verified", "canonical_pointer_updated", "breaker_task_169_included"]:
+            self.assertFalse(native[key])
+        old_session = next(row for row in self.record["services"] if row["service"] == "session")
+        self.assertEqual(old_session["version"], "3.0.7")
 
 
 if __name__ == "__main__":

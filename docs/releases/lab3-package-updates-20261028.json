@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-28",
+  "previous_inventory": "lab3-increment-20261027.json",
+  "previous_cpr_release": "v3.0.0",
+  "previous_cpr_source": "80e0063a75d898573396596f1fd10c6b83526ec5",
+  "scope": "Four later published packages. The previous inventory remains historical and immutable.",
+  "cumulative_grade_claimed": false,
+  "updates": [
+    {
+      "service": "session",
+      "submodule": "session-service",
+      "repository": "Tirppy/student-id-session-service",
+      "version": "3.0.8",
+      "source_sha": "1f78653e65c7bf7ffc1578d48c99cc356bbed539",
+      "image": "tirppy/student-id-session-service@sha256:0f5b2a2e3a60b8431d3247b4dd294f2f2378bf6245cb7f12b49a18588016ad5a",
+      "platforms": {
+        "amd64": "sha256:589427160a019c7a33afc15a628cee73609116750d565df4524397d2e07a27d7",
+        "arm64": "sha256:57e6b5066fc0facc224c7a8c8fcc94b77b42c40b53a7cdfdcecc5f4aa0a1143f"
+      },
+      "publication_run": 40648616279,
+      "repository_source_labels_verified": true
+    },
+    {
+      "service": "credential",
+      "submodule": "credential-service",
+      "repository": "mcittkmims/credential-service",
+      "version": "3.0.4",
+      "source_sha": "d576a04b0a5ef92cab156e1aa8b7b32d66af6fa3",
+      "image": "mcittkmims/credential-service@sha256:f3e069ffbb9ac1a54e5e3e2dcde0decf2e6a3b821a3595729a43b173ea5f6fdc",
+      "platforms": {
+        "amd64": "sha256:e3900862a4749e2318afa64ae95fb5dd24fba5a23aeeb6c8df8eec1238f5898a",
+        "arm64": "sha256:bcf267473b52dbb6d5a1f2238a63544a41c7883e04b211c27652b91d95fca051"
+      },
+      "publication_run": 40593647279,
+      "repository_source_labels_verified": true
+    },
+    {
+      "service": "university_record",
+      "submodule": "university-record-service",
+      "repository": "MaxNoragami/university-record-service",
+      "version": "3.0.4",
+      "source_sha": "594c267348dd971765cff98ec465f8d81cccd56c",
+      "image": "maxnoragami/university-record-service@sha256:fe4d28fc904b339f6b8288ce166d70b656cab1a2edfda323198076ef5b570a0c",
+      "platforms": {
+        "amd64": "sha256:eb0ea0738f4445ce859ed415d031bc92da6dafa5962a0bc062f7e551393d4c57",
+        "arm64": "sha256:7d44a37c9c27a417aec98df5a075d6cc5064a4df21d0df686b46f3d3d8cbae9e"
+      },
+      "publication_run": 40596320944,
+      "repository_source_labels_verified": true
+    },
+    {
+      "service": "moderation",
+      "submodule": "moderation-service",
+      "repository": "andyp1xe1/pad-moderation-service",
+      "version": "3.0.4",
+      "source_sha": "b8dfb2838f6fb9027aff76ec49c863244845a438",
+      "image": "sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076",
+      "platforms": {
+        "amd64": "sha256:8f9589f2787a63138559db20d250ed2fdd0d0bbd05ac654219df3f25c5b4738b",
+        "arm64": "sha256:7dd6dfa19485c2de76d56bb9de31235d435605b16b04c9d3f0e0b4e51c2c8fb4"
+      },
+      "publication_run": 40597739075,
+      "repository_source_labels_verified": false,
+      "repository_source_evidence": "Annotated image-records/b8dfb2838f6fb9027aff76ec49c863244845a438 binds repository, source and index. Both native revision labels match. Repository-source labels are absent."
+    }
+  ],
+  "dms_native_runtime_only": {
+    "source_sha": "474eab2233dd85641f2aedac518661a24b1edf25",
+    "image": "sentientmoss/pad-discord-dms-service@sha256:2f07ff156e99603e05eca9f2e535ed98e72d2068c4a788b6ff53a53853f13970",
+    "repository_source_labels_verified": false,
+    "official_version_or_channels_verified": false,
+    "canonical_pointer_updated": false,
+    "breaker_task_169_included": false,
+    "scope": "Two real native-image replicas registered for bounded checks. Official publication and release-history reconciliation remain open. This record does not promote a DMs package."
+  }
+}
