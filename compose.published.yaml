@@ -10,6 +10,8 @@ services:
     image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
   moderation-publisher:
     image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
+  discord-dms:
+    image: sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff
   applicant:
     image: mcittkmims/applicant-service@sha256:0b8969e92aa1aa2d7ca0dff5bb6456f6046b6ae2f9cc7c602e2c336903639d27
   credential:
