@@ -45,6 +45,7 @@ Rules introduced by updates to this README or the other project documentation ap
 
 ## Documentation
 
+- [Later published Lab 3 packages and restart evidence](docs/lab3-package-updates.md)
 - [Published Lab 3 increment and remaining acceptance](docs/lab3-published-increment.md)
 - [HTTP conventions](docs/contracts/http.md)
 - [Lab 3 discovery and resilience contract](docs/contracts/lab3.md)
