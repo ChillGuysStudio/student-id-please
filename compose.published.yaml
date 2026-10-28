@@ -5,16 +5,16 @@ services:
   player:
     image: tirppy/student-id-player-service@sha256:eedfb11d66a3c32bdb712f5436edcbd7c22f665ab27544563158426cf7bd9c11
   session:
-    image: tirppy/student-id-session-service@sha256:1d6b696c051301e4debcabe4cb0c0e5661a7a158bf093371581d718ded5ad904
+    image: tirppy/student-id-session-service@sha256:0f5b2a2e3a60b8431d3247b4dd294f2f2378bf6245cb7f12b49a18588016ad5a
   moderation:
-    image: sentientmoss/pad-moderation-service@sha256:02397ef574b136ceee3344267508b38843160b09db749dcc1dc3d31195dc8bd4
+    image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
   moderation-publisher:
-    image: sentientmoss/pad-moderation-service@sha256:02397ef574b136ceee3344267508b38843160b09db749dcc1dc3d31195dc8bd4
+    image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
   applicant:
     image: mcittkmims/applicant-service@sha256:0b8969e92aa1aa2d7ca0dff5bb6456f6046b6ae2f9cc7c602e2c336903639d27
   credential:
-    image: mcittkmims/credential-service@sha256:b8d5c9e54fd1723adb5df29bca42d3fb12193ab0054c469a506a43109c40c5e5
+    image: mcittkmims/credential-service@sha256:f3e069ffbb9ac1a54e5e3e2dcde0decf2e6a3b821a3595729a43b173ea5f6fdc
   server-rules:
     image: maxnoragami/server-rules-service@sha256:f886214982f9fd0724b3d032614b35d356fc91251274e1a1ac96be9519e41571
   university-record:
-    image: maxnoragami/university-record-service@sha256:3684c1c9b8af686f7d7b833e406a67ff0319e2125fd3c386b2d05ed8da618b84
+    image: maxnoragami/university-record-service@sha256:fe4d28fc904b339f6b8288ce166d70b656cab1a2edfda323198076ef5b570a0c
