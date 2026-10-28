@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-28",
+  "previous_inventory": "lab3-completion-packages-20261028.json",
+  "previous_cpr_release": "v3.0.3",
+  "previous_cpr_source": "246826769d2eee758aae07cd30def190cdddb27a",
+  "cumulative_grade_claimed": false,
+  "updates": [
+    {
+      "service": "discord-dms",
+      "submodule": "discord-dms-service",
+      "repository": "andyp1xe1/pad-discord-dms-service",
+      "version": "3.0.1",
+      "source_sha": "9624f8810cce570337068da81b22b7d8b1a40feb",
+      "image": "sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff",
+      "platforms": {
+        "amd64": "sha256:2001f31a34f3f9f5ad8005c4777ef4f3b911cf968908f14651526ccf03112201",
+        "arm64": "sha256:7d3a5a1f558640c48c0e38a56149cc92fdf4b96c3621ae458a0abb4282c88e9f"
+      },
+      "configs": {
+        "amd64": "sha256:cc0363db64405a16840c0ab82ef636b0a316e7130712bb92e54b2b91bb9d6d37",
+        "arm64": "sha256:df6c8021272d05864a626b681de45171f9d8424fc23db8099c0e5d42cc6af24c"
+      },
+      "revision_labels": {
+        "amd64": "9624f8810cce570337068da81b22b7d8b1a40feb",
+        "arm64": "9624f8810cce570337068da81b22b7d8b1a40feb"
+      },
+      "publication_run": 40694772096,
+      "sync_run": 40694772798,
+      "release_tag_object": "102f3ef0110f5538b1938fba31c231e1e305907e",
+      "verified_aliases": ["3.0.1", "latest", "lab-3"],
+      "repository_source_labels_verified": false,
+      "repository_source_evidence": "OCI repository-source label not claimed. Both native revision labels match the release source."
+    }
+  ],
+  "sync": {
+    "dev_sha": "4cb18d000a0ada0f78739e1e503343df3a0b60ca",
+    "shared_tree": "006ebe40ccfab66ef1c83d902a674b5051dcfe35",
+    "dev_is_ancestor_of_main": true,
+    "content_only_no_op": true,
+    "branch_heads_identical": false
+  },
+  "runtime_rollout_verified": false
+}

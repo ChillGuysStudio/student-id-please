@@ -22,13 +22,15 @@ class PublishedIncrement(unittest.TestCase):
         combined.update({row["service"]: row for row in cls.negotiation["updates"]})
         cls.completion = json.loads((ROOT / "docs/releases/lab3-completion-packages-20261028.json").read_text())
         combined.update({row["service"]: row for row in cls.completion["updates"]})
+        cls.dms = json.loads((ROOT / "docs/releases/lab3-dms-official-package-20261028.json").read_text())
+        combined.update({row["service"]: row for row in cls.dms["updates"]})
         cls.rows = list(combined.values())
 
-    def test_nine_unique_published_sources_and_native_images(self):
-        self.assertEqual(len(self.rows), 9)
-        self.assertEqual(len({row["submodule"] for row in self.rows}), 9)
+    def test_ten_unique_published_sources_and_native_images(self):
+        self.assertEqual(len(self.rows), 10)
+        self.assertEqual(len({row["submodule"] for row in self.rows}), 10)
         self.assertEqual({row["service"] for row in self.rows},
-                         {"player", "session", "moderation", "applicant", "credential", "rules", "university_record", "gateway", "discovery"})
+                         {"player", "session", "moderation", "applicant", "credential", "rules", "university_record", "gateway", "discovery", "discord-dms"})
         for row in self.rows:
             self.assertRegex(row["source_sha"], "^" + SHA + "$")
             self.assertRegex(row["version"], r"^3\.0\.[0-9]+$")
@@ -57,13 +59,12 @@ class PublishedIncrement(unittest.TestCase):
         services["moderation-publisher"] = services["moderation"]
         self.assertEqual(pairs, services)
         self.assertNotIn("discovery", pairs)
-        self.assertNotIn("discord-dms", pairs)
         self.assertFalse(any(word in text for word in ["environment:", "ports:", "build:", "volumes:"]))
 
-    def test_absent_source_label_and_unfinished_dms_are_explicit(self):
+    def test_absent_source_labels_and_historical_dms_exclusion_are_explicit(self):
         missing = [row for row in self.rows if not row["repository_source_labels_verified"]]
-        self.assertEqual([row["service"] for row in missing], ["moderation"])
-        self.assertIn("Repository-source labels are absent", missing[0]["repository_source_evidence"])
+        self.assertEqual({row["service"] for row in missing}, {"moderation", "discord-dms"})
+        self.assertIn("Repository-source labels are absent", next(row for row in missing if row["service"] == "moderation")["repository_source_evidence"])
         self.assertFalse(self.record["cumulative_grade_claimed"])
         self.assertEqual([row["service"] for row in self.record["excluded"]], ["discord-dms"])
         self.assertIn(198, self.record["excluded"][0]["issues"])
@@ -108,6 +109,28 @@ class PublishedIncrement(unittest.TestCase):
         self.assertEqual(runtime["dms_messages_retained_once"], 2)
         self.assertFalse(runtime["simultaneous_first_write_races_executed"])
         self.assertFalse(runtime["official_dms_release_reconciliation_claimed"])
+
+    def test_dms_official_provenance_and_historical_runtime(self):
+        self.assertEqual(self.dms["previous_inventory"], "lab3-completion-packages-20261028.json")
+        self.assertEqual(self.dms["previous_cpr_release"], "v3.0.3")
+        row, = self.dms["updates"]
+        self.assertEqual(row["source_sha"], "9624f8810cce570337068da81b22b7d8b1a40feb")
+        self.assertEqual(row["image"], "sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff")
+        self.assertEqual(row["release_tag_object"], "102f3ef0110f5538b1938fba31c231e1e305907e")
+        self.assertEqual(row["publication_run"], 40694772096)
+        self.assertEqual(row["sync_run"], 40694772798)
+        self.assertEqual(row["verified_aliases"], ["3.0.1", "latest", "lab-3"])
+        self.assertEqual(row["platforms"], {"amd64": "sha256:2001f31a34f3f9f5ad8005c4777ef4f3b911cf968908f14651526ccf03112201", "arm64": "sha256:7d3a5a1f558640c48c0e38a56149cc92fdf4b96c3621ae458a0abb4282c88e9f"})
+        self.assertEqual(row["configs"], {"amd64": "sha256:cc0363db64405a16840c0ab82ef636b0a316e7130712bb92e54b2b91bb9d6d37", "arm64": "sha256:df6c8021272d05864a626b681de45171f9d8424fc23db8099c0e5d42cc6af24c"})
+        self.assertEqual(row["revision_labels"], {arch: row["source_sha"] for arch in ("amd64", "arm64")})
+        self.assertFalse(row["repository_source_labels_verified"])
+        self.assertTrue(self.dms["sync"]["content_only_no_op"])
+        self.assertTrue(self.dms["sync"]["dev_is_ancestor_of_main"])
+        self.assertFalse(self.dms["sync"]["branch_heads_identical"])
+        self.assertFalse(self.dms["runtime_rollout_verified"])
+        self.assertFalse(self.dms["cumulative_grade_claimed"])
+        self.assertEqual(self.update["dms_native_runtime_only"]["source_sha"], "474eab2233dd85641f2aedac518661a24b1edf25")
+        self.assertTrue(self.update["dms_native_runtime_only"]["image"].endswith("sha256:2f07ff156e99603e05eca9f2e535ed98e72d2068c4a788b6ff53a53853f13970"))
 
 
 if __name__ == "__main__":
