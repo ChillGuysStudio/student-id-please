@@ -40,5 +40,14 @@
     "content_only_no_op": true,
     "branch_heads_identical": false
   },
-  "runtime_rollout_verified": false
+  "runtime_rollout_verified": false,
+  "runtime": {
+    "running_version": "3.0.0",
+    "running_source_sha": "474eab2233dd85641f2aedac518661a24b1edf25",
+    "running_image": "sentientmoss/pad-discord-dms-service@sha256:2f07ff156e99603e05eca9f2e535ed98e72d2068c4a788b6ff53a53853f13970",
+    "running_slots": 2,
+    "rollout_status": "blocked_after_two_preflight_attempts",
+    "runtime_mutated": false,
+    "live_breaker_acceptance_tested": false
+  }
 }
