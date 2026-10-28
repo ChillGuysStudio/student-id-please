@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-28",
+  "previous_inventory": "lab3-gateway-negotiation-20261028.json",
+  "previous_cpr_release": "v3.0.2",
+  "previous_cpr_source": "6901f731a611a621cd1d2bdbdb231250cbc7492e",
+  "cumulative_grade_claimed": false,
+  "updates": [
+    {
+      "service": "gateway",
+      "submodule": "gateway-service",
+      "repository": "ChillGuysStudio/gateway-service",
+      "version": "3.0.7",
+      "source_sha": "4acf7de01bdec682be7d5a7519781428ca380ece",
+      "image": "maxnoragami/gateway-service@sha256:5e354cba99d34d0327b2f4ba3e846709f128577dea610eb95d669806169f9df8",
+      "platforms": {
+        "amd64": "sha256:e8b985049d1b946fb31d8f2e0955c0ed942877a791d6ef39eb80331a7391d4dc",
+        "arm64": "sha256:91ba69d4cf7ac81ff95c2bfd0a3691b178f4fbeaa70e648741fc5458db0dcf05"
+      },
+      "publication_run": 40662371016,
+      "repository_source_labels_verified": true
+    },
+    {
+      "service": "rules",
+      "submodule": "server-rules-service",
+      "repository": "MaxNoragami/server-rules-service",
+      "version": "3.0.5",
+      "source_sha": "e65644e91a546e91d177757c064f2b9ea8361cb7",
+      "image": "maxnoragami/server-rules-service@sha256:92d094c5d0593cc2b60e4f159d2367386db3db928edb2590a8911e7758680ec1",
+      "platforms": {
+        "amd64": "sha256:8757c78d9301f4105f71eabc7f0f7c568ef338f74359667246f118f94437b005",
+        "arm64": "sha256:f7a4cef9bcaa5f755a0196c1330c676cf6f18c53c5da046065593b36b3e84f53"
+      },
+      "publication_run": 40676928141,
+      "repository_source_labels_verified": true
+    }
+  ],
+  "runtime_updates": {
+    "python_startup_logging_verified": true,
+    "python_slots_verified": 8,
+    "ticket_and_bearer_redacted_in_logs": true,
+    "all_logging_event_classes_claimed": false,
+    "dms_post_restart_history_verified": true,
+    "dms_messages_retained_once": 2,
+    "authority_adapters_182_verified": true,
+    "replica_state_audits_completed": [
+      155,
+      156,
+      157,
+      158,
+      159,
+      160,
+      161,
+      162
+    ],
+    "simultaneous_first_write_races_executed": false,
+    "official_dms_release_reconciliation_claimed": false,
+    "all_callers_or_exact_window_boundary_claimed": false
+  }
+}
