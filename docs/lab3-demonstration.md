@@ -116,7 +116,18 @@ This procedure is for a prepared, trusted operator laptop. A clean git clone wit
 
 1. Exact published sources and native multi-architecture images are already present on the machine.
 2. Stable UUID slot identifiers (`INSTANCE_ID`) and replica network origins are already configured.
-3. Secrets and control tokens are already generated and trusted locally in ignored environment and Compose override files, specifically `.env`, `workspace.local/releases/compose/override.json`, and `workspace.local/releases/compose/domain-slot2-override.json`. These ignored local files are not distributed.
+   `compose.yaml` runs Discovery, the Gateway, and two replicas of each domain service. Slot 1 keeps the service name, such as `applicant`, and adds the alias `applicant-slot-1`. Slot 2 is the service `applicant-slot-2` with the alias of the same name. Each replica registers `INSTANCE_HTTP_URL` as `http://<service>-slot-<n>:<port>`. Pass `-f compose.yaml -f compose.published.yaml` to run the pinned images.
+
+   `.env` supplies the identities. `scripts/prepare_lab2.py` generates them, and `.env.example` lists the names.
+
+   - `<SERVICE>_SLOT1_INSTANCE_ID` and `<SERVICE>_SLOT2_INSTANCE_ID`: one UUID per domain replica. `GATEWAY_INSTANCE_ID` and `DISCOVERY_INSTANCE_ID` cover the other two registrants.
+   - `<SERVICE>_CONTROL_TOKEN`: the outgoing control-plane credential of a service. Both slots share it. Gateway, Discovery, and `OPERATOR` have one each.
+   - `DISCOVERY_URL`: optional. It defaults to the Compose Discovery at `http://discovery-slot-1:8081`.
+   - `DISCOVERY_DISCORD_WEBHOOK_URL`: optional. Leave it empty to send no alerts.
+   - `DMS_PORT` and `DMS_SLOT2_PORT`: the host ports of the two WebSocket listeners, `8009` and `18009` by default.
+
+   Compose builds each receiver's `CONTROL_PLANE_TOKENS` map from the Discovery and operator tokens. Discord DMs uses `http://gateway-slot-1:8083` for `SESSION_URL` and `UNIVERSITY_URL`, so the breaker sees Gateway's registered origin.
+3. Secrets and control tokens are already generated and trusted locally in ignored environment and Compose override files, specifically `.env` and `.local/lab2/`. The operator override files under `workspace.local/releases/compose/` stay valid but are no longer required. These ignored local files are not distributed.
 4. Database, broker, and Redis volumes are preserved. Do not run `docker compose down --volumes`.
 5. WebSocket flags distinguish local and remote connections. Setting `GATEWAY_ALLOW_INSECURE_WS` and `GATEWAY_ALLOW_LOCAL_WS` permits unencrypted local testing against `ws://localhost:18009`. A remote demonstration requires the laptop's reachable address and secure `wss`. A remote client pointing to its own localhost is invalid.
 6. Whole-stack restarts, data mutations, and failure injections are not an automatic startup routine upon presentation. Use existing verified historical proofs rather than re-executing business writes. Do not mutate real accounts, emails, or moderation decisions during the demonstration.
@@ -140,7 +151,7 @@ python3 .github/scripts/check_docs.py
 To validate the operator Compose setup without exposing secrets, pass the `--quiet` flag. Never run `docker compose config` without `--quiet` because doing so prints resolved credentials to standard output:
 
 ```sh
-docker compose -f compose.yaml -f workspace.local/releases/compose/override.json -f workspace.local/releases/compose/domain-slot2-override.json config --quiet
+docker compose -f compose.yaml -f compose.published.yaml config --quiet
 ```
 
 ### Inspect running containers
@@ -198,7 +209,7 @@ The verified facts below reflect the state of the demonstration deployment as re
 3. **Round-robin routing**: Gateway round-robin routing was verified with twelve total requests (six requests to each replica) for Player and twelve completed decision replays (six to each replica) for Moderation, without concurrency claims.
 4. **Circuit breaker removal and recovery**: A Gateway-to-Credential test produced three connection errors in 0.121 seconds under `T = 2` seconds and `W = 7` seconds. Gateway tripped and removed the failed replica generation. The healthy replica continued serving requests with status 200. A Discovery restart retained the removal tombstone in the configured `DISCOVERY_STATE_FILE`. Restarting the failed replica kept it in the removed state until an operator issued a reactivation command after the required cooldown and two healthy status probes. The fresh generation renewed and returned to service.
 5. **Load limit and alerts**: Gateway admitted 100 concurrent tasks, rejected excess requests with `503 TASK_LIMIT_EXCEEDED`, and returned to zero active tasks upon completion. Discovery logged critical load and sent alerts to Discord. Real messages `1564905024876970017` and `1564905047026831437` returned 200 on readback.
-6. **Package status**: Gateway `3.0.7`, Server Rules `3.0.5`, Session `3.0.8`, Credential `3.0.4`, University Record `3.0.4`, Moderation `3.0.4`, Applicant `3.0.3`, Player `3.0.0`, and Discovery `3.0.6` are current across all active slots. Moderation repository source labels are absent; this is recorded in its immutable image record rather than claimed as present.
+6. **Package status**: Gateway `3.0.7`, Server Rules `3.0.5`, Session `3.0.8`, Credential `3.0.4`, University Record `3.0.4`, Moderation `3.0.5`, Applicant `3.0.3`, Player `3.0.0`, and Discovery `3.0.6` are current across all active slots. Moderation repository source labels are absent; this is recorded in its immutable image record rather than claimed as present.
 7. **Startup logging and replica audits**:
    - Under issue 222, all eight Python domain replicas now emit current-boot startup identities via a read-only Uvicorn `--log-config` mount without changing images, environment maps, ports, or original mounts. An auth-only direct socket probe verified that chat tickets and bearer tokens are absent from both DMs replica logs.
    - All eight domain replica-state audits (#155 through #162) are recorded. DMs history survived sequential restarts of both replicas with the original two messages retained once.

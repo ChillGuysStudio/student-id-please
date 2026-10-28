@@ -8,6 +8,7 @@ from pathlib import Path
 import secrets
 import shutil
 import subprocess
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNERS = {
@@ -24,7 +25,11 @@ PASSWORDS = (
     "PLAYER_DB_PASSWORD", "SESSION_DB_PASSWORD", "MODERATION_DB_PASSWORD", "DMS_DB_PASSWORD",
     "RABBITMQ_PASSWORD", "REDIS_PASSWORD", "CHAT_TICKET_SECRET", "UNIVERSITY_MONGO_PASSWORD",
     "RULES_DB_PASSWORD", "RULES_CURSOR_SECRET", "APPLICANT_BROKER_PASSWORD", "CREDENTIAL_BROKER_PASSWORD",
+    "UNIVERSITY_BROKER_PASSWORD",
 )
+CONTROL_NAMES = ("GATEWAY", "DISCOVERY", "OPERATOR", "APPLICANT", "CREDENTIAL", "UNIVERSITY_RECORD",
+                 "SERVER_RULES", "MODERATION", "PLAYER", "SESSION", "DISCORD_DMS")
+REPLICA_NAMES = CONTROL_NAMES[3:]
 CALLER_VARIABLES = {
     "SESSION_SERVICE_TOKEN": "session", "MODERATION_SERVICE_TOKEN": "moderation",
     "DISCORD_DMS_SERVICE_TOKEN": "discord-dms",
@@ -81,6 +86,9 @@ def prepare(root, gateway_image, gateway_port=8080, dms_port=8009):
     hops = {owner: secrets.token_urlsafe(32) for owner in OWNERS}
     config = {name: secrets.token_urlsafe(32) for name in PASSWORDS}
     config.update({name: callers[owner] for name, owner in CALLER_VARIABLES.items()})
+    config.update({f"{name}_CONTROL_TOKEN": secrets.token_urlsafe(32) for name in CONTROL_NAMES})
+    config.update({f"{name}_SLOT{slot}_INSTANCE_ID": uuid.uuid4() for name in REPLICA_NAMES for slot in (1, 2)})
+    config.update(GATEWAY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_DISCORD_WEBHOOK_URL="")
     config.update(GATEWAY_IMAGE=gateway_image, GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
                   PLAYER_VERSION="2.0.1", SESSION_VERSION="2.0.0",
                   MODERATION_VERSION="2.0.2", DISCORD_DMS_VERSION="2.0.2",
