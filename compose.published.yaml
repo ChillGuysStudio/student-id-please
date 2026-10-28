@@ -7,9 +7,9 @@ services:
   session:
     image: tirppy/student-id-session-service@sha256:0f5b2a2e3a60b8431d3247b4dd294f2f2378bf6245cb7f12b49a18588016ad5a
   moderation:
-    image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
+    image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
   moderation-publisher:
-    image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
+    image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
   discord-dms:
     image: sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff
   applicant:
@@ -25,7 +25,7 @@ services:
   session-slot-2:
     image: tirppy/student-id-session-service@sha256:0f5b2a2e3a60b8431d3247b4dd294f2f2378bf6245cb7f12b49a18588016ad5a
   moderation-slot-2:
-    image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
+    image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
   discord-dms-slot-2:
     image: sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff
   applicant-slot-2:

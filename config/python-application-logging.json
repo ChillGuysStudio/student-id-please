@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "plain": {
+      "format": "%(asctime)s %(levelname)s %(name)s %(message)s"
+    },
+    "moderation": {
+      "format": "%(asctime)s %(levelname)s %(name)s %(message)s service_name=moderation"
+    },
+    "metadata": {
+      "()": "logging.Formatter",
+      "fmt": "%(asctime)s %(levelname)s %(name)s event=%(message)s service_name=%(service_name)s instance_id=%(instance_id)s boot_id=%(boot_id)s endpoint=%(endpoint)s attempt_id=%(attempt_id)s registration_id=%(registration_id)s failure_kind=%(failure_kind)s elapsed_ms=%(elapsed_ms)s",
+      "defaults": {
+        "service_name": "-",
+        "instance_id": "-",
+        "boot_id": "-",
+        "endpoint": "-",
+        "attempt_id": "-",
+        "registration_id": "-",
+        "failure_kind": "-",
+        "elapsed_ms": "-"
+      }
+    }
+  },
+  "handlers": {
+    "console": {
+      "class": "logging.StreamHandler",
+      "formatter": "plain",
+      "stream": "ext://sys.stdout",
+      "level": "INFO"
+    },
+    "moderation": {
+      "class": "logging.StreamHandler",
+      "formatter": "moderation",
+      "stream": "ext://sys.stdout",
+      "level": "INFO"
+    },
+    "metadata": {
+      "class": "logging.StreamHandler",
+      "formatter": "metadata",
+      "stream": "ext://sys.stdout",
+      "level": "INFO"
+    }
+  },
+  "root": {
+    "handlers": ["console"],
+    "level": "WARNING"
+  },
+  "loggers": {
+    "uvicorn": {
+      "handlers": ["console"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "uvicorn.error": {
+      "handlers": ["console"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "uvicorn.access": {
+      "handlers": ["console"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "player_service": {
+      "handlers": ["console"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "session_service": {
+      "handlers": ["console"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "moderation": {
+      "handlers": ["moderation"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "moderation.discovery": {
+      "handlers": ["metadata"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "discord_dms.health": {
+      "handlers": ["metadata"],
+      "level": "INFO",
+      "propagate": false
+    },
+    "discord_dms.discovery": {
+      "handlers": ["metadata"],
+      "level": "INFO",
+      "propagate": false
+    }
+  }
+}

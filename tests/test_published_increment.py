@@ -24,6 +24,8 @@ class PublishedIncrement(unittest.TestCase):
         combined.update({row["service"]: row for row in cls.completion["updates"]})
         cls.dms = json.loads((ROOT / "docs/releases/lab3-dms-official-package-20261028.json").read_text())
         combined.update({row["service"]: row for row in cls.dms["updates"]})
+        cls.moderation = json.loads((ROOT / "docs/releases/lab3-moderation-3.0.5-20261028.json").read_text())
+        combined.update({row["service"]: row for row in cls.moderation["updates"]})
         cls.rows = list(combined.values())
 
     def test_ten_unique_published_sources_and_native_images(self):
@@ -142,6 +144,17 @@ class PublishedIncrement(unittest.TestCase):
         self.assertFalse(self.dms["cumulative_grade_claimed"])
         self.assertEqual(self.update["dms_native_runtime_only"]["source_sha"], "474eab2233dd85641f2aedac518661a24b1edf25")
         self.assertTrue(self.update["dms_native_runtime_only"]["image"].endswith("sha256:2f07ff156e99603e05eca9f2e535ed98e72d2068c4a788b6ff53a53853f13970"))
+
+    def test_moderation_3_0_5_is_official_and_api_and_publisher_share_it(self):
+        self.assertEqual(self.moderation["previous_inventory"], "lab3-dms-official-package-20261028.json")
+        row, = self.moderation["updates"]
+        self.assertEqual(row["version"], "3.0.5")
+        self.assertEqual(row["source_sha"], "11ec1207af4a45d79c61527914b45e712077d554")
+        self.assertEqual(row["verified_aliases"], ["3.0.5", "latest", "lab-3"])
+        self.assertFalse(row["repository_source_labels_verified"])
+        self.assertFalse(self.moderation["cumulative_grade_claimed"])
+        text = (ROOT / "compose.published.yaml").read_text()
+        self.assertEqual(text.count(row["image"]), 3)
 
 
 if __name__ == "__main__":
