@@ -8,16 +8,16 @@ flowchart TB
 		GWInt["Internal Listener (:8083)\nService-to-Service REST Proxy"]
 	end
 
-	subgraph DiscoverySvc["Discovery Service (Shared Go, :8084)"]
+	subgraph DiscoverySvc["Discovery Service (Shared Go, :8081, discovery-slot-1)"]
 		DiscoveryNode["Discovery Engine\nRegistration, Probes, Leases"]
-		DiscStorage[("Durable Removal Volume\n/data/removals.json")]
+		DiscStorage[("Durable Removal Volume\n(Configured DISCOVERY_STATE_FILE)")]
 		DiscoveryNode --- DiscStorage
 	end
 
 	subgraph DiscordDMsDomain["Discord DMs Domain Replicas"]
 		DMS1["Discord DMs Slot 1 (:8009)"]
 		DMS2["Discord DMs Slot 2 (:18009)"]
-		RedisRelay[("Redis Pub/Sub and Tickets")]
+		RedisRelay[("Redis Store\nPub/Sub and Tickets")]
 		DMS1 <--> RedisRelay
 		DMS2 <--> RedisRelay
 	end
@@ -32,10 +32,14 @@ flowchart TB
 		ModReplicas["Moderation Replicas (Slot 1 and Slot 2)"]
 	end
 
-	subgraph SharedStorage["Shared Per-Owner Storage and Events"]
-		PGStores[("PostgreSQL\nPlayer, Session, Rules, Mod, DMs")]
-		MongoStores[("MongoDB Replica Set\nApplicant, Credential, Univ")]
-		RabbitMQBroker[("RabbitMQ Broker\nCaseInitialized, DecisionScored,\nShiftEnded, DisciplinaryActionApplied")]
+	subgraph ModerationWorkers["Moderation Outbox Worker"]
+		ModPublisher["Moderation Outbox Publisher\n(Drains outbox table)"]
+	end
+
+	subgraph DomainStores["Domain-Owned Storage (9 Backing Stores)"]
+		PGStores[("PostgreSQL (5 Stores)\nPlayer, Session, Rules, Mod, DMs")]
+		MongoStores[("MongoDB Replica Set (2 Stores)\nApplicant, Credential, Univ")]
+		RabbitMQBroker[("RabbitMQ Broker\nVerified: CaseInitialized, DecisionScored, ShiftEnded\nUnverified contract: DisciplinaryActionApplied")]
 	end
 
 	subgraph ExternalServices["External Destinations"]
@@ -53,14 +57,18 @@ flowchart TB
 	DiscordDMsDomain -->|"Internal Service REST (:8083)"| GWInt
 	GWInt -->|"Proxied Internal Dispatch"| DomainReplicas
 
-	GWPub -.->|"Background Snapshot Refresh (:8084)"| DiscoveryNode
-	GWInt -.->|"Background Snapshot Refresh (:8084)"| DiscoveryNode
+	GWPub -.->|"Background Snapshot Refresh (:8081)"| DiscoveryNode
+	GWInt -.->|"Background Snapshot Refresh (:8081)"| DiscoveryNode
 
-	DomainReplicas -.->|"Direct Registration PUT (:8084)"| DiscoveryNode
-	DiscordDMsDomain -.->|"Direct Registration PUT (:8084)"| DiscoveryNode
+	DomainReplicas -.->|"Direct Registration PUT (:8081)"| DiscoveryNode
+	DiscordDMsDomain -.->|"Direct Registration PUT (:8081)"| DiscoveryNode
 	DiscoveryNode -.->|"Direct Private Status Probes"| DomainReplicas
 	DiscoveryNode -.->|"Direct Private Status Probes"| DiscordDMsDomain
 	DiscoveryNode -.->|"Direct Private Status Probes"| GatewaySvc
+
+	ModReplicas --- PGStores
+	ModPublisher --- PGStores
+	ModPublisher -->|"Publishes Outbox Events"| RabbitMQBroker
 
 	DiscoveryNode -->|"Outbound Alerts"| DiscordHook
 
