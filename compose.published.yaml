@@ -11,11 +11,11 @@ services:
   moderation-publisher:
     image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
   discord-dms:
-    image: sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff
+    image: sentientmoss/pad-discord-dms-service@sha256:d24becd913fea66067a903bca51421dce3e203728499272a2dcde4b1b29c55df
   applicant:
     image: mcittkmims/applicant-service@sha256:0b8969e92aa1aa2d7ca0dff5bb6456f6046b6ae2f9cc7c602e2c336903639d27
   credential:
-    image: mcittkmims/credential-service@sha256:f3e069ffbb9ac1a54e5e3e2dcde0decf2e6a3b821a3595729a43b173ea5f6fdc
+    image: mcittkmims/credential-service@sha256:1bd61a0dc1ddb9bba30157030f0eceaf9d0477b98d8b02e52b68c71dfb197929
   server-rules:
     image: maxnoragami/server-rules-service@sha256:92d094c5d0593cc2b60e4f159d2367386db3db928edb2590a8911e7758680ec1
   university-record:
@@ -27,11 +27,11 @@ services:
   moderation-slot-2:
     image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
   discord-dms-slot-2:
-    image: sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff
+    image: sentientmoss/pad-discord-dms-service@sha256:d24becd913fea66067a903bca51421dce3e203728499272a2dcde4b1b29c55df
   applicant-slot-2:
     image: mcittkmims/applicant-service@sha256:0b8969e92aa1aa2d7ca0dff5bb6456f6046b6ae2f9cc7c602e2c336903639d27
   credential-slot-2:
-    image: mcittkmims/credential-service@sha256:f3e069ffbb9ac1a54e5e3e2dcde0decf2e6a3b821a3595729a43b173ea5f6fdc
+    image: mcittkmims/credential-service@sha256:1bd61a0dc1ddb9bba30157030f0eceaf9d0477b98d8b02e52b68c71dfb197929
   server-rules-slot-2:
     image: maxnoragami/server-rules-service@sha256:92d094c5d0593cc2b60e4f159d2367386db3db928edb2590a8911e7758680ec1
   university-record-slot-2:
