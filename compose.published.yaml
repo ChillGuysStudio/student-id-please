@@ -1,7 +1,7 @@
 # Image selection only. This does not configure Lab 3 registration or secrets.
 services:
   gateway:
-    image: maxnoragami/gateway-service@sha256:4e71221c4cb1ba5541df2b1fda513e6a71e14e66969517dde817b9335090eb05
+    image: maxnoragami/gateway-service@sha256:fff382ea35d1e6f2370806f788974bb8105bd97322a7adcd279b3c554ff593da
   player:
     image: tirppy/student-id-player-service@sha256:eedfb11d66a3c32bdb712f5436edcbd7c22f665ab27544563158426cf7bd9c11
   session:

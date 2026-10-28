@@ -2,7 +2,7 @@
 
 CPR checks require Git, Python 3, and a shell. Docker is needed only to run service images. Private source checkout is optional.
 
-The [Lab 3 discovery and resilience contract](contracts/lab3.md) defines the implementation target, configuration names, and service acceptance cases for replicas and Discovery. The public-image procedure below remains the current Lab 2 setup. It does not yet configure Lab 3 registration or balancing.
+The [Lab 3 discovery and resilience contract](contracts/lab3.md) defines the implementation target, configuration names, and service acceptance cases for replicas and Discovery. The [Lab 3 demonstration guide](lab3-demonstration.md) describes safe verification commands on a prepared operator laptop. The public-image procedure below remains the current Lab 2 setup. It does not yet configure Lab 3 registration or balancing.
 
 ## Clone CPR
 

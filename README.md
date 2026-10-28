@@ -12,7 +12,7 @@ Eight domain services own separate data. They communicate through REST, RabbitMQ
 
 The figure and its [editable source](docs/architecture.drawio) show the Lab 2 topology. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. RabbitMQ appears greyed as Lab 4 scope.
 
-[Architecture](docs/architecture.md) explains ownership and technology choices. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
+[Architecture](docs/architecture.md) explains ownership and technology choices. The [Lab 3 demonstration guide](docs/lab3-demonstration.md) explains multi-replica scaling, Discovery, and safe operator verification. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
 
 ## Gateway
 
@@ -47,6 +47,7 @@ Rules introduced by updates to this README or the other project documentation ap
 
 - [Later published Lab 3 packages and restart evidence](docs/lab3-package-updates.md)
 - [Published Lab 3 increment and remaining acceptance](docs/lab3-published-increment.md)
+- [Lab 3 demonstration guide](docs/lab3-demonstration.md)
 - [HTTP conventions](docs/contracts/http.md)
 - [Lab 3 discovery and resilience contract](docs/contracts/lab3.md)
 - [Domain types](docs/contracts/domain.md)
