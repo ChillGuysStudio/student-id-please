@@ -20,6 +20,8 @@ class PublishedIncrement(unittest.TestCase):
         combined.update({row["service"]: row for row in cls.update["updates"]})
         cls.negotiation = json.loads((ROOT / "docs/releases/lab3-gateway-negotiation-20261028.json").read_text())
         combined.update({row["service"]: row for row in cls.negotiation["updates"]})
+        cls.completion = json.loads((ROOT / "docs/releases/lab3-completion-packages-20261028.json").read_text())
+        combined.update({row["service"]: row for row in cls.completion["updates"]})
         cls.rows = list(combined.values())
 
     def test_nine_unique_published_sources_and_native_images(self):
@@ -91,6 +93,21 @@ class PublishedIncrement(unittest.TestCase):
         self.assertEqual(runtime["consumed_ticket_reuse_http"], 401)
         self.assertFalse(runtime["official_dms_release_reconciliation_claimed"])
         self.assertEqual(runtime["websocket_frames_through_gateway"], 0)
+
+    def test_completion_packages_advance_gateway_and_rules_without_claiming_grade(self):
+        self.assertEqual(self.completion["previous_cpr_release"], "v3.0.2")
+        self.assertEqual(self.completion["previous_inventory"], "lab3-gateway-negotiation-20261028.json")
+        self.assertEqual({row["service"] for row in self.completion["updates"]}, {"gateway", "rules"})
+        self.assertFalse(self.completion["cumulative_grade_claimed"])
+        runtime = self.completion["runtime_updates"]
+        self.assertTrue(runtime["python_startup_logging_verified"])
+        self.assertEqual(runtime["python_slots_verified"], 8)
+        self.assertTrue(runtime["ticket_and_bearer_redacted_in_logs"])
+        self.assertFalse(runtime["all_logging_event_classes_claimed"])
+        self.assertTrue(runtime["dms_post_restart_history_verified"])
+        self.assertEqual(runtime["dms_messages_retained_once"], 2)
+        self.assertFalse(runtime["simultaneous_first_write_races_executed"])
+        self.assertFalse(runtime["official_dms_release_reconciliation_claimed"])
 
 
 if __name__ == "__main__":
