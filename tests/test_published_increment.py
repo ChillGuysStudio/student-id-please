@@ -39,8 +39,7 @@ class PublishedIncrement(unittest.TestCase):
             self.assertRegex(row["source_sha"], "^" + SHA + "$")
             self.assertRegex(row["version"], r"^3\.0\.[0-9]+$")
             self.assertRegex(row["image"], r"^[a-z0-9._-]+/[a-z0-9._-]+@" + DIGEST + "$")
-            if row["publication_run"] is not None:
-                self.assertGreater(row["publication_run"], 0)
+            self.assertGreater(row["publication_run"], 0)
             self.assertEqual(set(row["platforms"]), {"amd64", "arm64"})
             self.assertEqual(len(set(row["platforms"].values())), 2)
             for value in row["platforms"].values():
