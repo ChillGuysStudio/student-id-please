@@ -7,9 +7,9 @@ services:
   session:
     image: tirppy/student-id-session-service@sha256:0f5b2a2e3a60b8431d3247b4dd294f2f2378bf6245cb7f12b49a18588016ad5a
   moderation:
-    image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
+    image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
   moderation-publisher:
-    image: sentientmoss/pad-moderation-service@sha256:2aa9f8fcba8f4f719424a3c6bad6e23d547a952d4c528b62af8488be2498a076
+    image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
   discord-dms:
     image: sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff
   applicant:
@@ -19,4 +19,20 @@ services:
   server-rules:
     image: maxnoragami/server-rules-service@sha256:92d094c5d0593cc2b60e4f159d2367386db3db928edb2590a8911e7758680ec1
   university-record:
+    image: maxnoragami/university-record-service@sha256:fe4d28fc904b339f6b8288ce166d70b656cab1a2edfda323198076ef5b570a0c
+  player-slot-2:
+    image: tirppy/student-id-player-service@sha256:eedfb11d66a3c32bdb712f5436edcbd7c22f665ab27544563158426cf7bd9c11
+  session-slot-2:
+    image: tirppy/student-id-session-service@sha256:0f5b2a2e3a60b8431d3247b4dd294f2f2378bf6245cb7f12b49a18588016ad5a
+  moderation-slot-2:
+    image: sentientmoss/pad-moderation-service@sha256:98f65c762f0bd27bcb5fca2ece52db97d266482e6c62a975968278da8f7cefa1
+  discord-dms-slot-2:
+    image: sentientmoss/pad-discord-dms-service@sha256:4c2c3ed603a0c4f8ce5dfafcf3363fdc0dac83c4f15c966be33fd5b8f06a65ff
+  applicant-slot-2:
+    image: mcittkmims/applicant-service@sha256:0b8969e92aa1aa2d7ca0dff5bb6456f6046b6ae2f9cc7c602e2c336903639d27
+  credential-slot-2:
+    image: mcittkmims/credential-service@sha256:f3e069ffbb9ac1a54e5e3e2dcde0decf2e6a3b821a3595729a43b173ea5f6fdc
+  server-rules-slot-2:
+    image: maxnoragami/server-rules-service@sha256:92d094c5d0593cc2b60e4f159d2367386db3db928edb2590a8911e7758680ec1
+  university-record-slot-2:
     image: maxnoragami/university-record-service@sha256:fe4d28fc904b339f6b8288ce166d70b656cab1a2edfda323198076ef5b570a0c

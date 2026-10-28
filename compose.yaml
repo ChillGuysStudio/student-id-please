@@ -1,9 +1,23 @@
 name: student-id-lab2
+x-lab3: &lab3
+  DISCOVERY_URL: ${DISCOVERY_URL:-http://discovery-slot-1:8081}
+  CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
+  CONTROL_MAX_CONCURRENT_CALLS: '8'
+  DISCOVERY_REGISTER_INTERVAL_SECONDS: '5'
+  OUTBOUND_TASK_TIMEOUT_SECONDS: '2'
+
 services:
   gateway:
     image: ${GATEWAY_IMAGE:?Set GATEWAY_IMAGE to a published source-matched image}
     pull_policy: always
     env_file: .local/lab2/gateway.env
+    environment:
+      <<: *lab3
+      SERVICE_NAME: gateway
+      INSTANCE_ID: ${GATEWAY_INSTANCE_ID:?Set GATEWAY_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://gateway-slot-1:8083
+      CONTROL_PLANE_NAME: gateway
+      CONTROL_PLANE_TOKEN: ${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}
     ports:
       - '127.0.0.1:${GATEWAY_PORT:-8080}:8080'
     volumes:
@@ -14,6 +28,38 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    networks:
+      default:
+        aliases: [gateway-slot-1]
+    restart: unless-stopped
+  discovery:
+    image: maxnoragami/discovery-service@sha256:bff9a1d52927db4f15e5c690c03957e68f2cfed9358124bafd9ac2147128b1c8
+    environment:
+      SERVICE_NAME: discovery
+      INSTANCE_ID: ${DISCOVERY_INSTANCE_ID:?Set DISCOVERY_INSTANCE_ID in .env}
+      DISCOVERY_ADDR: ':8081'
+      DISCOVERY_HEALTH_INTERVAL_SECONDS: '1'
+      DISCOVERY_LEASE_SECONDS: '15'
+      DISCOVERY_STATE_FILE: /state/removed.json
+      CONTROL_PLANE_NAME: discovery
+      CONTROL_PLANE_TOKEN: ${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: '{"gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","player":"${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}","session":"${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}","moderation":"${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}","discord-dms":"${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}","applicant":"${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}","credential":"${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}","rules":"${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}","university_record":"${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}","discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
+      CONTROL_MAX_CONCURRENT_CALLS: '8'
+      OUTBOUND_TASK_TIMEOUT_SECONDS: '2'
+      GATEWAY_ALLOW_INSECURE_WS: 'true'
+      GATEWAY_ALLOW_LOCAL_WS: 'true'
+      DISCORD_WEBHOOK_URL: ${DISCOVERY_DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - discovery-state:/state
+    networks:
+      default:
+        aliases: [discovery-slot-1]
+    healthcheck:
+      test: [CMD, /discovery, --healthcheck]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     restart: unless-stopped
   player-db:
     image: postgres:17-alpine
@@ -77,6 +123,7 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
       APPLICANT_BROKER_PASSWORD: ${APPLICANT_BROKER_PASSWORD:?Set APPLICANT_BROKER_PASSWORD in .env}
       CREDENTIAL_BROKER_PASSWORD: ${CREDENTIAL_BROKER_PASSWORD:?Set CREDENTIAL_BROKER_PASSWORD in .env}
+      UNIVERSITY_BROKER_PASSWORD: ${UNIVERSITY_BROKER_PASSWORD:?Set UNIVERSITY_BROKER_PASSWORD in .env}
     volumes:
       - broker-data:/var/lib/rabbitmq
       - ./scripts/start_broker.sh:/run/start_broker.sh:ro
@@ -116,27 +163,45 @@ services:
   player:
     image: tirppy/student-id-player-service:${PLAYER_VERSION:-2.0.1}
     pull_policy: always
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/player.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: player
+      INSTANCE_ID: ${PLAYER_SLOT1_INSTANCE_ID:?Set PLAYER_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://player-slot-1:8001
+      CONTROL_PLANE_NAME: player
+      CONTROL_PLANE_TOKEN: ${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
       JWT_PRIVATE_KEY_PATH: /keys/player-private.pem
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
       - ./.local/lab2/player-private.pem:/keys/player-private.pem:ro
       - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     depends_on:
       player-db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      default:
+        aliases: [player-slot-1]
     restart: unless-stopped
   session:
     image: tirppy/student-id-session-service:${SESSION_VERSION:-2.0.0}
     pull_policy: always
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/session.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: session
+      INSTANCE_ID: ${SESSION_SLOT1_INSTANCE_ID:?Set SESSION_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://session-slot-1:8002
+      CONTROL_PLANE_NAME: session
+      CONTROL_PLANE_TOKEN: ${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
-      GATEWAY_URL: http://gateway:8083
+      GATEWAY_URL: http://gateway-slot-1:8083
       GATEWAY_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
       PLAYER_MODE: http
       EXTERNAL_SERVICES_MODE: http
@@ -145,6 +210,7 @@ services:
     volumes:
       - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
       - ./.local/lab2/player-public.pem:/keys/player-public.pem:ro
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     depends_on:
       session-db:
         condition: service_healthy
@@ -154,28 +220,40 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      default:
+        aliases: [session-slot-1]
     restart: unless-stopped
   moderation:
     image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
     pull_policy: always
+    command: [uvicorn, moderation.api:app, --host, 0.0.0.0, --port, '8000', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/moderation.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: moderation
+      INSTANCE_ID: ${MODERATION_SLOT1_INSTANCE_ID:?Set MODERATION_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://moderation-slot-1:8000
+      CONTROL_PLANE_NAME: moderation
+      CONTROL_PLANE_TOKEN: ${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}
+      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
-      SESSION_URL: http://gateway:8083
+      SESSION_URL: http://gateway-slot-1:8083
       SESSION_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      APPLICANT_URL: http://gateway:8083
+      APPLICANT_URL: http://gateway-slot-1:8083
       APPLICANT_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      CREDENTIAL_URL: http://gateway:8083
+      CREDENTIAL_URL: http://gateway-slot-1:8083
       CREDENTIAL_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://gateway:8083
+      UNIVERSITY_URL: http://gateway-slot-1:8083
       UNIVERSITY_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      RULES_URL: http://gateway:8083
+      RULES_URL: http://gateway-slot-1:8083
       RULES_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      PLAYER_URL: http://gateway:8083
+      PLAYER_URL: http://gateway-slot-1:8083
       PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
     volumes:
       - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -187,6 +265,9 @@ services:
         condition: service_healthy
       gateway:
         condition: service_healthy
+    networks:
+      default:
+        aliases: [moderation-slot-1]
     restart: unless-stopped
   moderation-publisher:
     image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
@@ -204,19 +285,31 @@ services:
   discord-dms:
     image: sentientmoss/pad-discord-dms-service:${DISCORD_DMS_VERSION:-latest}
     pull_policy: always
+    command: [uvicorn, discord_dms.api:app, --host, 0.0.0.0, --port, '8000', --no-access-log, --ws-ping-interval, '30', --ws-ping-timeout, '60', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/discord-dms.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: discord-dms
+      INSTANCE_ID: ${DISCORD_DMS_SLOT1_INSTANCE_ID:?Set DISCORD_DMS_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://discord-dms-slot-1:8000
+      CONTROL_PLANE_NAME: discord-dms
+      CONTROL_PLANE_TOKEN: ${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}
+      DISCOVERY_LEASE_SECONDS: '15'
+      GATEWAY_ALLOW_INSECURE_WS: 'true'
+      GATEWAY_ALLOW_LOCAL_WS: 'true'
+      INSTANCE_WS_URL: ws://localhost:${DMS_PORT:-8009}
       DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHAT_TICKET_SECRET: ${CHAT_TICKET_SECRET:?Set CHAT_TICKET_SECRET in .env}
-      SESSION_URL: http://gateway:8083
+      SESSION_URL: http://gateway-slot-1:8083
       SESSION_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://gateway:8083
+      UNIVERSITY_URL: http://gateway-slot-1:8083
       UNIVERSITY_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
     ports:
       - '127.0.0.1:${DMS_PORT:-8009}:8000'
     volumes:
       - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -230,16 +323,26 @@ services:
         condition: service_healthy
       gateway:
         condition: service_healthy
+    networks:
+      default:
+        aliases: [discord-dms-slot-1]
     restart: unless-stopped
   applicant:
     image: mcittkmims/applicant-service:${APPLICANT_SERVICE_VERSION:-latest}
     pull_policy: always
     env_file: .local/lab2/applicant.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: applicant
+      INSTANCE_ID: ${APPLICANT_SLOT1_INSTANCE_ID:?Set APPLICANT_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://applicant-slot-1:8081
+      CONTROL_PLANE_NAME: applicant
+      CONTROL_PLANE_TOKEN: ${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}
+      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
       SERVER_ADDRESS: 0.0.0.0
       MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
-      SESSION_URL: http://gateway:8083
-      UNIVERSITY_URL: http://gateway:8083
+      SESSION_URL: http://gateway-slot-1:8083
+      UNIVERSITY_URL: http://gateway-slot-1:8083
       RABBITMQ_URL: amqp://applicant:${APPLICANT_BROKER_PASSWORD}@rabbitmq:5672/
       BROKER_PRODUCERS: '{"applicant":"applicant","credential":"credential","university_record":"university_record"}'
     depends_on:
@@ -247,15 +350,25 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      default:
+        aliases: [applicant-slot-1]
     restart: unless-stopped
   credential:
     image: mcittkmims/credential-service:${CREDENTIAL_SERVICE_VERSION:-latest}
     pull_policy: always
     env_file: .local/lab2/credential.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: credential
+      INSTANCE_ID: ${CREDENTIAL_SLOT1_INSTANCE_ID:?Set CREDENTIAL_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://credential-slot-1:8082
+      CONTROL_PLANE_NAME: credential
+      CONTROL_PLANE_TOKEN: ${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}
+      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
       MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
-      SESSION_URL: http://gateway:8083
-      UNIVERSITY_URL: http://gateway:8083
+      SESSION_URL: http://gateway-slot-1:8083
+      UNIVERSITY_URL: http://gateway-slot-1:8083
       RABBITMQ_URL: amqp://credential:${CREDENTIAL_BROKER_PASSWORD}@rabbitmq:5672/
       BROKER_PRODUCERS: '{"applicant":"applicant","credential":"credential","university_record":"university_record"}'
     depends_on:
@@ -263,6 +376,9 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      default:
+        aliases: [credential-slot-1]
     restart: unless-stopped
   university-mongodb:
     image: mongo:7.0
@@ -302,11 +418,19 @@ services:
     pull_policy: always
     env_file: .local/lab2/university_record.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: university_record
+      INSTANCE_ID: ${UNIVERSITY_RECORD_SLOT1_INSTANCE_ID:?Set UNIVERSITY_RECORD_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://university-record-slot-1:8006
+      CONTROL_PLANE_NAME: university_record
+      CONTROL_PLANE_TOKEN: ${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}
+      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
       SPRING_PROFILES_ACTIVE: gateway
       MONGO_HOST: university-mongodb
       MONGO_DATABASE: university_records
       MONGO_ROOT_USERNAME: university_record_service
       MONGO_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
+      RABBITMQ_URL: amqp://university_record:${UNIVERSITY_BROKER_PASSWORD}@rabbitmq:5672/%2F
       SERVER_PORT: 8006
       TASK_TIMEOUT: ${JAVA_TASK_TIMEOUT:-30s}
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
@@ -315,6 +439,11 @@ services:
     depends_on:
       university-mongodb:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      default:
+        aliases: [university-record-slot-1]
     restart: unless-stopped
   rules-db:
     image: postgres:18-alpine
@@ -335,6 +464,14 @@ services:
     pull_policy: always
     env_file: .local/lab2/rules.env
     environment:
+      <<: *lab3
+      SERVICE_NAME: rules
+      INSTANCE_ID: ${SERVER_RULES_SLOT1_INSTANCE_ID:?Set SERVER_RULES_SLOT1_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://server-rules-slot-1:8005
+      CONTROL_PLANE_NAME: rules
+      CONTROL_PLANE_TOKEN: ${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}
+      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
+      INTERNAL_GATEWAY_URL: http://gateway-slot-1:8083
       SPRING_PROFILES_ACTIVE: gateway
       DATABASE_URL: jdbc:postgresql://rules-db:5432/server_rules
       POSTGRES_USER: server_rules
@@ -348,8 +485,90 @@ services:
     depends_on:
       rules-db:
         condition: service_healthy
+    networks:
+      default:
+        aliases: [server-rules-slot-1]
     restart: unless-stopped
+  # Second replica of each domain service. It extends slot 1 and changes only
+  # its instance identity, its address, and its network alias.
+  applicant-slot-2:
+    extends:
+      service: applicant
+    environment:
+      INSTANCE_ID: ${APPLICANT_SLOT2_INSTANCE_ID:?Set APPLICANT_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://applicant-slot-2:8081
+    networks: !override
+      default:
+        aliases: [applicant-slot-2]
+  credential-slot-2:
+    extends:
+      service: credential
+    environment:
+      INSTANCE_ID: ${CREDENTIAL_SLOT2_INSTANCE_ID:?Set CREDENTIAL_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://credential-slot-2:8082
+    networks: !override
+      default:
+        aliases: [credential-slot-2]
+  university-record-slot-2:
+    extends:
+      service: university-record
+    environment:
+      INSTANCE_ID: ${UNIVERSITY_RECORD_SLOT2_INSTANCE_ID:?Set UNIVERSITY_RECORD_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://university-record-slot-2:8006
+    networks: !override
+      default:
+        aliases: [university-record-slot-2]
+  server-rules-slot-2:
+    extends:
+      service: server-rules
+    environment:
+      INSTANCE_ID: ${SERVER_RULES_SLOT2_INSTANCE_ID:?Set SERVER_RULES_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://server-rules-slot-2:8005
+    networks: !override
+      default:
+        aliases: [server-rules-slot-2]
+  moderation-slot-2:
+    extends:
+      service: moderation
+    environment:
+      INSTANCE_ID: ${MODERATION_SLOT2_INSTANCE_ID:?Set MODERATION_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://moderation-slot-2:8000
+    networks: !override
+      default:
+        aliases: [moderation-slot-2]
+  player-slot-2:
+    extends:
+      service: player
+    environment:
+      INSTANCE_ID: ${PLAYER_SLOT2_INSTANCE_ID:?Set PLAYER_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://player-slot-2:8001
+    networks: !override
+      default:
+        aliases: [player-slot-2]
+  session-slot-2:
+    extends:
+      service: session
+    environment:
+      INSTANCE_ID: ${SESSION_SLOT2_INSTANCE_ID:?Set SESSION_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://session-slot-2:8002
+    networks: !override
+      default:
+        aliases: [session-slot-2]
+  discord-dms-slot-2:
+    extends:
+      service: discord-dms
+    environment:
+      INSTANCE_ID: ${DISCORD_DMS_SLOT2_INSTANCE_ID:?Set DISCORD_DMS_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://discord-dms-slot-2:8000
+      INSTANCE_WS_URL: ws://localhost:${DMS_SLOT2_PORT:-18009}
+    networks: !override
+      default:
+        aliases: [discord-dms-slot-2]
+    ports: !override
+      - '127.0.0.1:${DMS_SLOT2_PORT:-18009}:8000'
 volumes:
+  discovery-state:
+    name: student-id-lab3-discovery-state
   player-data:
   session-data:
   moderation-data:
