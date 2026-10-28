@@ -57,6 +57,9 @@ class PublishedIncrement(unittest.TestCase):
         services["server-rules"] = services.pop("rules")
         services["university-record"] = services.pop("university_record")
         services["moderation-publisher"] = services["moderation"]
+        for name in ["player", "session", "moderation", "discord-dms", "applicant", "credential",
+                     "server-rules", "university-record"]:
+            services[name + "-slot-2"] = services[name]
         self.assertEqual(pairs, services)
         self.assertNotIn("discovery", pairs)
         self.assertFalse(any(word in text for word in ["environment:", "ports:", "build:", "volumes:"]))

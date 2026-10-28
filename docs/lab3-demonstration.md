@@ -116,6 +116,15 @@ This procedure is for a prepared, trusted operator laptop. A clean git clone wit
 
 1. Exact published sources and native multi-architecture images are already present on the machine.
 2. Stable UUID slot identifiers (`INSTANCE_ID`) and replica network origins are already configured.
+   `compose.yaml` declares slot 2 of each domain service as `<service>-slot-2`. It reuses the slot 1 image and settings, and `compose.published.yaml` pins both slots to the same digest. Set these keys in `.env` for slot 2. `.env.example` lists them.
+
+   - `<SERVICE>_SLOT2_INSTANCE_ID`: a UUID that no other live replica uses.
+   - `<SERVICE>_SLOT2_CONTROL_TOKEN`: the slot's outgoing control-plane credential.
+   - `CONTROL_PLANE_TOKENS`: the receiver token map. Discord DMs reads `DMS_CONTROL_PLANE_TOKENS` instead.
+   - `DISCOVERY_URL`: the private Discovery origin.
+   - `DMS_SLOT2_PORT`: the host port for the slot 2 WebSocket. The default is `18009`.
+
+   Slot 1 identity still comes from the ignored override files.
 3. Secrets and control tokens are already generated and trusted locally in ignored environment and Compose override files, specifically `.env`, `workspace.local/releases/compose/override.json`, and `workspace.local/releases/compose/domain-slot2-override.json`. These ignored local files are not distributed.
 4. Database, broker, and Redis volumes are preserved. Do not run `docker compose down --volumes`.
 5. WebSocket flags distinguish local and remote connections. Setting `GATEWAY_ALLOW_INSECURE_WS` and `GATEWAY_ALLOW_LOCAL_WS` permits unencrypted local testing against `ws://localhost:18009`. A remote demonstration requires the laptop's reachable address and secure `wss`. A remote client pointing to its own localhost is invalid.

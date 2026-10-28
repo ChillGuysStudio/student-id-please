@@ -1,4 +1,7 @@
 name: student-id-lab2
+x-lab3-slot-2: &lab3-slot-2
+  DISCOVERY_URL: ${DISCOVERY_URL:?Set DISCOVERY_URL in .env}
+
 services:
   gateway:
     image: ${GATEWAY_IMAGE:?Set GATEWAY_IMAGE to a published source-matched image}
@@ -349,6 +352,100 @@ services:
       rules-db:
         condition: service_healthy
     restart: unless-stopped
+  # Second replica of each domain service. Each one reuses its slot 1 image and
+  # settings, then adds its own Lab 3 identity. Slot 1 identity stays in the
+  # operator environment files.
+  applicant-slot-2:
+    extends:
+      service: applicant
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: applicant
+      INSTANCE_ID: ${APPLICANT_SLOT2_INSTANCE_ID:?Set APPLICANT_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://applicant-slot-2:8081
+      CONTROL_PLANE_NAME: applicant
+      CONTROL_PLANE_TOKEN: ${APPLICANT_SLOT2_CONTROL_TOKEN:?Set APPLICANT_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${CONTROL_PLANE_TOKENS:?Set CONTROL_PLANE_TOKENS in .env}
+  credential-slot-2:
+    extends:
+      service: credential
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: credential
+      INSTANCE_ID: ${CREDENTIAL_SLOT2_INSTANCE_ID:?Set CREDENTIAL_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://credential-slot-2:8082
+      CONTROL_PLANE_NAME: credential
+      CONTROL_PLANE_TOKEN: ${CREDENTIAL_SLOT2_CONTROL_TOKEN:?Set CREDENTIAL_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${CONTROL_PLANE_TOKENS:?Set CONTROL_PLANE_TOKENS in .env}
+  university-record-slot-2:
+    extends:
+      service: university-record
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: university_record
+      INSTANCE_ID: ${UNIVERSITY_RECORD_SLOT2_INSTANCE_ID:?Set UNIVERSITY_RECORD_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://university-record-slot-2:8006
+      CONTROL_PLANE_NAME: university_record
+      CONTROL_PLANE_TOKEN: ${UNIVERSITY_RECORD_SLOT2_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${CONTROL_PLANE_TOKENS:?Set CONTROL_PLANE_TOKENS in .env}
+  server-rules-slot-2:
+    extends:
+      service: server-rules
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: rules
+      INSTANCE_ID: ${SERVER_RULES_SLOT2_INSTANCE_ID:?Set SERVER_RULES_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://server-rules-slot-2:8005
+      CONTROL_PLANE_NAME: rules
+      CONTROL_PLANE_TOKEN: ${SERVER_RULES_SLOT2_CONTROL_TOKEN:?Set SERVER_RULES_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${CONTROL_PLANE_TOKENS:?Set CONTROL_PLANE_TOKENS in .env}
+  moderation-slot-2:
+    extends:
+      service: moderation
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: moderation
+      INSTANCE_ID: ${MODERATION_SLOT2_INSTANCE_ID:?Set MODERATION_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://moderation-slot-2:8000
+      CONTROL_PLANE_NAME: moderation
+      CONTROL_PLANE_TOKEN: ${MODERATION_SLOT2_CONTROL_TOKEN:?Set MODERATION_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${CONTROL_PLANE_TOKENS:?Set CONTROL_PLANE_TOKENS in .env}
+  player-slot-2:
+    extends:
+      service: player
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: player
+      INSTANCE_ID: ${PLAYER_SLOT2_INSTANCE_ID:?Set PLAYER_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://player-slot-2:8001
+      CONTROL_PLANE_NAME: player
+      CONTROL_PLANE_TOKEN: ${PLAYER_SLOT2_CONTROL_TOKEN:?Set PLAYER_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${CONTROL_PLANE_TOKENS:?Set CONTROL_PLANE_TOKENS in .env}
+  session-slot-2:
+    extends:
+      service: session
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: session
+      INSTANCE_ID: ${SESSION_SLOT2_INSTANCE_ID:?Set SESSION_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://session-slot-2:8002
+      CONTROL_PLANE_NAME: session
+      CONTROL_PLANE_TOKEN: ${SESSION_SLOT2_CONTROL_TOKEN:?Set SESSION_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${CONTROL_PLANE_TOKENS:?Set CONTROL_PLANE_TOKENS in .env}
+  discord-dms-slot-2:
+    extends:
+      service: discord-dms
+    environment:
+      <<: *lab3-slot-2
+      SERVICE_NAME: discord-dms
+      INSTANCE_ID: ${DISCORD_DMS_SLOT2_INSTANCE_ID:?Set DISCORD_DMS_SLOT2_INSTANCE_ID in .env}
+      INSTANCE_HTTP_URL: http://discord-dms-slot-2:8000
+      INSTANCE_WS_URL: ws://localhost:${DMS_SLOT2_PORT:-18009}
+      CONTROL_PLANE_NAME: discord-dms
+      CONTROL_PLANE_TOKEN: ${DISCORD_DMS_SLOT2_CONTROL_TOKEN:?Set DISCORD_DMS_SLOT2_CONTROL_TOKEN in .env}
+      CONTROL_PLANE_TOKENS: ${DMS_CONTROL_PLANE_TOKENS:?Set DMS_CONTROL_PLANE_TOKENS in .env}
+    ports: !override
+      - '127.0.0.1:${DMS_SLOT2_PORT:-18009}:8000'
 volumes:
   player-data:
   session-data:
