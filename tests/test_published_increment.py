@@ -18,6 +18,8 @@ class PublishedIncrement(unittest.TestCase):
         cls.update = json.loads((ROOT / "docs/releases/lab3-package-updates-20261028.json").read_text())
         combined = {row["service"]: row for row in cls.record["services"]}
         combined.update({row["service"]: row for row in cls.update["updates"]})
+        cls.negotiation = json.loads((ROOT / "docs/releases/lab3-gateway-negotiation-20261028.json").read_text())
+        combined.update({row["service"]: row for row in cls.negotiation["updates"]})
         cls.rows = list(combined.values())
 
     def test_nine_unique_published_sources_and_native_images(self):
@@ -76,6 +78,19 @@ class PublishedIncrement(unittest.TestCase):
             self.assertFalse(native[key])
         old_session = next(row for row in self.record["services"] if row["service"] == "session")
         self.assertEqual(old_session["version"], "3.0.7")
+
+    def test_negotiation_increment_records_actual_ports_without_promoting_dms(self):
+        self.assertEqual(self.negotiation["previous_cpr_release"], "v3.0.1")
+        self.assertEqual(self.negotiation["previous_inventory"], "lab3-package-updates-20261028.json")
+        self.assertEqual([row["service"] for row in self.negotiation["updates"]], ["gateway"])
+        self.assertFalse(self.negotiation["cumulative_grade_claimed"])
+        runtime = self.negotiation["runtime"]
+        self.assertEqual(runtime["selected_dms_ports"], [8009, 18009])
+        self.assertEqual(runtime["actual_cross_replica_messages"], 2)
+        self.assertFalse(runtime["duplicate_frame_created_extra_message"])
+        self.assertEqual(runtime["consumed_ticket_reuse_http"], 401)
+        self.assertFalse(runtime["official_dms_release_reconciliation_claimed"])
+        self.assertEqual(runtime["websocket_frames_through_gateway"], 0)
 
 
 if __name__ == "__main__":
