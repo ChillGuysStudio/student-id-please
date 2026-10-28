@@ -11,6 +11,17 @@ Four later packages extend the [27 October increment](lab3-published-increment.m
 
 The Gateway, Discovery, Player, Applicant, and Server Rules selections remain as recorded in the previous inventory. [compose.published.yaml](../compose.published.yaml) selects the corresponding immutable images for existing base Compose services. It remains an image-only overlay, not a complete Lab 3 bootstrap procedure.
 
+## Credential 3.0.5 and DMs 3.0.3
+
+Two later releases supersede the Credential 3.0.4 row above and the unchanged DMs pointer. The [release inventory](releases/lab3-credential-dms-releases-20261028.json) records both.
+
+| Service | Version | Published source | Release |
+| --- | --- | --- | --- |
+| Credential | 3.0.5 | `16098bb786be189746aca7b65d5b3591e8373b35` | `mcittkmims/credential-service` pull request 46, fixing issue 45 |
+| Discord DMs | 3.0.3 | `440d25b7dc7098c335a03c82fdff077aa41c12e1` | `andyp1xe1/pad-discord-dms-service` pull request 34, fixing issue 33 |
+
+CPR's submodule pointers and [compose.published.yaml](../compose.published.yaml) now select these sources and images for both slots. Anonymous registry readback confirmed that each image's AMD64 and ARM64 config revision label equals its source. Credential also carries the repository-source label. DMs does not, and none is claimed. Both releases run on both live slots, and Discovery showed all seventeen registrants ready. The source repositories are private, so their publication run IDs are not recorded.
+
 ## Physical completion and delivery
 
 Session and Moderation now capture actual body completion or terminal transport errors before response cleanup and recorder locking. Anchored UTC evidence and per-generation completion-time high-water marks preserve the inclusive failure window under out-of-order recording. A completed response does not become a new timeout because later cleanup crosses a deadline. Cancellation before physical completion stays suppressed.
