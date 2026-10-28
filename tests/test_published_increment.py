@@ -26,6 +26,8 @@ class PublishedIncrement(unittest.TestCase):
         combined.update({row["service"]: row for row in cls.dms["updates"]})
         cls.moderation = json.loads((ROOT / "docs/releases/lab3-moderation-3.0.5-20261028.json").read_text())
         combined.update({row["service"]: row for row in cls.moderation["updates"]})
+        cls.releases = json.loads((ROOT / "docs/releases/lab3-credential-dms-releases-20261028.json").read_text())
+        combined.update({row["service"]: row for row in cls.releases["updates"]})
         cls.rows = list(combined.values())
 
     def test_ten_unique_published_sources_and_native_images(self):
@@ -155,6 +157,20 @@ class PublishedIncrement(unittest.TestCase):
         self.assertFalse(self.moderation["cumulative_grade_claimed"])
         text = (ROOT / "compose.published.yaml").read_text()
         self.assertEqual(text.count(row["image"]), 3)
+
+    def test_credential_3_0_5_and_dms_3_0_3_are_source_matched(self):
+        self.assertEqual(self.releases["previous_inventory"], "lab3-moderation-3.0.5-20261028.json")
+        self.assertFalse(self.releases["cumulative_grade_claimed"])
+        credential, dms = self.releases["updates"]
+        self.assertEqual((credential["version"], dms["version"]), ("3.0.5", "3.0.3"))
+        self.assertEqual(credential["source_sha"], "16098bb786be189746aca7b65d5b3591e8373b35")
+        self.assertEqual(dms["source_sha"], "440d25b7dc7098c335a03c82fdff077aa41c12e1")
+        text = (ROOT / "compose.published.yaml").read_text()
+        for row in (credential, dms):
+            self.assertEqual(set(row["revision_labels"].values()), {row["source_sha"]})
+            self.assertEqual(text.count(row["image"]), 2)
+        self.assertTrue(credential["repository_source_labels_verified"])
+        self.assertFalse(dms["repository_source_labels_verified"])
 
 
 if __name__ == "__main__":
