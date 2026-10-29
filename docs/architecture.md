@@ -10,7 +10,7 @@ The client sends REST to the API gateway, and the gateway routes each request to
 
 All service-to-service REST passes through the gateway. Blue bidirectional arrows represent HTTP requests and responses between the gateway and each service. Route labels identify the resources and inter-service calls on those paths. The purple bidirectional arrow connects the client directly to Discord DMs for WebSocket chat. Dashed storage links connect each service to its own databases. Grey RabbitMQ links represent planned event delivery.
 
-The [Lab 3 discovery and resilience contract](contracts/lab3.md) defines the next implementation target. The [Lab 3 demonstration guide](lab3-demonstration.md) describes the scaled two-replica topology and Discovery integration. Business REST keeps these paths and authorization checks. Private registration, registry lookup, removal, and status probes use direct control-plane HTTP to avoid a Gateway bootstrap cycle. Discovery supplies replica addresses, and Gateway selects them with round-robin routing. The Lab 2 diagram does not yet show this control plane.
+The [discovery and resilience contract](contracts/resilience.md) defines registration, routing, health, and failure accounting. The [demonstration guide](demonstration.md) describes the scaled two-replica topology and Discovery integration. Business REST keeps these paths and authorization checks. Private registration, registry lookup, removal, and status probes use direct control-plane HTTP to avoid a Gateway bootstrap cycle. Discovery supplies replica addresses, and Gateway selects them with round-robin routing. The architecture diagram does not show this control plane.
 
 ## Service ownership
 

@@ -4,7 +4,7 @@ Discord DMs owns chat channels, membership, stored messages, tickets, and WebSoc
 
 ## Public image
 
-The image is [`sentientmoss/pad-discord-dms-service`](https://hub.docker.com/r/sentientmoss/pad-discord-dms-service/tags). `DISCORD_DMS_IMAGE` in `.env` selects its image as `owner/repo:version`. The legacy standalone API address is `http://localhost:8009`, not Lab 2 client ingress.
+The image is [`sentientmoss/pad-discord-dms-service`](https://hub.docker.com/r/sentientmoss/pad-discord-dms-service/tags). Set `DISCORD_DMS_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The legacy standalone API address is `http://localhost:8009`, not client ingress.
 
 Source code is in the [private repository](https://github.com/andyp1xe1/pad-discord-dms-service). Public images run without private-source access.
 
@@ -18,9 +18,9 @@ Redis holds tickets and delivery notifications. PostgreSQL holds authoritative h
 
 Mocked authorization uses role and permission fixtures. Integrated authorization reads both owners and denies access when either check fails.
 
-In the Lab 2 target, clients negotiate realtime access through REST on the gateway and receive a direct Discord DMs WebSocket URL. Discord DMs consumes the ticket on the direct upgrade and carries all chat frames. The gateway does not relay the live connection. Discord DMs redacts ticket query parameters, and message persistence precedes acknowledgement and broadcast.
+Clients negotiate realtime access through REST on the gateway and receive a direct Discord DMs WebSocket URL. Discord DMs consumes the ticket on the direct upgrade and carries all chat frames. The gateway does not relay the live connection. Discord DMs redacts ticket query parameters, and message persistence precedes acknowledgement and broadcast.
 
-The Lab 2 target sends ticket requests and history recovery through public gateway REST. All Discord DMs service REST, including permission reads during direct chat, uses the private internal gateway.
+Ticket requests and history recovery use public gateway REST. All Discord DMs service REST, including permission reads during direct chat, uses the private internal gateway.
 
 Current owned source supports `AUTH_MODE=gateway`. It verifies the gateway hop and request assertion, rejects original `Authorization`, and retains an encrypted chat capability for direct ticket consumption. Recurring Session and University Record reads send that capability and service credentials to internal gateway route prefixes. Roles, permissions, and lifecycle checks remain mandatory. The gateway caller name is `discord-dms`; legacy direct mode uses `dms`.
 

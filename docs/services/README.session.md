@@ -4,7 +4,7 @@ Session owns shift lifecycle, roster, roles, current case references, and aggreg
 
 ## Public image
 
-The image is [`tirppy/student-id-session-service`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). `SESSION_IMAGE` in `.env` selects its image as `owner/repo:version`. The local API address is `http://localhost:8002`.
+The image is [`tirppy/student-id-session-service`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). Set `SESSION_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The local API address is `http://localhost:8002`.
 
 Source code is in the [private repository](https://github.com/Tirppy/student-id-session-service). Public images run without private-source access.
 
@@ -22,7 +22,7 @@ Internal player-context requests need both service authentication and the initia
 
 ## Configuration
 
-For gateway mode, use the confirmed receiver names, outgoing authentication and peer contracts in the [Player and Session runtime packet](../player-session-runtime.md). The settings below describe the existing standalone Compose configuration.
+Gateway-mode settings, outgoing authentication and peer URLs live in [`compose.yaml`](../../compose.yaml) and the files [`scripts/setup.py`](../../scripts/setup.py) generates. The released image is recorded in [`docs/releases/services.json`](../releases/services.json).
 
 The shared deployment reads [`.env.example`](../../.env.example).
 

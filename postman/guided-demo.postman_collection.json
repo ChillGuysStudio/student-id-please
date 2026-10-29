@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Lab 2 \u2014 Guided Gateway and concurrency demo",
+    "name": "Guided Gateway and concurrency demo",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": "A numbered real-user demonstration through the public Gateway, followed by a controlled 100-slot overload and recovery. Run requests manually in order, using the separate environment template. These are successful, currently demonstrated lobby and permission flows; this collection does not assert Session activation or WebSocket frame delivery."
   },
@@ -42,8 +42,8 @@
                   "pm.environment.set(\"run_id\", run);",
                   "for (const key of [\"session_id\", \"team_id\", \"player0\", \"player1\", \"player2\", \"token0\", \"token1\", \"token2\"]) pm.environment.unset(key);",
                   "for (let i = 0; i < 3; i++) {",
-                  " pm.environment.set(\"username\" + i, \"lab2_\" + run.slice(0, 16) + \"_\" + i);",
-                  " pm.environment.set(\"email\" + i, \"lab2_\" + run + \"_\" + i + \"@example.test\");",
+                  " pm.environment.set(\"username\" + i, \"demo_\" + run.slice(0, 16) + \"_\" + i);",
+                  " pm.environment.set(\"email\" + i, \"demo_\" + run + \"_\" + i + \"@example.test\");",
                   " pm.environment.set(\"password\" + i, pm.variables.replaceIn(\"{{$randomUUID}}\") + \"Aa1!\");",
                   "}"
                 ]
@@ -85,7 +85,7 @@
             "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
             "body": {
               "mode": "raw",
-              "raw": "{\"username\": \"{{username0}}\", \"email\": \"{{email0}}\", \"password\": \"{{password0}}\", \"display_name\": \"Lab 2 participant 0\"}",
+              "raw": "{\"username\": \"{{username0}}\", \"email\": \"{{email0}}\", \"password\": \"{{password0}}\", \"display_name\": \"Demo participant 0\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -178,7 +178,7 @@
             "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
             "body": {
               "mode": "raw",
-              "raw": "{\"username\": \"{{username1}}\", \"email\": \"{{email1}}\", \"password\": \"{{password1}}\", \"display_name\": \"Lab 2 participant 1\"}",
+              "raw": "{\"username\": \"{{username1}}\", \"email\": \"{{email1}}\", \"password\": \"{{password1}}\", \"display_name\": \"Demo participant 1\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -271,7 +271,7 @@
             "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
             "body": {
               "mode": "raw",
-              "raw": "{\"username\": \"{{username2}}\", \"email\": \"{{email2}}\", \"password\": \"{{password2}}\", \"display_name\": \"Lab 2 participant 2\"}",
+              "raw": "{\"username\": \"{{username2}}\", \"email\": \"{{email2}}\", \"password\": \"{{password2}}\", \"display_name\": \"Demo participant 2\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -473,7 +473,7 @@
             "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
             "body": {
               "mode": "raw",
-              "raw": "{\"name\": \"Lab 2 {{run_id}}\"}",
+              "raw": "{\"name\": \"Demo {{run_id}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1228,7 +1228,7 @@
               }
             ],
             "url": "{{gateway_url}}/api/v1/players/me",
-            "description": "Have request 28 selected and ready. In a terminal run: python3 postman/lab2-overload.py. When READY appears, click Send immediately (within about 6 seconds). The helper fills the 100 live task slots with incomplete requests that cannot create a Player; this extra protected read receives the Gateway capacity error. If you miss the window, rerun the helper rather than weakening the assertion."
+            "description": "Have request 28 selected and ready. In a terminal run: python3 postman/overload.py. When READY appears, click Send immediately (within about 6 seconds). The helper fills the 100 live task slots with incomplete requests that cannot create a Player; this extra protected read receives the Gateway capacity error. If you miss the window, rerun the helper rather than weakening the assertion."
           },
           "event": [
             {
@@ -1264,7 +1264,7 @@
               }
             ],
             "url": "{{gateway_url}}/api/v1/players/me",
-            "description": "After lab2-overload.py prints DONE, send this request. The same protected route returns 200 again with the verified Player identity."
+            "description": "After overload.py prints DONE, send this request. The same protected route returns 200 again with the verified Player identity."
           },
           "event": [
             {

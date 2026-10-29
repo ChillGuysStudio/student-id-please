@@ -4,7 +4,7 @@ Player owns accounts, authentication, friendships, teams, and persistent progres
 
 ## Public image
 
-The image is [`tirppy/student-id-player-service`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). `PLAYER_IMAGE` in `.env` selects its image as `owner/repo:version`. The local API address is `http://localhost:8001`.
+The image is [`tirppy/student-id-player-service`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). Set `PLAYER_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The local API address is `http://localhost:8001`.
 
 Source code is in the [private repository](https://github.com/Tirppy/student-id-player-service). Public images run without private-source access.
 
@@ -20,7 +20,7 @@ When event fixtures replace RabbitMQ, they use the same typed progression handle
 
 ## Configuration
 
-For gateway mode, use the confirmed receiver names and published image evidence in the [Player and Session runtime packet](../player-session-runtime.md). The settings below describe the existing standalone Compose configuration.
+Gateway-mode settings live in [`compose.yaml`](../../compose.yaml) and the files [`scripts/setup.py`](../../scripts/setup.py) generates. The released image is recorded in [`docs/releases/services.json`](../releases/services.json).
 
 The shared deployment reads [`.env.example`](../../.env.example).
 

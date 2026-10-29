@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded localhost-only Gateway concurrency demonstration for Postman step 28.
+"""Bounded localhost-only Gateway concurrency demonstration for Postman step 28 against a local Gateway.
 
 Opens 100 incomplete registration bodies (no registrations are committed),
 confirms that the 101st request receives 503 TASK_LIMIT_EXCEEDED, then briefly
@@ -9,12 +9,13 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 import http.client
 import json
+import os
 import socket
 import sys
 import time
 
 HOST = '127.0.0.1'
-PORT = 18080
+PORT = int(os.environ.get('GATEWAY_PORT', '8080'))
 CAPACITY = 100
 WIRE = (b'POST /api/v1/players HTTP/1.1\r\n'
         b'Host: 127.0.0.1\r\nContent-Type: application/json\r\n'
@@ -42,10 +43,14 @@ def check_overload():
 
 
 def main():
+    global PORT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--hold-seconds', type=float, default=6.0,
                         help='Seconds to keep all 100 slots occupied after READY (1–7; default 6)')
+    parser.add_argument('--port', type=int, default=PORT,
+                        help='Gateway port on 127.0.0.1 (default: GATEWAY_PORT or 8080)')
     args = parser.parse_args()
+    PORT = args.port
     if not 1 <= args.hold_seconds <= 7:
         parser.error('hold-seconds must be between 1 and 7')
     sockets = []

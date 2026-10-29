@@ -19,7 +19,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / 'docs/contracts/simulation.md'
-CREDENTIALS = ROOT / '.local/lab2/seed-admin.json'
+CREDENTIALS = ROOT / '.local/stack/seed-admin.json'
 EXPECTED_ENTRIES = 69
 CATALOG_PATH = '/api/v1/admin/university-data'
 
