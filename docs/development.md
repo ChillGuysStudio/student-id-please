@@ -45,7 +45,15 @@ The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each d
 	docker compose up -d --wait
 	```
 
-7. Inspect container status:
+7. Seed the University Record reference catalog. Without it, starting a session fails with `409 DEPENDENCY_REJECTED`. Run the command once on a fresh stack:
+
+	```sh
+	python3 scripts/seed_university_catalog.py
+	```
+
+	The script registers a local seed player, stores its credentials in `.local/lab2/seed-admin.json`, grants it admin for the import, and revokes admin afterwards. It prints the number of created, already present, and failed entries. Running it again is safe.
+
+8. Inspect container status:
 
 	```sh
 	docker compose ps
