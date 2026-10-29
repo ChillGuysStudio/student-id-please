@@ -1,15 +1,19 @@
 {
   "info": {
     "_postman_id": "5f420a87-0c85-466b-8880-a4f85b5df5ad",
-    "name": "University Record Service local workflow",
-    "description": "Creates all eight university reference kinds, checks CRUD and dependency protection, pins a snapshot, initializes a University-owned case, and reads its status and records.",
+    "name": "University Record service",
+    "description": "Public Gateway requests for the University Record service: create, read, replace, and delete all eight reference kinds as an administrator, and check dependency protection. Set admin_token to a Bearer access token for a global administrator. The collection can run repeatedly.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "gateway_public_url", "value": "http://localhost:8080" },
-    { "key": "gateway_internal_url", "value": "http://localhost:8083" },
-    { "key": "admin_token", "value": "local-admin-token" },
-    { "key": "service_token", "value": "local-service-token" }
+    {
+      "key": "gateway_url",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -20,10 +24,6 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
               {
                 "key": "Idempotency-Key",
                 "value": "{{program_key}}"
@@ -37,7 +37,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\n    \"code\": \"{{major}}\",\n    \"name\": \"Postman Program\",\n    \"study_years\": 4\n  }\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -83,10 +83,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{program_key}}"
               },
@@ -99,7 +95,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\n    \"code\": \"{{major}}\",\n    \"name\": \"Postman Program\",\n    \"study_years\": 4\n  }\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -120,10 +116,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{program_key}}"
               },
@@ -136,7 +128,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\"code\": \"{{major}}\", \"name\": \"Changed request\", \"study_years\": 4}\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -155,13 +147,8 @@
           "name": "Read program",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{program_ref}}"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{program_ref}}"
           },
           "event": [
             {
@@ -180,7 +167,8 @@
           "name": "Reject unauthenticated list",
           "request": {
             "method": "GET",
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data",
+            "header": []
           },
           "event": [
             {
@@ -199,13 +187,8 @@
           "name": "Read missing reference",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{missing_ref}}"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{missing_ref}}"
           },
           "event": [
             {
@@ -226,10 +209,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -242,7 +221,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"academic_year\",\n  \"subject_id\": null,\n  \"data\": {\n    \"label\": \"{{academic_label}}\",\n    \"starts_at\": \"{{academic_start}}\",\n    \"ends_at\": \"{{academic_end}}\"\n  }\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -263,10 +242,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -279,7 +254,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"course\",\n  \"subject_id\": null,\n  \"data\": {\n    \"course_id\": \"{{course_id}}\",\n    \"title\": \"API Design\",\n    \"major\": \"{{major}}\",\n    \"year\": 1,\n    \"semester\": \"autumn\"\n  }\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -300,10 +275,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -316,7 +287,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"schedule\",\n  \"subject_id\": null,\n  \"data\": {\n    \"semester\": \"autumn\",\n    \"course_id\": \"{{course_id}}\",\n    \"starts_at\": \"{{academic_start}}\",\n    \"ends_at\": \"{{autumn_end}}\"\n  }\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -337,10 +308,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -353,7 +320,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"enrollment\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\n    \"student_id\": \"{{major}}-{{student_yy}}-1\",\n    \"first_name\": \"Eliza\",\n    \"last_name\": \"Caraman\",\n    \"major\": \"{{major}}\",\n    \"year\": 1,\n    \"status\": \"active\",\n    \"enrolled_since\": \"{{academic_start}}\",\n    \"role\": \"student\"\n  }\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -374,10 +341,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -390,7 +353,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"registration\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"course_id\": \"{{course_id}}\"}\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -411,10 +374,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -427,7 +386,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"outlook_group\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"email\": \"{{email}}\", \"group_name\": \"students\", \"member\": true}\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -448,10 +407,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -464,7 +419,7 @@
               "mode": "raw",
               "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"major:{{major}}\",\"member\":true}}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -484,10 +439,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -500,7 +451,7 @@
               "mode": "raw",
               "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"year:1\",\"member\":true}}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -520,10 +471,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -536,7 +483,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"fcim_message\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"author_first_name\": \"Eliza\", \"author_last_name\": \"Caraman\", \"channel\": \"general\", \"text\": \"Postman verification\", \"sent_at\": \"{{reference_at}}\"}\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -555,13 +502,8 @@
           "name": "List courses",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data?kind=course&limit=10"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data?kind=course&limit=10"
           },
           "event": [
             {
@@ -580,13 +522,8 @@
           "name": "Filter references by subject",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data?subject_id={{subject_id}}&limit=100"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data?subject_id={{subject_id}}&limit=100"
           },
           "event": [
             {
@@ -605,13 +542,8 @@
           "name": "Reject invalid page limit",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data?limit=101"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data?limit=101"
           },
           "event": [
             {
@@ -632,10 +564,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -648,7 +576,7 @@
               "mode": "raw",
               "raw": "{\"kind\":\"PROGRAM\",\"subject_id\":null,\"data\":{\"code\":\"UP\",\"name\":\"Uppercase\",\"study_years\":4}}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -669,10 +597,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -685,7 +609,7 @@
               "mode": "raw",
               "raw": "{\"kind\":\"program\",\"subject_id\":null,\"extra\":true,\"data\":{\"code\":\"EX\",\"name\":\"Extra field\",\"study_years\":4}}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -706,10 +630,6 @@
             "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{replace_key}}"
               },
@@ -722,7 +642,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\"code\": \"{{major}}\", \"name\": \"Updated Postman Program\", \"study_years\": 4}\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{program_ref}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{program_ref}}"
           },
           "event": [
             {
@@ -743,10 +663,6 @@
             "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{replace_key}}"
               },
@@ -759,7 +675,7 @@
               "mode": "raw",
               "raw": "{\n  \"kind\": \"program\",\n  \"subject_id\": null,\n  \"data\": {\"code\": \"{{major}}\", \"name\": \"Updated Postman Program\", \"study_years\": 4}\n}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{program_ref}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{program_ref}}"
           },
           "event": [
             {
@@ -780,15 +696,11 @@
             "method": "DELETE",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{conflict_key}}"
               }
             ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{course_ref}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{course_ref}}"
           },
           "event": [
             {
@@ -817,15 +729,11 @@
             "method": "DELETE",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{conflict_key}}"
               }
             ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{course_ref}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{course_ref}}"
           },
           "event": [
             {
@@ -846,10 +754,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -862,7 +766,7 @@
               "mode": "raw",
               "raw": "{\"kind\":\"fcim_message\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"author_first_name\":\"Eliza\",\"author_last_name\":\"Caraman\",\"channel\":\"temporary\",\"text\":\"Delete me\",\"sent_at\":\"{{reference_at}}\"}}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data"
+            "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
           "event": [
             {
@@ -883,15 +787,11 @@
             "method": "DELETE",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{delete_key}}"
               }
             ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{disposable_ref}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{disposable_ref}}"
           },
           "event": [
             {
@@ -912,15 +812,11 @@
             "method": "DELETE",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{delete_key}}"
               }
             ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{disposable_ref}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{disposable_ref}}"
           },
           "event": [
             {
@@ -938,152 +834,14 @@
       "description": "Reference CRUD across all eight kinds, plus idempotency, auth, and pagination checks."
     },
     {
-      "name": "Snapshot and case",
-      "item": [
-        {
-          "name": "Create snapshot",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{service_token}}"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"session_id\":\"{{session_id}}\",\"reference_at\":\"{{reference_at}}\"}"
-            },
-            "url": "{{gateway_internal_url}}/internal/v1/university-snapshots"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('snapshot created', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('snapshot_id', pm.response.json().snapshot_id);"
-                ]
-              }
-            }
-          ],
-          "description": "Pins an immutable snapshot for the session. Expects 201."
-        },
-        {
-          "name": "Initialize existing-subject case",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{service_token}}"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"session_id\":\"{{session_id}}\",\"scenario\":\"eligible\",\"seed\":\"postman-case\",\"subject_id\":\"{{subject_id}}\"}"
-            },
-            "url": "{{gateway_internal_url}}/internal/v1/university-record/cases"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('case accepted', () => pm.response.to.have.status(202));",
-                  "pm.test('initial response is pending', () => pm.expect(pm.response.json().state).to.eql('pending'));",
-                  "pm.collectionVariables.set('case_id', pm.response.json().case_id);"
-                ]
-              }
-            }
-          ],
-          "description": "Initializes a University-owned case for the subject. Expects 202 with state pending."
-        },
-        {
-          "name": "Read case status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{service_token}}"
-              }
-            ],
-            "url": "{{gateway_internal_url}}/internal/v1/university-record/cases/{{case_id}}/status"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('case ready', () => pm.response.to.have.status(200));",
-                  "pm.test('state is ready', () => pm.expect(pm.response.json().state).to.eql('ready'));"
-                ]
-              }
-            }
-          ],
-          "description": "Reads the local case state. Expects 200 with state ready."
-        },
-        {
-          "name": "Read complete university records",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{service_token}}"
-              }
-            ],
-            "url": "{{gateway_internal_url}}/internal/v1/cases/{{case_id}}/university-records?session_id={{session_id}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('records returned', () => pm.response.to.have.status(200));",
-                  "pm.test('records are non-empty', () => pm.expect(pm.response.json().records.length).to.be.above(0));",
-                  "pm.test('subject retained', () => pm.expect(pm.response.json().subject_id).to.eql(pm.collectionVariables.get('subject_id')));",
-                  "pm.collectionVariables.set('original_case', pm.response.text());"
-                ]
-              }
-            }
-          ],
-          "description": "Reads the full case records for Moderation. Expects 200 with the subject's records."
-        }
-      ],
-      "description": "Snapshot pinning, University case initialization, and complete record reads."
-    },
-    {
       "name": "Read replace and delete every kind",
       "item": [
         {
           "name": "Collect this run's references",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data?limit=100"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data?limit=100"
           },
           "event": [
             {
@@ -1108,13 +866,8 @@
           "name": "Read each reference",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{crud_id}}"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{crud_id}}"
           },
           "event": [
             {
@@ -1158,10 +911,6 @@
             "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               },
@@ -1174,7 +923,7 @@
               "mode": "raw",
               "raw": "{{crud_body}}"
             },
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{crud_id}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{crud_id}}"
           },
           "event": [
             {
@@ -1198,15 +947,11 @@
             "method": "DELETE",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               }
             ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{crud_id}}"
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{crud_id}}"
           },
           "event": [
             {
@@ -1225,13 +970,8 @@
           "name": "Confirm each reference was deleted",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": "{{gateway_public_url}}/api/v1/admin/university-data/{{crud_id}}"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data/{{crud_id}}"
           },
           "event": [
             {
@@ -1250,34 +990,19 @@
             }
           ],
           "description": "Reads back the deleted reference and advances the loop. Expects 404. Standalone: set crud_id to any reference ID first."
-        },
-        {
-          "name": "Case remains immutable after reference deletion",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{service_token}}"
-              }
-            ],
-            "url": "{{gateway_internal_url}}/internal/v1/cases/{{case_id}}/university-records?session_id={{session_id}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('case remains available', () => pm.response.to.have.status(200));",
-                  "pm.test('case is byte-for-byte unchanged', () => pm.expect(pm.response.text()).to.eql(pm.collectionVariables.get('original_case')));"
-                ]
-              }
-            }
-          ],
-          "description": "Re-reads the case after all deletions. Expects the byte-for-byte identical record set."
         }
       ],
       "description": "Loops read, replace, delete, and read-again over every reference kind, then proves the case is unchanged. Run the whole folder in the Runner, or send requests individually after setting crud_id manually (Replace also needs crud_body)."
     }
-  ]
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{admin_token}}",
+        "type": "string"
+      }
+    ]
+  }
 }

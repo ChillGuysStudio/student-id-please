@@ -37,4 +37,4 @@ The shared deployment reads [`.env.example`](../../.env.example).
 
 [Service APIs](../contracts/api.md), [HTTP conventions](../contracts/http.md), and [event definitions](../contracts/events.md) define the shared behavior. [Integration principles](../integration.md) describe mocked and integrated deployments.
 
-The [Moderation Postman collection](../../postman/moderation-service.json) provides request fixtures. [Verification cases](../verification.md) describe expected failure and retry behavior.
+The [Moderation Postman collection](../../postman/moderation-service.json) sends this service's public requests through the Gateway. Its `gateway_url` variable defaults to `http://127.0.0.1:8080`. [Verification cases](../verification.md) describe expected failure and retry behavior.
