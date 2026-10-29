@@ -112,19 +112,19 @@ flowchart TB
 
 ## Prepared laptop setup
 
-This procedure is for a prepared, trusted operator laptop. A clean git clone with Compose overlays does not bootstrap Lab 3 from scratch. The demonstration relies on the following preconditions:
+A clean clone bootstraps Lab 3 with `python3 scripts/prepare_lab2.py` and `docker compose up -d --wait`. The demonstration relies on the following:
 
-1. Exact published sources and native multi-architecture images are already present on the machine.
+1. `.env` selects each service image as `owner/repo:version` (`GATEWAY_IMAGE`, `DISCOVERY_IMAGE`, `PLAYER_IMAGE`, …). The generator writes the released versions. Any published tag works, including `latest`.
 2. Stable UUID slot identifiers (`INSTANCE_ID`) and replica network origins are already configured.
-   `compose.yaml` runs Discovery, the Gateway, and two replicas of each domain service. Slot 1 keeps the service name, such as `applicant`, and adds the alias `applicant-slot-1`. Slot 2 is the service `applicant-slot-2` with the alias of the same name. Each replica registers `INSTANCE_HTTP_URL` as `http://<service>-slot-<n>:<port>`. Pass `-f compose.yaml -f compose.published.yaml` to run the pinned images.
+   `compose.yaml` runs Discovery, the Gateway, and replica 1 of each domain service. `REPLICAS` in `.env`, default `2`, or a per-service `<SERVICE>_REPLICAS`, sets the count. `scripts/replicas.py` writes the ignored `compose.replicas.yaml` with replicas 2 to N, which `.env` loads through `COMPOSE_FILE`. Replica 1 keeps the service name, such as `applicant`, with the alias `applicant-slot-1`. Replica `n` is the service `applicant-slot-<n>`. Each replica registers `INSTANCE_HTTP_URL` as `http://<service>-slot-<n>:<port>`. To change the count, edit `.env`, run `python3 scripts/replicas.py`, then `docker compose up -d --remove-orphans`.
 
    `.env` supplies the identities. `scripts/prepare_lab2.py` generates them, and `.env.example` lists the names.
 
-   - `<SERVICE>_SLOT1_INSTANCE_ID` and `<SERVICE>_SLOT2_INSTANCE_ID`: one UUID per domain replica. `GATEWAY_INSTANCE_ID` and `DISCOVERY_INSTANCE_ID` cover the other two registrants.
+   - `<SERVICE>_SLOT1_INSTANCE_ID`: the UUID of replica 1. Replicas 2 to N derive stable UUIDs from `REPLICA_SEED`. `GATEWAY_INSTANCE_ID` and `DISCOVERY_INSTANCE_ID` cover the other two registrants.
    - `<SERVICE>_CONTROL_TOKEN`: the outgoing control-plane credential of a service. Both slots share it. Gateway, Discovery, and `OPERATOR` have one each.
    - `DISCOVERY_URL`: optional. It defaults to the Compose Discovery at `http://discovery-slot-1:8081`.
    - `DISCOVERY_DISCORD_WEBHOOK_URL`: optional. Leave it empty to send no alerts.
-   - `DMS_PORT` and `DMS_SLOT2_PORT`: the host ports of the two WebSocket listeners, `8009` and `18009` by default.
+   - `DMS_PORT` and `DMS_REPLICA_PORT_BASE`: host WebSocket ports. Replica 1 uses `DMS_PORT` (`8009`), and replica `n` uses `DMS_REPLICA_PORT_BASE + n - 2` (`18009`, `18010`, …).
 
    Compose builds each receiver's `CONTROL_PLANE_TOKENS` map from the Discovery and operator tokens. Discord DMs uses `http://gateway-slot-1:8083` for `SESSION_URL` and `UNIVERSITY_URL`, so the breaker sees Gateway's registered origin.
 3. Secrets and control tokens are already generated and trusted locally in ignored environment and Compose override files, specifically `.env` and `.local/lab2/`. The operator override files under `workspace.local/releases/compose/` stay valid but are no longer required. These ignored local files are not distributed.
@@ -151,7 +151,7 @@ python3 .github/scripts/check_docs.py
 To validate the operator Compose setup without exposing secrets, pass the `--quiet` flag. Never run `docker compose config` without `--quiet` because doing so prints resolved credentials to standard output:
 
 ```sh
-docker compose -f compose.yaml -f compose.published.yaml config --quiet
+docker compose config --quiet
 ```
 
 ### Inspect running containers

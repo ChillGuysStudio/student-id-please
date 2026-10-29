@@ -15,18 +15,18 @@ cd student-id-please
 
 Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. DMs exposes `127.0.0.1:8009` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
 
-`compose.yaml` runs Discovery, the Gateway, and two replicas of each domain service. [`compose.published.yaml`](../compose.published.yaml) pins the Gateway and domain service images to their release digests, and the generated `.env` loads it through `COMPOSE_FILE`. `compose.yaml` pins the Discovery digest itself. The Compose project is `student-id-lab3`.
+The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each domain service. `.env` selects every service image as `owner/repo:version`, for example `PLAYER_IMAGE=tirppy/student-id-player-service:3.0.0`. Any published tag works, including `latest`. `scripts/replicas.py` turns `REPLICAS` into the ignored `compose.replicas.yaml`, and `.env` loads it through `COMPOSE_FILE`. The Compose project is `student-id-lab3`.
 
-1. Pick any published Gateway reference for `GATEWAY_IMAGE`, such as the digest in `compose.published.yaml`. `compose.yaml` requires the variable, and `compose.published.yaml` replaces it with the released digest.
+1. Optionally choose a Gateway image with `--gateway-image owner/repo:version`. Otherwise the generator writes the released version.
 2. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
 
 	```sh
-	python3 scripts/prepare_lab2.py --gateway-image "$GATEWAY_IMAGE"
+	python3 scripts/prepare_lab2.py            # or: --tag latest
 	```
 
 	The command creates ignored `.env` and `.local/lab2/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
 
-3. Keep the generated `.env` as is. It loads the published Lab 3 image pins through `COMPOSE_FILE`, pins the gateway public key, and configures receiver-hop credentials through `SERVICE_TOKENS.gateway`. Copy your Discord webhook into `DISCOVERY_DISCORD_WEBHOOK_URL` if you want real alerts. Keep `.env` and `.local/` out of commits.
+3. Review the generated `.env`. Change a `*_IMAGE` value to select another version, or run the generator with `--tag latest`. To change replica counts, set `REPLICAS` or `<SERVICE>_REPLICAS`, then run `python3 scripts/replicas.py`. The generator also pins the gateway public key and configures receiver-hop credentials through `SERVICE_TOKENS.gateway`. Copy your Discord webhook into `DISCOVERY_DISCORD_WEBHOOK_URL` if you want real alerts. Keep `.env` and `.local/` out of commits.
 4. Validate Compose without printing resolved values. `scripts/prepare_lab2.py` also generates the Lab 3 instance IDs and control tokens that `.env.example` lists:
 
 	```sh
@@ -51,8 +51,8 @@ Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain
 	docker compose ps
 	```
 
-Service and helper containers use `pull_policy: always`. The Gateway, Discovery, and
-domain service images are immutable digests. Databases and brokers use version tags. Docker selects the host's native platform
+Service and helper containers use `pull_policy: always`. With the published pins,
+every service image is an immutable digest. Docker selects the host's native platform
 from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
