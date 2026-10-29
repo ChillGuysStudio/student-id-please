@@ -71,9 +71,12 @@ class ClockTrack:
 
 
 def expected_trip(failures, window: float, threshold: int = 3):
-    """Time of the failure that fills the window: the first failure with `threshold` failures in (t - window, t]."""
+    """Time of the failure that fills the window: the first failure with `threshold` failures in [t - window, t].
+
+    The window includes its start, as docs/contracts/resilience.md requires: failures at 0, 2 and 7 s trip a 7 s window.
+    """
     for index, t in enumerate(failures):
-        if len([f for f in failures[: index + 1] if t - window < f <= t]) >= threshold:
+        if len([f for f in failures[: index + 1] if t - window <= f <= t]) >= threshold:
             return t
     return None
 

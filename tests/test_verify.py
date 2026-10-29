@@ -203,10 +203,10 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(window.expected_trip([0.0, 4.0, 8.0, 9.0], 7.0), 9.0)
         self.assertIsNone(window.expected_trip([0.0, 1.0], 7.0))
 
-    def test_window_boundary_is_exclusive_at_its_start(self):
-        # Failures at 0, 2 and 7 sit exactly one window apart, so the first one has left the window.
-        self.assertIsNone(window.expected_trip([0.0, 2.0, 7.0], 7.0))
-        self.assertEqual(window.expected_trip([0.0, 2.0, 6.999], 7.0), 6.999)
+    def test_window_includes_its_start(self):
+        # docs/contracts/resilience.md: failures at 0, 2 and 7 s trip a 7 s window, and 0, 2 and 7.001 s do not.
+        self.assertEqual(window.expected_trip([0.0, 2.0, 7.0], 7.0), 7.0)
+        self.assertIsNone(window.expected_trip([0.0, 2.0, 7.001], 7.0))
 
     def test_trip_must_follow_the_filling_failure(self):
         self.assertTrue(window.trip_matches(None, None))

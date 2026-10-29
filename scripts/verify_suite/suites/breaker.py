@@ -286,6 +286,9 @@ def all_callers(ctx):
             run_caller(ctx, caller)
         except Exception:  # noqa: BLE001 the failing step is already recorded
             pass
+        finally:
+            # Remove this caller's rule and reactivate its removals before the next caller starts.
+            ctx.run_cleanups()
 
 
 SUITE = Suite(
