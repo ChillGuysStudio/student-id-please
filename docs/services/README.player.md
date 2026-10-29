@@ -4,7 +4,7 @@ Player owns accounts, authentication, friendships, teams, and persistent progres
 
 ## Public image
 
-The image is [`tirppy/student-id-player-service`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). The `PLAYER_VERSION` variable selects its tag in [Compose](../../compose.yaml). The local API address is `http://localhost:8001`.
+The image is [`tirppy/student-id-player-service`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). [`compose.published.yaml`](../../compose.published.yaml) pins its released image digest. The local API address is `http://localhost:8001`.
 
 Source code is in the [private repository](https://github.com/Tirppy/student-id-player-service). Public images run without private-source access.
 

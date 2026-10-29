@@ -89,9 +89,9 @@ def prepare(root, gateway_image, gateway_port=8080, dms_port=8009):
     config.update({f"{name}_CONTROL_TOKEN": secrets.token_urlsafe(32) for name in CONTROL_NAMES})
     config.update({f"{name}_SLOT{slot}_INSTANCE_ID": uuid.uuid4() for name in REPLICA_NAMES for slot in (1, 2)})
     config.update(GATEWAY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_DISCORD_WEBHOOK_URL="")
-    config.update(GATEWAY_IMAGE=gateway_image, GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
-                  PLAYER_VERSION="2.0.1", SESSION_VERSION="2.0.0",
-                  MODERATION_VERSION="2.0.2", DISCORD_DMS_VERSION="2.0.2",
+    # COMPOSE_FILE makes plain `docker compose` load the published Lab 3 image pins.
+    config.update(COMPOSE_FILE="compose.yaml:compose.published.yaml",
+                  GATEWAY_IMAGE=gateway_image, GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
     receiver_config, caller_names, credentials = {}, {}, {}
@@ -147,7 +147,7 @@ def main():
     except (ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Development configuration failed: {error}\n")
     print("Created ignored .env and .local/lab2 configuration. No credentials were printed.")
-    print("Player 2.0.1 and Session 2.0.0 use the confirmed owner gateway settings.")
+    print("Compose will use the published Lab 3 image pins (COMPOSE_FILE).")
 
 
 if __name__ == "__main__":
