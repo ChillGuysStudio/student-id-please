@@ -259,7 +259,7 @@ class Stack:
             for service, lines in pool.map(one, list(services)):
                 for stamp, text in lines:
                     if pattern is None or pattern.search(text):
-                        found.append(LogLine(base_service(service), replica_of(service), stamp.strftime("%H:%M:%S.%f")[:-3], shorten(text)))
+                        found.append(LogLine(base_service(service), replica_of(service), stamp.strftime("%H:%M:%S.%f")[:-3], shorten(text), text))
         found.sort(key=lambda l: l.stamp)
         return found
 
@@ -335,6 +335,36 @@ class Stack:
         self.redactor.add(body["access_token"], body.get("refresh_token", ""))
         self._tokens[number] = (body["access_token"], time.monotonic() + float(body.get("expires_in", 900)))
         return body["access_token"]
+
+    def fresh_login(self, number: int) -> str:
+        """Log in again, ignoring the cached token. Needed after a role change, because tokens carry the role."""
+        self._tokens.pop(number, None)
+        return self.login(number)
+
+    def forget_token(self, number: int):
+        self._tokens.pop(number, None)
+
+    # ---------------------------------------------------------------- databases
+    def psql(self, service: str, user: str, database: str, sql: str):
+        """Run one SQL query that returns a single JSON value and return it parsed."""
+        out = self.docker("exec", self.container(service), "psql", "-U", user, "-d", database, "-At", "-c", sql, timeout=30)
+        if out.returncode:
+            raise StackError(f"psql failed in {service}")
+        return json.loads(out.stdout.strip().splitlines()[-1])
+
+    def mongo(self, js: str, university: bool = False):
+        """Run a JavaScript function body in mongosh and return its JSON result."""
+        wrapped = "print(JSON.stringify((function(){" + js + "})()))"
+        if university:
+            command = ["exec", "-e", "JS=" + wrapped, self.container("university-mongodb"), "sh", "-c",
+                       'mongosh --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" '
+                       '--authenticationDatabase admin university_records --eval "$JS"']
+        else:
+            command = ["exec", self.container("mongodb"), "mongosh", "--quiet", "--eval", wrapped]
+        out = self.docker(*command, timeout=40)
+        if out.returncode:
+            raise StackError("mongosh failed")
+        return json.loads(out.stdout.strip().splitlines()[-1])
 
     def images(self) -> list:
         out = self.compose("config", "--images", timeout=60)
