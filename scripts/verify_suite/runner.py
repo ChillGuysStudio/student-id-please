@@ -75,7 +75,8 @@ class Context:
                 started = time.monotonic()
                 step = Step("restore: " + title, started=datetime.datetime.now(datetime.timezone.utc).isoformat())
                 try:
-                    function()
+                    if function() is False:  # nothing was left to restore, so show no step
+                        continue
                 except Exception as failure:  # noqa: BLE001
                     step.ok, step.detail = False, self.stack.redactor.scrub(f"{type(failure).__name__}: {failure}")
                 step.seconds = time.monotonic() - started
