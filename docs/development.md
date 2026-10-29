@@ -51,8 +51,9 @@ The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each d
 	docker compose ps
 	```
 
-Service and helper containers use `pull_policy: always`. With the published pins,
-every service image is an immutable digest. Docker selects the host's native platform
+Service and helper containers use `pull_policy: always`, so `docker compose up` pulls
+the tag that `.env` selects. A version tag such as `3.0.7` is stable, and `latest` moves
+with each release. `docs/releases/` records the exact digest of each release. Docker selects the host's native platform
 from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
