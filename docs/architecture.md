@@ -2,7 +2,81 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The [architecture diagram](architecture.png) and its [editable source](architecture.drawio) show the services, request paths, storage, and planned event connections. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The diagram below shows the services, replicas, request paths, storage, and event connections. Its source is [`docs/diagrams/architecture.mmd`](diagrams/architecture.mmd), and a test keeps this copy identical to it. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+
+```mermaid
+flowchart TB
+	Client["Client or operator"]
+
+	subgraph GatewaySvc["Gateway (shared Go, one instance)"]
+		GWPub["Public listener :8080\nClient REST and negotiation"]
+		GWInt["Internal listener :8083\nService-to-service REST"]
+	end
+
+	subgraph DiscoverySvc["Discovery (shared Go, :8081)"]
+		DiscoveryNode["Registration, leases,\nstatus probes, removals"]
+		DiscStorage[("Removal state file\nDISCOVERY_STATE_FILE")]
+		DiscoveryNode --- DiscStorage
+	end
+
+	DiscordHook["Discord webhook\nalerts"]
+
+	subgraph DomainReplicas["Domain services, two replicas each (slot 1 and slot 2)"]
+		PlayerReplicas["Player"]
+		SessionReplicas["Session"]
+		ApplicantReplicas["Applicant"]
+		CredentialReplicas["Credential"]
+		RulesReplicas["Server Rules"]
+		UnivReplicas["University Record"]
+		ModReplicas["Moderation"]
+		DMReplicas["Discord DMs\nslot 1 :8009, slot 2 :18009"]
+	end
+
+	ModPublisher["Moderation outbox publisher"]
+
+	subgraph Stores["Storage and messaging"]
+		PGStores[("PostgreSQL databases\nplayer, session, moderation,\ndms, server rules")]
+		MongoShared[("MongoDB rs0\napplicant, credential")]
+		MongoUniv[("MongoDB\nuniversity records")]
+		RedisStore[("Redis\nSession views, DMs relay and tickets")]
+		RabbitMQBroker[("RabbitMQ\nbroker events")]
+	end
+
+	Client -->|"REST and negotiation"| GWPub
+	Client <-->|"Direct WebSocket chat"| DMReplicas
+
+	GWPub -->|"Round-robin over ready replicas"| DomainReplicas
+	DomainReplicas -->|"Service-to-service REST"| GWInt
+	GWInt -->|"Round-robin over ready replicas"| DomainReplicas
+
+	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
+	GWInt -.->|"Register and renew lease"| DiscoveryNode
+	GWPub -.->|"Background snapshot refresh"| DiscoveryNode
+	GWInt -.->|"Background snapshot refresh"| DiscoveryNode
+	DiscoveryNode -.->|"Status probes"| DomainReplicas
+	DiscoveryNode -.->|"Status probes"| GatewaySvc
+	DomainReplicas -.->|"Report breaker removals"| DiscoveryNode
+	DiscoveryNode -->|"Alerts"| DiscordHook
+
+	PlayerReplicas --- PGStores
+	SessionReplicas --- PGStores
+	ModReplicas --- PGStores
+	RulesReplicas --- PGStores
+	DMReplicas --- PGStores
+	ApplicantReplicas --- MongoShared
+	CredentialReplicas --- MongoShared
+	UnivReplicas --- MongoUniv
+	SessionReplicas --- RedisStore
+	DMReplicas --- RedisStore
+
+	ModReplicas --- ModPublisher
+	ModPublisher -->|"Outbox events"| RabbitMQBroker
+	PlayerReplicas --- RabbitMQBroker
+	SessionReplicas --- RabbitMQBroker
+	ApplicantReplicas --- RabbitMQBroker
+	CredentialReplicas --- RabbitMQBroker
+	UnivReplicas --- RabbitMQBroker
+```
 
 ## Request paths
 
