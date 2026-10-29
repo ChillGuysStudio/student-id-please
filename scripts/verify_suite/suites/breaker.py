@@ -251,7 +251,8 @@ def run_caller(ctx, caller: Caller):
         if clock.steps():
             step.note(f"wall clock steps seen and removed from the timeline: {clock.steps()}")
 
-    with ctx.step("Discovery removes the Gateway for circuit_open, once", services=["discovery"], match=r"\bremoved\b|removal") as step:
+    with ctx.step("Discovery removes the Gateway for circuit_open, once", services=["discovery"],
+                  match=r"\bremoved service_name=gateway .*reason=circuit_open", window=(20.0, 2.0)) as step:
         before = next(r for r in stack.registry() if r["instance_id"] == gateway_id)
         ok = until(lambda: next((r for r in stack.registry() if r["instance_id"] == gateway_id and r["state"] == "removed"), None), 150, 1.0)
         ctx.expect(ok, "Discovery did not remove the Gateway in 150 s")
@@ -264,7 +265,8 @@ def run_caller(ctx, caller: Caller):
                    if "dependency_failure " in l and any(i in l for i in instance.values())]
         step.note(f"Gateway failure lines that name these callers: {len(counted)}")
 
-    with ctx.step("Remove the fault, reactivate everything removed since the start (Gateway first), and check traffic") as step:
+    with ctx.step("Remove the fault, reactivate everything removed since the start (Gateway first), and check traffic",
+                  services=["discovery"], match=r"\breactivated\b") as step:
         restore()
         removed = [row_service(r) for r in stack.live_rows() if r["state"] != "ready"]
         ctx.expect(not removed, "not ready: " + ", ".join(removed))

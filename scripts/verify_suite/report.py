@@ -52,7 +52,7 @@ def render_markdown(report: dict) -> str:
                 lines.append(f"- {mark} {step['title']} ({fmt_duration(step['seconds'])}).{tail}")
                 for note in step["notes"]:
                     lines.append(f"  - {note}")
-                for log in step["logs"][:8]:
+                for log in step["logs"]:
                     lines.append(f"  - `{log['service']}` replica {log['replica']}: `{log['text']}`")
     return "\n".join(lines) + "\n"
 

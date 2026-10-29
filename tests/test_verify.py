@@ -1,4 +1,5 @@
 """Check the pure helpers of the verification suite without Docker, rich, or a running stack."""
+import ast
 import datetime
 import sys
 import unittest
@@ -7,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from verify_suite import util, window  # noqa: E402
+from verify_suite import ui, util, window  # noqa: E402
 from verify_suite.model import Case, CaseResult, LogLine, Mutation, Step, Suite, SuiteResult  # noqa: E402
 from verify_suite.report import build_report, render_markdown  # noqa: E402
 from verify_suite.suites import all_suites  # noqa: E402
@@ -245,3 +246,39 @@ class WindowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EvidenceTests(unittest.TestCase):
+    def test_every_step_that_captures_logs_filters_them(self):
+        """A step with `services=` and no `match=` would print arbitrary lines, so each one names the lines that prove its claim."""
+        bare = []
+        for path in sorted((ROOT / "scripts" / "verify_suite" / "suites").glob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text())):
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "step":
+                    names = {keyword.arg for keyword in node.keywords}
+                    if "services" in names and "match" not in names:
+                        bare.append(f"{path.name}:{node.lineno}")
+        self.assertEqual(bare, [])
+
+
+class CollapseTests(unittest.TestCase):
+    def line(self, service, replica, text, stamp="12:00:00.000"):
+        return LogLine(service, replica, stamp, text)
+
+    def test_lines_that_differ_only_in_numbers_and_ids_merge_with_a_count(self):
+        lines = [self.line("session", "1", f"POST /api/v1/sessions/{UUID} HTTP/1.1 20{n}", f"12:00:0{n}.000") for n in range(3)]
+        merged = ui.collapse(lines)
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0][1], 3)
+        self.assertEqual(merged[0][0].stamp, "12:00:00.000")
+
+    def test_replicas_and_services_stay_apart(self):
+        lines = [self.line("session", "1", "GET /x 200"), self.line("session", "2", "GET /x 200"), self.line("player", "1", "GET /x 200")]
+        self.assertEqual([count for _, count in ui.collapse(lines)], [1, 1, 1])
+
+    def test_different_events_stay_apart_and_keep_their_order(self):
+        lines = [self.line("discovery", "1", "alert event=critical_load"), self.line("discovery", "1", "alert event=load_recovered"),
+                 self.line("discovery", "1", "alert event=critical_load")]
+        merged = ui.collapse(lines)
+        self.assertEqual([(line.text, count) for line, count in merged],
+                         [("alert event=critical_load", 2), ("alert event=load_recovered", 1)])

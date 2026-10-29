@@ -36,15 +36,17 @@ def log_volume(ctx):
     stack = ctx.stack
     services = sorted(s for s in stack.containers() if not s.endswith("-db") and s not in ("redis", "rabbitmq", "mongodb", "university-mongodb"))
     window = 60
-    with ctx.step(f"Every service wrote logs in the last {window} s, and none flooded", services=[]) as step:
-        quiet, loud, now = [], [], datetime.datetime.now(datetime.timezone.utc)
+    with ctx.step(f"Every service wrote logs in the last {window} s, and none flooded") as step:
+        quiet, loud, now, counts = [], [], datetime.datetime.now(datetime.timezone.utc), {}
         for service in services:
-            count = len(stack.fetch_logs(service, now - datetime.timedelta(seconds=window), now))
+            count = counts[service] = len(stack.fetch_logs(service, now - datetime.timedelta(seconds=window), now))
             if count == 0 and service != "moderation-publisher":
                 quiet.append(service)
             if count > NOISE_LIMIT_PER_MINUTE:
                 loud.append(f"{service} ({count})")
-        step.note(f"checked {len(services)} services")
+        busiest = max(counts, key=counts.get) if counts else "none"
+        step.note(f"checked {len(services)} services, lines in {window} s: min {min(counts.values(), default=0)}, "
+                  f"max {counts.get(busiest, 0)} ({busiest}), limit {NOISE_LIMIT_PER_MINUTE}")
         ctx.expect(not quiet, "no log lines from " + ", ".join(quiet))
         ctx.expect(not loud, "more than %d lines per minute from %s" % (NOISE_LIMIT_PER_MINUTE, ", ".join(loud)))
     with ctx.step("Logs of the last 5 minutes contain no secret value") as step:
@@ -54,6 +56,7 @@ def log_volume(ctx):
             text = "\n".join(t for _, t in stack.fetch_logs(service, now - datetime.timedelta(minutes=5), now))
             if stack.redactor.holds_secret(text):
                 leaking.append(service)
+        step.note(f"scanned {len(services)} services for the configured secret values, {len(leaking)} leaking")
         ctx.expect(not leaking, "a configured secret appears in the logs of " + ", ".join(leaking))
 
 
