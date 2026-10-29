@@ -108,6 +108,8 @@ def split_docker_line(line: str):
 ACCESS = re.compile(r'uvicorn\.access \S+ - "(?P<req>[A-Z]+ \S+) HTTP/[\d.]+" (?P<code>\d{3})')
 KEYS = ("event", "service_name", "state", "previous_state", "destination_instance_id", "endpoint", "failure_kind",
         "removal_reason", "removal_outcome", "utilization", "reason", "attempt_id", "status", "message_id")
+UUID_IN_TEXT = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+WEBSOCKET = re.compile(r'"WebSocket (?P<path>[^\s?"]+)(?:\?\S*)?"\s*(?P<rest>.*)$')
 GO_LINE = re.compile(r"^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? ")
 PY_LINE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} (?:INFO|WARNING|ERROR|DEBUG) ")
 JAVA_LINE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+(?:INFO|WARN|ERROR|DEBUG)\s+\d+ --- \[[^\]]*\] \[[^\]]*\] \S+\s*: ")
@@ -118,18 +120,20 @@ def shorten(raw: str, limit: int = 150) -> str:
     text = raw.strip()
     access = ACCESS.search(text)
     if access:
-        return f"{access['req']} {access['code']}"
+        request = UUID_IN_TEXT.sub(lambda m: m.group(0)[:8], access["req"])
+        request = re.sub(r"vf=vf-\d+-[0-9a-f]{4}-", "vf=", request)
+        return f"{request} {access['code']}"
     for pattern in (GO_LINE, PY_LINE, JAVA_LINE):
         text = pattern.sub("", text, count=1)
     text = re.sub(r"^(?:INFO|WARN(?:ING)?|ERROR)\s+", "", text)
+    socket = WEBSOCKET.search(text)
+    if socket:
+        return UUID_IN_TEXT.sub(lambda m: m.group(0)[:8], f"WebSocket {socket['path']} {socket['rest']}".strip())
     pairs = dict(re.findall(r"\b([a-z_]+)=([^\s]+)", text))
-    head = text.split(" ", 1)[0] if " " in text else text
-    if pairs and re.fullmatch(r"[A-Za-z_.]+", head) and "=" not in head:
-        picked = [f"{k}={shorten_id(pairs[k])}" for k in KEYS if k in pairs and pairs[k] not in ("-", "None")]
-        text = " ".join([head] + picked)
-    elif pairs:
-        picked = [f"{k}={shorten_id(pairs[k])}" for k in KEYS if k in pairs and pairs[k] not in ("-", "None")]
-        text = " ".join(picked) if picked else text
+    picked = [f"{k}={shorten_id(pairs[k])}" for k in KEYS if k in pairs and pairs[k] not in ("-", "None")]
+    head = text.split(" ", 1)[0]
+    if picked:
+        text = " ".join(([head] if re.fullmatch(r"[A-Za-z_.]+", head) else []) + picked)
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
@@ -164,7 +168,7 @@ def served_by(lines, run_id: str) -> dict:
     """Map each request marker (`?vf=<marker>`) to the replica whose access log shows it, e.g. {"x-0": "session#2"}."""
     found = {}
     for line in lines:
-        match = re.search(r"[?&]vf=(" + re.escape(run_id) + r"[A-Za-z0-9._-]*)", line.text)
+        match = re.search(r"[?&]vf=(" + re.escape(run_id) + r"[A-Za-z0-9._-]*)", line.raw or line.text)
         if match:
             found[match.group(1)] = f"{line.service}#{line.replica}"
     return found

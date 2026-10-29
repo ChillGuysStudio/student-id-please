@@ -86,7 +86,11 @@ class LogTests(unittest.TestCase):
 
     def test_access_line_becomes_request_and_status(self):
         raw = f'2026-10-29 18:12:17,124 INFO uvicorn.access 172.19.0.2:54306 - "GET /api/v1/sessions/{UUID} HTTP/1.1" 200'
-        self.assertEqual(util.shorten(raw), f"GET /api/v1/sessions/{UUID} 200")
+        self.assertEqual(util.shorten(raw), "GET /api/v1/sessions/61c8a612 200")
+
+    def test_request_marker_loses_its_run_prefix(self):
+        raw = '2026-10-29 18:12:17,124 INFO uvicorn.access 172.19.0.2:54306 - "GET /api/v1/players/me?vf=vf-261029182553-9c72-rr-player-0 HTTP/1.1" 200'
+        self.assertEqual(util.shorten(raw), "GET /api/v1/players/me?vf=rr-player-0 200")
 
     def test_event_line_keeps_the_useful_fields(self):
         raw = (f"2026/10/29 14:59:28 alert event=ready service_name=discord-dms instance_id={UUID} "
@@ -94,6 +98,13 @@ class LogTests(unittest.TestCase):
         short = util.shorten(raw)
         self.assertTrue(short.startswith("alert event=ready service_name=discord-dms"))
         self.assertNotIn(UUID, short)
+
+    def test_websocket_line_hides_the_ticket(self):
+        raw = f'2026-10-29 18:31:50,191 INFO uvicorn.error 172.19.0.1:47392 - "WebSocket /api/v1/sessions/{UUID}/ws?ticket=abc" [accepted]'
+        self.assertEqual(util.shorten(raw), "WebSocket /api/v1/sessions/61c8a612/ws [accepted]")
+
+    def test_plain_text_line_is_kept(self):
+        self.assertEqual(util.shorten("2026-10-29 18:31:50,193 INFO uvicorn.error connection open"), "uvicorn.error connection open")
 
     def test_long_lines_are_cut(self):
         self.assertLessEqual(len(util.shorten("x" * 400, 100)), 100)
@@ -104,6 +115,10 @@ class LogTests(unittest.TestCase):
                  LogLine("session", "1", "t", "GET /api/v1/sessions/x?vf=vf-9-rr-1 200"),
                  LogLine("session", "1", "t", "GET /internal/v1/status 200")]
         self.assertEqual(util.served_by(lines, "vf-1"), {"vf-1-rr-0": "session#2", "vf-1-rr-1": "session#1"})
+
+    def test_served_by_reads_the_raw_line_when_the_shown_text_is_short(self):
+        line = LogLine("player", "1", "t", "GET /api/v1/players/me?vf=rr-0 200", raw='GET /api/v1/players/me?vf=vf-1-rr-0 HTTP/1.1" 200')
+        self.assertEqual(util.served_by([line], "vf-1"), {"vf-1-rr-0": "player#1"})
 
     def test_alternation_and_balance(self):
         self.assertTrue(util.alternates(["a", "b", "a", "b"]))
