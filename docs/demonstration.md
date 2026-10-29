@@ -2,7 +2,7 @@
 
 This guide starts the two-replica stack on a laptop and runs the verification suite against it. Each suite maps to one or more course grades from 3 to 10.
 
-The [architecture diagram](diagrams/architecture.mmd) shows the replicated topology. GitHub renders the Mermaid source as a diagram.
+The diagram in [architecture](architecture.md) shows the replicated topology.
 
 ## Start the stack
 
@@ -19,11 +19,15 @@ The [architecture diagram](diagrams/architecture.mmd) shows the replicated topol
 	docker compose up -d --wait
 	```
 
+	The command returns when every container is running, and those with a health check report healthy.
+
 4. Seed the University Record catalog once. Without it, starting a session returns `409 DEPENDENCY_REJECTED`:
 
 	```sh
 	python3 scripts/seed_university_catalog.py
 	```
+
+	On a fresh stack the script prints `University catalog: 69 created, 0 already present, 0 failed (of 69)`. Later runs print `0 created, 69 already present`.
 
 To stop the stack and keep its data, run `docker compose down`. Never add `--volumes` to a stack you want to keep.
 
@@ -43,6 +47,8 @@ uv run scripts/verify.py status
 uv run scripts/verify.py scaling up-down
 uv run scripts/verify.py all --yes
 ```
+
+A passing `all` run ends with a summary table in which every suite shows `pass`. The `breaker` suite takes about two minutes for each caller, so `all` takes about 15 minutes.
 
 | Option | Effect |
 | --- | --- |
@@ -71,7 +77,7 @@ Follow the stack logs, filtered to requests, breaker events, removals, alerts, a
 scripts/watch-logs.sh
 ```
 
-To see the suite and the logs side by side, open tmux with the suite on the left and the logs on the right. Pass the same arguments you would give `verify.py`:
+To see the suite and the logs side by side, install `tmux` first, for example with `sudo apt install tmux`. The script opens tmux with the suite on the left and the logs on the right. Pass the same arguments you would give `verify.py`:
 
 ```sh
 scripts/verify-demo.sh scaling --yes
@@ -93,12 +99,7 @@ scripts/verify-demo.sh scaling --yes
 
 The grades come from the course requirements. Grades 1 and 2 cover the architecture, contracts, and flows in [architecture](architecture.md), [flows](flows.md), and the [contracts](contracts/api.md).
 
-### Limits to know
-
-- Applicant, Credential, University Record, and Server Rules write no per-request log lines, so `round-robin` and `race` cannot show which of their replicas served a request. They check the durable result only.
-- The `breaker` suite takes about two minutes for each caller. It restarts the caller replicas first, because the host wall clock steps back about 1.8 seconds every 32 seconds. The suite replays the logs on a monotonic timeline to get around that.
-- Discovery keeps a removed instance after its container is gone. A scale-down leaves such a record, and the suite ignores records that have no running container.
-- When a caller's Gateway hop fails, the Gateway can also remove that caller's slot. A cold restart of a Java replica can get it removed after it is ready. Recovery reactivates every instance removed since the case started, Gateway first, and then waits until all instances stay ready.
+To see what the suite cannot prove, read [verification limits](architecture.md#verification-limits).
 
 ## Check the repository
 

@@ -175,3 +175,12 @@ The shared gateway uses Go for HTTP listeners, request routing, identity verific
 PostgreSQL fits relational state and transaction constraints. MongoDB fits the varied evidence and reference record types. Both stores still enforce the shared contract.
 
 REST provides an immediate response to reads and commands. RabbitMQ is planned for asynchronous results that consumers can process later and retry. Discord DMs uses WebSockets for live messages, then REST history to recover missed delivery. Redis Pub/Sub does not retain messages.
+
+## Verification limits
+
+`scripts/verify.py` proves each grade on a running stack, within these limits:
+
+- Applicant, Credential, University Record, and Server Rules write no per-request log lines, so `round-robin` and `race` cannot show which of their replicas served a request. They check the durable result only.
+- The `breaker` suite takes about two minutes for each caller. It restarts the caller replicas first, because the host wall clock steps back about 1.8 seconds every 32 seconds. The suite replays the logs on a monotonic timeline to get around that.
+- Discovery keeps a removed instance after its container is gone. A scale-down leaves such a record, and the suite ignores records that have no running container.
+- When a caller's Gateway hop fails, the Gateway can also remove that caller's slot. A cold restart of a Java replica can get it removed after it is ready. Recovery reactivates every instance removed since the case started, Gateway first, and then waits until all instances stay ready.
