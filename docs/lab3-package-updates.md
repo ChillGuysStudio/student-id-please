@@ -9,7 +9,7 @@ Four later packages extend the [27 October increment](lab3-published-increment.m
 | University Record | 3.0.4 | `594c267348dd971765cff98ec465f8d81cccd56c` | Exact-head CI passed 157 Java tests and 41 repository fixtures, zero skips |
 | Moderation | 3.0.4 | `b8dfb2838f6fb9027aff76ec49c863244845a438` | 260 local PostgreSQL tests with zero skips; CI passed 255 tests with five explicit PostgreSQL skips; 85 repository fixtures |
 
-The Gateway, Discovery, Player, Applicant, and Server Rules selections remain as recorded in the previous inventory. [compose.published.yaml](../compose.published.yaml) selects the corresponding immutable images for existing base Compose services. It remains an image-only overlay, not a complete Lab 3 bootstrap procedure.
+The Gateway, Discovery, Player, Applicant, and Server Rules selections remain as recorded in the previous inventory. The release records select the corresponding immutable images. `.env` now selects images as `owner/repo:version`.
 
 ## Credential 3.0.5 and DMs 3.0.3
 
@@ -20,7 +20,7 @@ Two later releases supersede the Credential 3.0.4 row above and the unchanged DM
 | Credential | 3.0.5 | `16098bb786be189746aca7b65d5b3591e8373b35` | `mcittkmims/credential-service` pull request 46, fixing issue 45 |
 | Discord DMs | 3.0.3 | `440d25b7dc7098c335a03c82fdff077aa41c12e1` | `andyp1xe1/pad-discord-dms-service` pull request 34, fixing issue 33 |
 
-CPR's submodule pointers and [compose.published.yaml](../compose.published.yaml) now select these sources and images for both slots. Anonymous registry readback confirmed that each image's AMD64 and ARM64 config revision label equals its source. Credential also carries the repository-source label. DMs does not, and none is claimed. Both releases run on both live slots, and Discovery showed all seventeen registrants ready. Publication runs are `40766712950` for Credential and `40764612356` for DMs.
+CPR's submodule pointers and the release records select these sources and images for both slots. Anonymous registry readback confirmed that each image's AMD64 and ARM64 config revision label equals its source. Credential also carries the repository-source label. DMs does not, and none is claimed. Both releases run on both live slots, and Discovery showed all seventeen registrants ready. Publication runs are `40766712950` for Credential and `40764612356` for DMs.
 
 ## Physical completion and delivery
 

@@ -4,7 +4,7 @@ Discord DMs owns chat channels, membership, stored messages, tickets, and WebSoc
 
 ## Public image
 
-The image is [`sentientmoss/pad-discord-dms-service`](https://hub.docker.com/r/sentientmoss/pad-discord-dms-service/tags). [`compose.published.yaml`](../../compose.published.yaml) pins its released image digest. The legacy standalone API address is `http://localhost:8009`, not Lab 2 client ingress.
+The image is [`sentientmoss/pad-discord-dms-service`](https://hub.docker.com/r/sentientmoss/pad-discord-dms-service/tags). `DISCORD_DMS_IMAGE` in `.env` selects its image as `owner/repo:version`. The legacy standalone API address is `http://localhost:8009`, not Lab 2 client ingress.
 
 Source code is in the [private repository](https://github.com/andyp1xe1/pad-discord-dms-service). Public images run without private-source access.
 

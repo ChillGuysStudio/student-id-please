@@ -4,7 +4,7 @@ Server Rules owns draft and published rule versions and evidence-based policy ev
 
 ## Public image
 
-The image is [`maxnoragami/server-rules-service`](https://hub.docker.com/r/maxnoragami/server-rules-service/tags). [`compose.published.yaml`](../../compose.published.yaml) pins its released image digest. The local API address is `http://localhost:8005`.
+The image is [`maxnoragami/server-rules-service`](https://hub.docker.com/r/maxnoragami/server-rules-service/tags). `SERVER_RULES_IMAGE` in `.env` selects its image as `owner/repo:version`. The local API address is `http://localhost:8005`.
 
 Source code is in the [private repository](https://github.com/MaxNoragami/server-rules-service). Public images run without private-source access.
 
