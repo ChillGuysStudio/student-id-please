@@ -19,6 +19,7 @@ class LogLine:
     replica: str
     stamp: str
     text: str
+    raw: str = ""  # the unshortened line, kept in memory for matching and never written to a report
 
 
 @dataclass

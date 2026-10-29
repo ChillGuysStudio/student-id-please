@@ -51,7 +51,7 @@ class UI:
             line += f" [red]{escape(result.error)}[/]"
         if not self.quiet or result.status != "passed":
             self.console.print(line)
-        self.console.print()
+            self.console.print()
 
     # ---------------------------------------------------------------- steps
     def step(self, step):
