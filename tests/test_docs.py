@@ -1,6 +1,7 @@
 """Test local documentation links and image references."""
 
 import importlib.util
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -51,3 +52,12 @@ class DocumentationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ArchitectureDiagram(unittest.TestCase):
+    def test_embedded_copies_match_the_mermaid_source(self):
+        source = (ROOT / "docs/diagrams/architecture.mmd").read_text().strip()
+        for name in ("README.md", "docs/architecture.md"):
+            blocks = re.findall(r"```mermaid\n(.*?)\n```", (ROOT / name).read_text(), re.S)
+            self.assertEqual([block.strip() for block in blocks], [source], name)
+

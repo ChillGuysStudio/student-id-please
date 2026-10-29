@@ -8,7 +8,81 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the topology.
 
-The [architecture diagram](docs/diagrams/architecture.mmd) shows the gateway, Discovery, the two replicas of each domain service, and their storage. GitHub renders the Mermaid source as a diagram. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them.
+The diagram below shows the gateway, Discovery, the two replicas of each domain service, and their storage. Its source is [`docs/diagrams/architecture.mmd`](docs/diagrams/architecture.mmd), and a test keeps this copy identical to it. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them.
+
+```mermaid
+flowchart TB
+	Client["Client or operator"]
+
+	subgraph GatewaySvc["Gateway (shared Go, one instance)"]
+		GWPub["Public listener :8080\nClient REST and negotiation"]
+		GWInt["Internal listener :8083\nService-to-service REST"]
+	end
+
+	subgraph DiscoverySvc["Discovery (shared Go, :8081)"]
+		DiscoveryNode["Registration, leases,\nstatus probes, removals"]
+		DiscStorage[("Removal state file\nDISCOVERY_STATE_FILE")]
+		DiscoveryNode --- DiscStorage
+	end
+
+	DiscordHook["Discord webhook\nalerts"]
+
+	subgraph DomainReplicas["Domain services, two replicas each (slot 1 and slot 2)"]
+		PlayerReplicas["Player"]
+		SessionReplicas["Session"]
+		ApplicantReplicas["Applicant"]
+		CredentialReplicas["Credential"]
+		RulesReplicas["Server Rules"]
+		UnivReplicas["University Record"]
+		ModReplicas["Moderation"]
+		DMReplicas["Discord DMs\nslot 1 :8009, slot 2 :18009"]
+	end
+
+	ModPublisher["Moderation outbox publisher"]
+
+	subgraph Stores["Storage and messaging"]
+		PGStores[("PostgreSQL databases\nplayer, session, moderation,\ndms, server rules")]
+		MongoShared[("MongoDB rs0\napplicant, credential")]
+		MongoUniv[("MongoDB\nuniversity records")]
+		RedisStore[("Redis\nSession views, DMs relay and tickets")]
+		RabbitMQBroker[("RabbitMQ\nbroker events")]
+	end
+
+	Client -->|"REST and negotiation"| GWPub
+	Client <-->|"Direct WebSocket chat"| DMReplicas
+
+	GWPub -->|"Round-robin over ready replicas"| DomainReplicas
+	DomainReplicas -->|"Service-to-service REST"| GWInt
+	GWInt -->|"Round-robin over ready replicas"| DomainReplicas
+
+	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
+	GWInt -.->|"Register and renew lease"| DiscoveryNode
+	GWPub -.->|"Background snapshot refresh"| DiscoveryNode
+	GWInt -.->|"Background snapshot refresh"| DiscoveryNode
+	DiscoveryNode -.->|"Status probes"| DomainReplicas
+	DiscoveryNode -.->|"Status probes"| GatewaySvc
+	DomainReplicas -.->|"Report breaker removals"| DiscoveryNode
+	DiscoveryNode -->|"Alerts"| DiscordHook
+
+	PlayerReplicas --- PGStores
+	SessionReplicas --- PGStores
+	ModReplicas --- PGStores
+	RulesReplicas --- PGStores
+	DMReplicas --- PGStores
+	ApplicantReplicas --- MongoShared
+	CredentialReplicas --- MongoShared
+	UnivReplicas --- MongoUniv
+	SessionReplicas --- RedisStore
+	DMReplicas --- RedisStore
+
+	ModReplicas --- ModPublisher
+	ModPublisher -->|"Outbox events"| RabbitMQBroker
+	PlayerReplicas --- RabbitMQBroker
+	SessionReplicas --- RabbitMQBroker
+	ApplicantReplicas --- RabbitMQBroker
+	CredentialReplicas --- RabbitMQBroker
+	UnivReplicas --- RabbitMQBroker
+```
 
 [Architecture](docs/architecture.md) explains ownership and technology choices. The [demonstration guide](docs/demonstration.md) explains multi-replica scaling, Discovery, and safe operator verification. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
 
