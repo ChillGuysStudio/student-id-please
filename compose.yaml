@@ -1,4 +1,4 @@
-name: student-id-lab2
+name: student-id-lab3
 x-lab3: &lab3
   DISCOVERY_URL: ${DISCOVERY_URL:-http://discovery-slot-1:8081}
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
@@ -32,7 +32,17 @@ services:
       default:
         aliases: [gateway-slot-1]
     restart: unless-stopped
+  discovery-state-init:
+    # The Discovery image runs as 65532 and has no /state directory, so a fresh volume starts root-owned.
+    image: busybox:1.37
+    command: [chown, '65532:65532', /state]
+    volumes:
+      - discovery-state:/state
+    restart: 'no'
   discovery:
+    depends_on:
+      discovery-state-init:
+        condition: service_completed_successfully
     image: maxnoragami/discovery-service@sha256:bff9a1d52927db4f15e5c690c03957e68f2cfed9358124bafd9ac2147128b1c8
     environment:
       SERVICE_NAME: discovery
@@ -568,7 +578,6 @@ services:
       - '127.0.0.1:${DMS_SLOT2_PORT:-18009}:8000'
 volumes:
   discovery-state:
-    name: student-id-lab3-discovery-state
   player-data:
   session-data:
   moderation-data:

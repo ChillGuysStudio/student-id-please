@@ -68,14 +68,14 @@ class Lab2ConfigurationTests(unittest.TestCase):
         self.assertEqual(rules["GATEWAY_RULES_RECEIVER_TOKEN"], receivers["rules"]["HopToken"])
         self.assertEqual(rules["RULES_SERVICE_TOKEN"], credentials["rules"])
         config = read_env(self.root / ".env")
-        self.assertEqual(config["PLAYER_VERSION"], "2.0.1")
+        self.assertEqual(config["COMPOSE_FILE"], "compose.yaml:compose.published.yaml")
         ids = [config[f"{name}_SLOT{slot}_INSTANCE_ID"] for name in prepare_lab2.REPLICA_NAMES for slot in (1, 2)]
         ids += [config["GATEWAY_INSTANCE_ID"], config["DISCOVERY_INSTANCE_ID"]]
         self.assertEqual(len(ids), len(set(ids)))
         tokens = [config[f"{name}_CONTROL_TOKEN"] for name in prepare_lab2.CONTROL_NAMES]
         self.assertEqual(len(tokens), len(set(tokens)))
         self.assertEqual(config["DISCOVERY_DISCORD_WEBHOOK_URL"], "")
-        self.assertEqual(config["SESSION_VERSION"], "2.0.0")
+        self.assertNotIn("PLAYER_VERSION", config)
         self.assertEqual((self.root / ".env").stat().st_mode & 0o777, 0o600)
         self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
 
