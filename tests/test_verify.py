@@ -177,6 +177,14 @@ class RegistryTests(unittest.TestCase):
                 if case.mutation:
                     self.assertTrue(case.mutation.faults and case.mutation.restores, case.id)
 
+    def test_aggregate_cases_do_not_repeat_in_a_whole_suite_run(self):
+        suite = Suite("s", "S", "7", "d", [Case("a", "A", None, seconds=10), Case("b", "B", None, seconds=20),
+                                           Case("all", "All", None, seconds=30, aggregate=True)])
+        self.assertEqual([c.id for c in suite.runnable()], ["a", "b"])
+        self.assertEqual(suite.duration, 30)
+        breaker = next(s for s in all_suites() if s.id == "breaker")
+        self.assertEqual(len(breaker.runnable()), len(breaker.cases) - 1)
+
     def test_suite_names_carry_no_lab_numbers(self):
         for suite in all_suites():
             text = " ".join([suite.id, suite.title, suite.description] + [c.id + c.title for c in suite.cases]).lower()

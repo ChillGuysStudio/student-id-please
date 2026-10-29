@@ -2,7 +2,7 @@
 import re
 from importlib import import_module
 
-MODULES = ("status", "registry", "scaling", "gameplay", "round_robin", "race", "breaker")
+MODULES = ("status", "http", "registry", "scaling", "gameplay", "round_robin", "race", "breaker", "alerts")
 
 
 def all_suites():

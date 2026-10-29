@@ -19,6 +19,7 @@ EPILOG = """examples:
   uv run scripts/verify.py                  open the menu
   uv run scripts/verify.py list             list suites and cases
   uv run scripts/verify.py status           run one suite
+  uv run scripts/verify.py all --yes        run every suite, restoring the stack after each
   uv run scripts/verify.py scaling up-down  run one case
   uv run scripts/verify.py status --yes     skip the confirmation before cases that change the stack
 """
@@ -27,7 +28,7 @@ EPILOG = """examples:
 def parse(argv):
     parser = argparse.ArgumentParser(prog="verify.py", description="Verify the running stack against the course grades.",
                                      epilog=EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("target", nargs="?", help="a suite id, or `list`")
+    parser.add_argument("target", nargs="?", help="a suite id, `all`, or `list`")
     parser.add_argument("case", nargs="?", help="a case id inside the suite")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2],
                         help="directory with .env, .local/stack and .local/postman (default: this repository)")
@@ -47,24 +48,28 @@ def list_suites(ui, suites):
 def pick_interactively(ui, suites):
     """Menu: choose a suite, then a case. Returns a list of (suite, [cases]) or None."""
     ui.suite_table(suites)
-    chosen = ui.choose("Suite number, or q to quit: ", len(suites), allow_all=False)
+    chosen = ui.choose("Suite number, a for every suite, or q to quit: ", len(suites))
     if chosen is None:
         return None
+    if chosen == "all":
+        return [(suite, suite.runnable()) for suite in suites]
     suite = suites[chosen]
     ui.case_table(suite)
     case = ui.choose("Case number, a for all cases, or q to quit: ", len(suite.cases))
     if case is None:
         return None
-    return [(suite, suite.cases if case == "all" else [suite.cases[case]])]
+    return [(suite, suite.runnable() if case == "all" else [suite.cases[case]])]
 
 
 def select(args, suites):
+    if args.target == "all":
+        return [(suite, suite.runnable()) for suite in suites]
     by_id = {s.id: s for s in suites}
     if args.target not in by_id:
         raise SystemExit(f"Unknown suite {args.target!r}. Suites: {', '.join(by_id)}. Run `verify.py list` for the cases.")
     suite = by_id[args.target]
     if not args.case:
-        return [(suite, suite.cases)]
+        return [(suite, suite.runnable())]
     cases = [c for c in suite.cases if c.id == args.case]
     if not cases:
         raise SystemExit(f"Unknown case {args.case!r} in {suite.id}. Cases: {', '.join(c.id for c in suite.cases)}.")
