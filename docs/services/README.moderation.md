@@ -4,7 +4,7 @@ Moderation owns final admission decisions, subject bans, policy snapshots, and d
 
 ## Public image
 
-The image is [`sentientmoss/pad-moderation-service`](https://hub.docker.com/r/sentientmoss/pad-moderation-service/tags). [`compose.published.yaml`](../../compose.published.yaml) pins its released image digest. The legacy standalone API address is `http://localhost:8008`, not Lab 2 client ingress.
+The image is [`sentientmoss/pad-moderation-service`](https://hub.docker.com/r/sentientmoss/pad-moderation-service/tags). `MODERATION_IMAGE` in `.env` selects its image as `owner/repo:version`. The legacy standalone API address is `http://localhost:8008`, not Lab 2 client ingress.
 
 Source code is in the [private repository](https://github.com/andyp1xe1/pad-moderation-service). Public images run without private-source access.
 

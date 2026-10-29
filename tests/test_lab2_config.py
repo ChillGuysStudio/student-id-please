@@ -68,8 +68,11 @@ class Lab2ConfigurationTests(unittest.TestCase):
         self.assertEqual(rules["GATEWAY_RULES_RECEIVER_TOKEN"], receivers["rules"]["HopToken"])
         self.assertEqual(rules["RULES_SERVICE_TOKEN"], credentials["rules"])
         config = read_env(self.root / ".env")
-        self.assertEqual(config["COMPOSE_FILE"], "compose.yaml:compose.published.yaml")
-        ids = [config[f"{name}_SLOT{slot}_INSTANCE_ID"] for name in prepare_lab2.REPLICA_NAMES for slot in (1, 2)]
+        self.assertEqual(config["COMPOSE_FILE"], "compose.yaml:compose.replicas.yaml")
+        self.assertEqual(config["PLAYER_IMAGE"], prepare_lab2.IMAGES["PLAYER_IMAGE"])
+        self.assertTrue(config["GATEWAY_IMAGE"].startswith("test/gateway"))
+        self.assertIn("player-slot-2:", (self.root / "compose.replicas.yaml").read_text())
+        ids = [config[f"{name}_SLOT1_INSTANCE_ID"] for name in prepare_lab2.REPLICA_NAMES]
         ids += [config["GATEWAY_INSTANCE_ID"], config["DISCOVERY_INSTANCE_ID"]]
         self.assertEqual(len(ids), len(set(ids)))
         tokens = [config[f"{name}_CONTROL_TOKEN"] for name in prepare_lab2.CONTROL_NAMES]
@@ -87,7 +90,7 @@ class Lab2ConfigurationTests(unittest.TestCase):
         self.assertFalse((self.root / ".local").exists())
 
     def test_missing_image_or_invalid_ports_create_nothing(self):
-        for image, gateway_port, dms_port in (("", 8080, 8009), ("test/gateway:local", 8080, 8080),
+        for image, gateway_port, dms_port in (("bad image", 8080, 8009), ("test/gateway:local", 8080, 8080),
                                                ("test/gateway:local", 0, 8009)):
             with self.assertRaises(ValueError):
                 prepare_lab2.prepare(self.root, image, gateway_port, dms_port)

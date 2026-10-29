@@ -8,7 +8,7 @@ x-lab3: &lab3
 
 services:
   gateway:
-    image: ${GATEWAY_IMAGE:?Set GATEWAY_IMAGE to a published source-matched image}
+    image: ${GATEWAY_IMAGE:?Set GATEWAY_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     env_file: .local/lab2/gateway.env
     environment:
@@ -43,7 +43,8 @@ services:
     depends_on:
       discovery-state-init:
         condition: service_completed_successfully
-    image: maxnoragami/discovery-service@sha256:bff9a1d52927db4f15e5c690c03957e68f2cfed9358124bafd9ac2147128b1c8
+    image: ${DISCOVERY_IMAGE:?Set DISCOVERY_IMAGE in .env, e.g. owner/repo:version}
+    pull_policy: always
     environment:
       SERVICE_NAME: discovery
       INSTANCE_ID: ${DISCOVERY_INSTANCE_ID:?Set DISCOVERY_INSTANCE_ID in .env}
@@ -171,7 +172,7 @@ services:
       retries: 30
       start_period: 5s
   player:
-    image: tirppy/student-id-player-service:${PLAYER_VERSION:-2.0.1}
+    image: ${PLAYER_IMAGE:?Set PLAYER_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/player.env
@@ -199,7 +200,7 @@ services:
         aliases: [player-slot-1]
     restart: unless-stopped
   session:
-    image: tirppy/student-id-session-service:${SESSION_VERSION:-2.0.0}
+    image: ${SESSION_IMAGE:?Set SESSION_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/session.env
@@ -235,7 +236,7 @@ services:
         aliases: [session-slot-1]
     restart: unless-stopped
   moderation:
-    image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
+    image: ${MODERATION_IMAGE:?Set MODERATION_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     command: [uvicorn, moderation.api:app, --host, 0.0.0.0, --port, '8000', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/moderation.env
@@ -280,7 +281,7 @@ services:
         aliases: [moderation-slot-1]
     restart: unless-stopped
   moderation-publisher:
-    image: sentientmoss/pad-moderation-service:${MODERATION_VERSION:-latest}
+    image: ${MODERATION_IMAGE:?Set MODERATION_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     command: [python, -m, moderation.publisher]
     environment:
@@ -293,7 +294,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   discord-dms:
-    image: sentientmoss/pad-discord-dms-service:${DISCORD_DMS_VERSION:-latest}
+    image: ${DISCORD_DMS_IMAGE:?Set DISCORD_DMS_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     command: [uvicorn, discord_dms.api:app, --host, 0.0.0.0, --port, '8000', --no-access-log, --ws-ping-interval, '30', --ws-ping-timeout, '60', --log-config, /run/student-id/application-logging.json]
     env_file: .local/lab2/discord-dms.env
@@ -338,7 +339,7 @@ services:
         aliases: [discord-dms-slot-1]
     restart: unless-stopped
   applicant:
-    image: mcittkmims/applicant-service:${APPLICANT_SERVICE_VERSION:-latest}
+    image: ${APPLICANT_IMAGE:?Set APPLICANT_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     env_file: .local/lab2/applicant.env
     environment:
@@ -365,7 +366,7 @@ services:
         aliases: [applicant-slot-1]
     restart: unless-stopped
   credential:
-    image: mcittkmims/credential-service:${CREDENTIAL_SERVICE_VERSION:-latest}
+    image: ${CREDENTIAL_IMAGE:?Set CREDENTIAL_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     env_file: .local/lab2/credential.env
     environment:
@@ -424,7 +425,7 @@ services:
       retries: 10
       start_period: 20s
   university-record:
-    image: maxnoragami/university-record-service:${UNIVERSITY_RECORD_VERSION:-latest}
+    image: ${UNIVERSITY_RECORD_IMAGE:?Set UNIVERSITY_RECORD_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     env_file: .local/lab2/university_record.env
     environment:
@@ -470,7 +471,7 @@ services:
       retries: 10
       start_period: 10s
   server-rules:
-    image: maxnoragami/server-rules-service:${SERVER_RULES_VERSION:-latest}
+    image: ${SERVER_RULES_IMAGE:?Set SERVER_RULES_IMAGE in .env, e.g. owner/repo:version}
     pull_policy: always
     env_file: .local/lab2/rules.env
     environment:
@@ -499,83 +500,6 @@ services:
       default:
         aliases: [server-rules-slot-1]
     restart: unless-stopped
-  # Second replica of each domain service. It extends slot 1 and changes only
-  # its instance identity, its address, and its network alias.
-  applicant-slot-2:
-    extends:
-      service: applicant
-    environment:
-      INSTANCE_ID: ${APPLICANT_SLOT2_INSTANCE_ID:?Set APPLICANT_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://applicant-slot-2:8081
-    networks: !override
-      default:
-        aliases: [applicant-slot-2]
-  credential-slot-2:
-    extends:
-      service: credential
-    environment:
-      INSTANCE_ID: ${CREDENTIAL_SLOT2_INSTANCE_ID:?Set CREDENTIAL_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://credential-slot-2:8082
-    networks: !override
-      default:
-        aliases: [credential-slot-2]
-  university-record-slot-2:
-    extends:
-      service: university-record
-    environment:
-      INSTANCE_ID: ${UNIVERSITY_RECORD_SLOT2_INSTANCE_ID:?Set UNIVERSITY_RECORD_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://university-record-slot-2:8006
-    networks: !override
-      default:
-        aliases: [university-record-slot-2]
-  server-rules-slot-2:
-    extends:
-      service: server-rules
-    environment:
-      INSTANCE_ID: ${SERVER_RULES_SLOT2_INSTANCE_ID:?Set SERVER_RULES_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://server-rules-slot-2:8005
-    networks: !override
-      default:
-        aliases: [server-rules-slot-2]
-  moderation-slot-2:
-    extends:
-      service: moderation
-    environment:
-      INSTANCE_ID: ${MODERATION_SLOT2_INSTANCE_ID:?Set MODERATION_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://moderation-slot-2:8000
-    networks: !override
-      default:
-        aliases: [moderation-slot-2]
-  player-slot-2:
-    extends:
-      service: player
-    environment:
-      INSTANCE_ID: ${PLAYER_SLOT2_INSTANCE_ID:?Set PLAYER_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://player-slot-2:8001
-    networks: !override
-      default:
-        aliases: [player-slot-2]
-  session-slot-2:
-    extends:
-      service: session
-    environment:
-      INSTANCE_ID: ${SESSION_SLOT2_INSTANCE_ID:?Set SESSION_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://session-slot-2:8002
-    networks: !override
-      default:
-        aliases: [session-slot-2]
-  discord-dms-slot-2:
-    extends:
-      service: discord-dms
-    environment:
-      INSTANCE_ID: ${DISCORD_DMS_SLOT2_INSTANCE_ID:?Set DISCORD_DMS_SLOT2_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://discord-dms-slot-2:8000
-      INSTANCE_WS_URL: ws://localhost:${DMS_SLOT2_PORT:-18009}
-    networks: !override
-      default:
-        aliases: [discord-dms-slot-2]
-    ports: !override
-      - '127.0.0.1:${DMS_SLOT2_PORT:-18009}:8000'
 volumes:
   discovery-state:
   player-data:

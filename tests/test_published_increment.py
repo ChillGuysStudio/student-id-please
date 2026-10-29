@@ -54,19 +54,15 @@ class PublishedIncrement(unittest.TestCase):
         for row in self.rows:
             self.assertEqual(gitlinks[row["submodule"]], row["source_sha"])
 
-    def test_overlay_selects_only_existing_images(self):
-        text = (ROOT / "compose.published.yaml").read_text()
-        pairs = dict(re.findall(r"^  ([a-z0-9-]+):\n    image: ([^\s]+)$", text, re.MULTILINE))
-        services = {row["service"]: row["image"] for row in self.rows if row["service"] != "discovery"}
-        services["server-rules"] = services.pop("rules")
-        services["university-record"] = services.pop("university_record")
-        services["moderation-publisher"] = services["moderation"]
-        for name in ["player", "session", "moderation", "discord-dms", "applicant", "credential",
-                     "server-rules", "university-record"]:
-            services[name + "-slot-2"] = services[name]
-        self.assertEqual(pairs, services)
-        self.assertNotIn("discovery", pairs)
-        self.assertFalse(any(word in text for word in ["environment:", "ports:", "build:", "volumes:"]))
+    def test_env_example_selects_released_versions(self):
+        env = dict(line.split("=", 1) for line in (ROOT / ".env.example").read_text().splitlines()
+                   if line.endswith(tuple("0123456789")) and "_IMAGE=" in line)
+        names = {"gateway": "GATEWAY", "discovery": "DISCOVERY", "player": "PLAYER", "session": "SESSION",
+                 "moderation": "MODERATION", "discord-dms": "DISCORD_DMS", "applicant": "APPLICANT",
+                 "credential": "CREDENTIAL", "rules": "SERVER_RULES", "university_record": "UNIVERSITY_RECORD"}
+        for row in self.rows:
+            repo = row["image"].split("@", 1)[0]
+            self.assertEqual(env[names[row["service"]] + "_IMAGE"], f"{repo}:{row['version']}")
 
     def test_absent_source_labels_and_historical_dms_exclusion_are_explicit(self):
         missing = [row for row in self.rows if not row["repository_source_labels_verified"]]
@@ -155,8 +151,8 @@ class PublishedIncrement(unittest.TestCase):
         self.assertEqual(row["verified_aliases"], ["3.0.5", "latest", "lab-3"])
         self.assertFalse(row["repository_source_labels_verified"])
         self.assertFalse(self.moderation["cumulative_grade_claimed"])
-        text = (ROOT / "compose.published.yaml").read_text()
-        self.assertEqual(text.count(row["image"]), 3)
+        self.assertIn("MODERATION_IMAGE=sentientmoss/pad-moderation-service:3.0.5", (ROOT / ".env.example").read_text())
+        self.assertEqual((ROOT / "compose.yaml").read_text().count("${MODERATION_IMAGE:?"), 2)
 
     def test_credential_3_0_5_and_dms_3_0_3_are_source_matched(self):
         self.assertEqual(self.releases["previous_inventory"], "lab3-moderation-3.0.5-20261028.json")
@@ -165,10 +161,8 @@ class PublishedIncrement(unittest.TestCase):
         self.assertEqual((credential["version"], dms["version"]), ("3.0.5", "3.0.3"))
         self.assertEqual(credential["source_sha"], "16098bb786be189746aca7b65d5b3591e8373b35")
         self.assertEqual(dms["source_sha"], "440d25b7dc7098c335a03c82fdff077aa41c12e1")
-        text = (ROOT / "compose.published.yaml").read_text()
         for row in (credential, dms):
             self.assertEqual(set(row["revision_labels"].values()), {row["source_sha"]})
-            self.assertEqual(text.count(row["image"]), 2)
         self.assertTrue(credential["repository_source_labels_verified"])
         self.assertFalse(dms["repository_source_labels_verified"])
 
