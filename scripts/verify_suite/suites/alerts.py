@@ -166,7 +166,9 @@ def delivery_history(ctx):
         value = stack.container_env("discovery").get("DISCORD_WEBHOOK_URL", "")
         step.note("the Discovery container's DISCORD_WEBHOOK_URL (from DISCOVERY_DISCORD_WEBHOOK_URL in .env) is " + ("set" if value else "empty"))
         ctx.expect(bool(value), "no webhook is configured, so Discovery sends no alerts")
-    with ctx.step("Discovery logged alerts and Discord receipts, and no delivery failed", services=["discovery"], match=r"discord_delivery|alert event=") as step:
+    # Old failures, such as a burst Discord rate-limited, stay in the log for the container's lifetime. They are reported,
+    # and only the most recent delivery decides the result. The critical-load case checks every delivery of its own run.
+    with ctx.step("Discovery logged alerts and Discord receipts, and the latest delivery succeeded", services=["discovery"], match=r"discord_delivery|alert event=") as step:
         lines = [t for _, t in stack.fetch_logs("discovery", datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30))]
         events = {}
         for line in lines:
@@ -176,10 +178,12 @@ def delivery_history(ctx):
         success = sum("discord_delivery_success" in l for l in lines)
         failed = sum(bool(re.search(r"discord_delivery_(fail|error)", l)) for l in lines)
         step.note("alerts by event: " + ", ".join(f"{k}={v}" for k, v in sorted(events.items())))
-        step.note(f"discord_delivery_success={success}, delivery failures={failed}")
+        deliveries = [l for l in lines if re.search(r"discord_delivery_(success|fail|error)", l)]
+        latest = "none" if not deliveries else ("success" if "discord_delivery_success" in deliveries[-1] else "failure")
+        step.note(f"discord_delivery_success={success}, earlier delivery failures={failed}, latest delivery={latest}")
         ctx.expect(events.get("critical_load") and events.get("load_recovered"), "no critical_load and load_recovered alerts in the log. Run the critical-load case first.")
         ctx.expect(success >= 1, "no discord_delivery_success lines")
-        ctx.expect(failed == 0, f"{failed} delivery failures")
+        ctx.expect(latest == "success", "the latest Discord delivery failed, so Discord is not accepting alerts now")
 
 
 SUITE = Suite(
