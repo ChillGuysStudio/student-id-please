@@ -15,7 +15,7 @@ cd student-id-please
 
 Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. DMs exposes `127.0.0.1:8009` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
 
-Player `2.0.1` and Session `2.0.0` now use the [confirmed owner settings](player-session-runtime.md). The [current local runtime results](player-session-compose-results.md) show protected Player and Session requests passing through Gateway. Direct chat remains blocked. The [earlier disposable results](lab2-runtime.md) describe the legacy-image run, not the current images. Do not restore bearer forwarding or direct peer URLs when authorization fails.
+The stack runs the Lab 3 release images pinned in [`compose.published.yaml`](../compose.published.yaml): two replicas of each domain service, Discovery, and Gateway. The generated `.env` sets `COMPOSE_FILE=compose.yaml:compose.published.yaml`, so plain `docker compose` commands use those pins. The Compose project is `student-id-lab3`.
 
 1. Choose an explicit published gateway version or digest. Set `GATEWAY_IMAGE` to that reference. A local image is test-only, not a published release.
 2. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
@@ -26,7 +26,7 @@ Player `2.0.1` and Session `2.0.0` now use the [confirmed owner settings](player
 
 	The command creates ignored `.env` and `.local/lab2/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
 
-3. Select source-matched service versions in `.env`. The generator selects Player `2.0.1` and Session `2.0.0`. It pins the gateway public key and configures their receiver-hop credentials through `SERVICE_TOKENS.gateway`. Session uses `GATEWAY_URL` and its distinct initiating credential. Keep `.env` and `.local/` out of commits.
+3. Keep the generated `.env` as is. It loads the published Lab 3 image pins through `COMPOSE_FILE`, pins the gateway public key, and configures receiver-hop credentials through `SERVICE_TOKENS.gateway`. Copy your Discord webhook into `DISCOVERY_DISCORD_WEBHOOK_URL` if you want real alerts. Keep `.env` and `.local/` out of commits.
 4. Validate Compose without printing resolved values. `scripts/prepare_lab2.py` also generates the Lab 3 instance IDs and control tokens that `.env.example` lists:
 
 	```sh
@@ -51,9 +51,8 @@ Player `2.0.1` and Session `2.0.0` now use the [confirmed owner settings](player
 	docker compose ps
 	```
 
-Service and helper containers use `pull_policy: always`, so startup refreshes the
-selected image tag. Tags default to `latest`; the existing version variables can
-select a lab/version tag for debugging. Docker selects the host's native platform
+Service and helper containers use `pull_policy: always`. With the published pins,
+every service image is an immutable digest. Docker selects the host's native platform
 from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
