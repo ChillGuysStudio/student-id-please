@@ -72,6 +72,18 @@ class SubjectTests(unittest.TestCase):
             with self.subTest(subject=subject):
                 self.assertFalse(check_commits.validate_subject(subject))
 
+    def test_ai_attribution_is_rejected(self):
+        for message, author, flagged in (
+            ("fix: x\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n", "Maxim <m@x>", True),
+            ("fix: x\n\nco-authored-by: GitHub Copilot <c@x>\n", "Maxim <m@x>", True),
+            ("fix: x\n\n\U0001F916 Generated with [Claude Code](https://claude.com)\n", "Maxim <m@x>", True),
+            ("fix: x\n", "Claude <noreply@anthropic.com> 1 +0000", True),
+            ("fix: x\n\nCo-authored-by: Adrian <a@users.noreply.github.com>\n", "Maxim <m@x>", False),
+            ("fix: handle claude-style prompts in docs\n", "Maxim <m@x>", False),
+        ):
+            with self.subTest(message=message, author=author):
+                self.assertEqual(check_commits.ai_attribution(message, author), flagged)
+
     def test_message_file_checks_first_line_only(self):
         with tempfile.TemporaryDirectory() as directory:
             message = Path(directory) / "message"
