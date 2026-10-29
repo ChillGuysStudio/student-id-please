@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from verify_suite import util  # noqa: E402
+from verify_suite import util, window  # noqa: E402
 from verify_suite.model import Case, CaseResult, LogLine, Mutation, Step, Suite, SuiteResult  # noqa: E402
 from verify_suite.report import build_report, render_markdown  # noqa: E402
 from verify_suite.suites import all_suites  # noqa: E402
@@ -182,6 +182,58 @@ class RegistryTests(unittest.TestCase):
             text = " ".join([suite.id, suite.title, suite.description] + [c.id + c.title for c in suite.cases]).lower()
             self.assertNotRegex(text, r"\blab[- ]?\d")
 
+
+class WindowTests(unittest.TestCase):
+    def line(self, second, fraction="", sep="."):
+        return f"2026-10-29 18:00:{second:02d}{sep + fraction if fraction else ''} INFO dependency_failure destination_instance_id=x"
+
+    def test_stamp_reads_python_go_and_java_lines(self):
+        base = datetime.datetime(2026, 10, 29, 18, 0, 5, tzinfo=datetime.timezone.utc).timestamp()
+        self.assertEqual(window.stamp("2026-10-29 18:00:05,250 INFO x"), base + 0.25)
+        self.assertEqual(window.stamp("2026/10/29 18:00:05 WARN x"), base)
+        self.assertEqual(window.stamp("2026-10-29T18:00:05.500Z  INFO 1 --- x"), base + 0.5)
+        self.assertEqual(window.resolution("2026-10-29 18:00:05,250 INFO x"), 0.05)
+        self.assertEqual(window.resolution("2026/10/29 18:00:05 WARN x"), 1.0)
+        with self.assertRaises(ValueError):
+            window.stamp("no stamp")
+
+    def test_trip_waits_for_three_failures_inside_the_window(self):
+        self.assertEqual(window.expected_trip([0.0, 1.0, 2.0], 7.0), 2.0)
+        self.assertIsNone(window.expected_trip([0.0, 4.0, 8.0], 7.0))
+        self.assertEqual(window.expected_trip([0.0, 4.0, 8.0, 9.0], 7.0), 9.0)
+        self.assertIsNone(window.expected_trip([0.0, 1.0], 7.0))
+
+    def test_window_boundary_is_exclusive_at_its_start(self):
+        # Failures at 0, 2 and 7 sit exactly one window apart, so the first one has left the window.
+        self.assertIsNone(window.expected_trip([0.0, 2.0, 7.0], 7.0))
+        self.assertEqual(window.expected_trip([0.0, 2.0, 6.999], 7.0), 6.999)
+
+    def test_trip_must_follow_the_filling_failure(self):
+        self.assertTrue(window.trip_matches(None, None))
+        self.assertFalse(window.trip_matches(3.0, None))
+        self.assertFalse(window.trip_matches(None, 2.0))
+        self.assertTrue(window.trip_matches(2.4, 2.0))
+        self.assertFalse(window.trip_matches(3.5, 2.0))
+        self.assertFalse(window.trip_matches(1.5, 2.0))
+        self.assertTrue(window.trip_matches(1.5, 2.0, tolerance_before=1.0))
+
+    def test_timeline_removes_a_backward_wall_clock_step(self):
+        clock = window.ClockTrack(start=False)
+        clock.segs = [[100.0, 110.0, 1000.0], [120.0, 130.0, 998.2]]  # wall = monotonic + offset, stepped back 1.8 s
+        self.assertEqual(clock.steps(), [-1.8])
+        fmt = lambda wall: datetime.datetime.fromtimestamp(wall, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S,%f")[:-3] + " INFO x"
+        # Wall stamps 1109.900 and 1118.700 are 8.8 s apart, but 10.6 s really passed.
+        times = clock.timeline([fmt(1109.9), fmt(1118.7)])
+        self.assertAlmostEqual(times[0], 109.9, places=2)
+        self.assertAlmostEqual(times[1], 120.5, places=2)
+
+    def test_sample_starts_a_new_segment_only_on_a_step(self):
+        clock = window.ClockTrack(start=False)
+        clock.segs = [[100.0, 100.0, 1000.0]]
+        clock.sample(1100.1, 100.1)
+        self.assertEqual(len(clock.segs), 1)
+        clock.sample(1100.2 - 1.8 + 0.0, 100.2)
+        self.assertEqual(len(clock.segs), 2)
 
 if __name__ == "__main__":
     unittest.main()
