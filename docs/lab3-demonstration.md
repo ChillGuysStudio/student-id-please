@@ -112,7 +112,7 @@ flowchart TB
 
 ## Prepared laptop setup
 
-A clean clone bootstraps Lab 3 with `python3 scripts/prepare_lab2.py` and `docker compose up -d --wait`. The demonstration relies on the following:
+A clean clone bootstraps Lab 3 with `python3 scripts/prepare_lab2.py`, `docker compose up -d --wait`, and `python3 scripts/seed_university_catalog.py`. The seeder imports the 69-entry University Record catalog. Without it, `POST /api/v1/sessions/{sid}/start` returns `409 DEPENDENCY_REJECTED`. The demonstration relies on the following:
 
 1. `.env` selects each service image as `owner/repo:version` (`GATEWAY_IMAGE`, `DISCOVERY_IMAGE`, `PLAYER_IMAGE`, …). The generator writes the released versions. Any published tag works, including `latest`.
 2. Stable UUID slot identifiers (`INSTANCE_ID`) and replica network origins are already configured.
