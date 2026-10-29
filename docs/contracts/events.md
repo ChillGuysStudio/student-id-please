@@ -2,7 +2,7 @@
 
 The payload types come from the [domain contract](domain.md), [case initialization](cases.md), and [service APIs](api.md).
 
-Version-1 events use the durable topic exchange `student-id.events.v1` and `schema_version = 1`. New Lab 3 `CaseInitialized` events use `student-id.events.v2` and `schema_version = 2`; the other events remain version 1. Messages use JSON and RabbitMQ persistent delivery. Publishers wait for broker confirms, and consumers acknowledge messages after processing. The event names, routing keys, and payload fields below are fixed. Removing or changing a required field requires a new major schema and exchange version. Consumers accept additional optional fields.
+Version-1 events use the durable topic exchange `student-id.events.v1` and `schema_version = 1`. New `CaseInitialized` events use `student-id.events.v2` and `schema_version = 2`; the other events remain version 1. Messages use JSON and RabbitMQ persistent delivery. Publishers wait for broker confirms, and consumers acknowledge messages after processing. The event names, routing keys, and payload fields below are fixed. Removing or changing a required field requires a new major schema and exchange version. Consumers accept additional optional fields.
 
 ```text
 Event<T> = {event_id: Id, event_type: string, schema_version: Int,

@@ -1,4 +1,4 @@
-# Lab 3 discovery and resilience contract
+# Discovery and resilience contract
 
 This reference defines the implementation target for [CPR #125](https://github.com/ChillGuysStudio/student-id-please/issues/125). It does not describe a delivered runtime or establish a completed grade. Gateway and Discovery use Go, the accepted shared-service banned-language baseline. Discovery is one private control-plane service. The deployment runs at least two replicas of each domain service.
 
@@ -14,7 +14,7 @@ The canonical registry names are `player`, `session`, `applicant`, `credential`,
 
 ## Configuration
 
-The following names are the Lab 3 target settings. Existing services adapt their current configuration to these values. This document does not change Compose, `.env`, images, or submodule pins.
+The following names are the target settings. Services adapt their configuration to these values. This document does not change Compose, `.env`, images, or submodule pins.
 
 | Setting | Owner and value |
 | --- | --- |
@@ -150,7 +150,7 @@ After Discovery restarts, active registrations start empty, removed IDs remain d
 
 ### Lookup, refresh, and round-robin
 
-Gateway refreshes one complete snapshot every second. A refresh runs in the background, never once per business request. An atomic replacement prevents partially updated route sets. The last successful snapshot remains usable for at most 5 seconds after receipt. An empty successful snapshot clears old destinations immediately. An epoch change also clears old membership and counters for obsolete generations. Failed refreshes cannot extend cache age. There is no fallback to the Lab 2 static domain URLs in discovery mode.
+Gateway refreshes one complete snapshot every second. A refresh runs in the background, never once per business request. An atomic replacement prevents partially updated route sets. The last successful snapshot remains usable for at most 5 seconds after receipt. An empty successful snapshot clears old destinations immediately. An epoch change also clears old membership and counters for obsolete generations. Failed refreshes cannot extend cache age. There is no fallback to static domain URLs in discovery mode.
 
 Other service callers refresh the same registry to identify Gateway and to report a Gateway-hop failure against the correct generation. Their business destination remains the configured internal `GATEWAY_URL`, not a direct domain URL. It must match exactly one registered Gateway origin. Unknown, removed, stale, or ambiguous Gateway identity prevents a new business dispatch with `503 DEPENDENCY_UNAVAILABLE`. Registration and lookup still use the fixed Discovery address, so this does not block bootstrap.
 

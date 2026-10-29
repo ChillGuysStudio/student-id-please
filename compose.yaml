@@ -1,5 +1,5 @@
-name: student-id-lab3
-x-lab3: &lab3
+name: student-id-please
+x-registration: &registration
   DISCOVERY_URL: ${DISCOVERY_URL:-http://discovery-slot-1:8081}
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
   CONTROL_MAX_CONCURRENT_CALLS: '8'
@@ -8,11 +8,11 @@ x-lab3: &lab3
 
 services:
   gateway:
-    image: ${GATEWAY_IMAGE:?Set GATEWAY_IMAGE in .env, e.g. owner/repo:version}
+    image: ${GATEWAY_IMAGE:-maxnoragami/gateway-service:latest}
     pull_policy: always
-    env_file: .local/lab2/gateway.env
+    env_file: .local/stack/gateway.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: gateway
       INSTANCE_ID: ${GATEWAY_INSTANCE_ID:?Set GATEWAY_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://gateway-slot-1:8083
@@ -21,8 +21,8 @@ services:
     ports:
       - '127.0.0.1:${GATEWAY_PORT:-8080}:8080'
     volumes:
-      - ./.local/lab2/gateway-private.pem:/keys/gateway-private.pem:ro
-      - ./.local/lab2/player-public.pem:/keys/player-public.pem:ro
+      - ./.local/stack/gateway-private.pem:/keys/gateway-private.pem:ro
+      - ./.local/stack/player-public.pem:/keys/player-public.pem:ro
     healthcheck:
       test: [CMD, /gateway, --healthcheck]
       interval: 5s
@@ -43,7 +43,7 @@ services:
     depends_on:
       discovery-state-init:
         condition: service_completed_successfully
-    image: ${DISCOVERY_IMAGE:?Set DISCOVERY_IMAGE in .env, e.g. owner/repo:version}
+    image: ${DISCOVERY_IMAGE:-maxnoragami/discovery-service:latest}
     pull_policy: always
     environment:
       SERVICE_NAME: discovery
@@ -139,7 +139,7 @@ services:
       - broker-data:/var/lib/rabbitmq
       - ./scripts/start_broker.sh:/run/start_broker.sh:ro
     healthcheck:
-      test: [CMD-SHELL, 'test -f /tmp/lab2-broker-users-ready && rabbitmq-diagnostics -q ping']
+      test: [CMD-SHELL, 'test -f /tmp/broker-users-ready && rabbitmq-diagnostics -q ping']
       interval: 5s
       timeout: 5s
       retries: 30
@@ -172,12 +172,12 @@ services:
       retries: 30
       start_period: 5s
   player:
-    image: ${PLAYER_IMAGE:?Set PLAYER_IMAGE in .env, e.g. owner/repo:version}
+    image: ${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}
     pull_policy: always
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001', --log-config, /run/student-id/application-logging.json]
-    env_file: .local/lab2/player.env
+    env_file: .local/stack/player.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: player
       INSTANCE_ID: ${PLAYER_SLOT1_INSTANCE_ID:?Set PLAYER_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://player-slot-1:8001
@@ -187,8 +187,8 @@ services:
       JWT_PRIVATE_KEY_PATH: /keys/player-private.pem
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
-      - ./.local/lab2/player-private.pem:/keys/player-private.pem:ro
-      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/player-private.pem:/keys/player-private.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
       - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     depends_on:
       player-db:
@@ -200,12 +200,12 @@ services:
         aliases: [player-slot-1]
     restart: unless-stopped
   session:
-    image: ${SESSION_IMAGE:?Set SESSION_IMAGE in .env, e.g. owner/repo:version}
+    image: ${SESSION_IMAGE:-tirppy/student-id-session-service:latest}
     pull_policy: always
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002', --log-config, /run/student-id/application-logging.json]
-    env_file: .local/lab2/session.env
+    env_file: .local/stack/session.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: session
       INSTANCE_ID: ${SESSION_SLOT1_INSTANCE_ID:?Set SESSION_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://session-slot-1:8002
@@ -219,8 +219,8 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
-      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
-      - ./.local/lab2/player-public.pem:/keys/player-public.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/player-public.pem:/keys/player-public.pem:ro
       - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     depends_on:
       session-db:
@@ -236,12 +236,12 @@ services:
         aliases: [session-slot-1]
     restart: unless-stopped
   moderation:
-    image: ${MODERATION_IMAGE:?Set MODERATION_IMAGE in .env, e.g. owner/repo:version}
+    image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
     pull_policy: always
     command: [uvicorn, moderation.api:app, --host, 0.0.0.0, --port, '8000', --log-config, /run/student-id/application-logging.json]
-    env_file: .local/lab2/moderation.env
+    env_file: .local/stack/moderation.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: moderation
       INSTANCE_ID: ${MODERATION_SLOT1_INSTANCE_ID:?Set MODERATION_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://moderation-slot-1:8000
@@ -263,7 +263,7 @@ services:
       PLAYER_URL: http://gateway-slot-1:8083
       PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
     volumes:
-      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
       - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
@@ -281,7 +281,7 @@ services:
         aliases: [moderation-slot-1]
     restart: unless-stopped
   moderation-publisher:
-    image: ${MODERATION_IMAGE:?Set MODERATION_IMAGE in .env, e.g. owner/repo:version}
+    image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
     pull_policy: always
     command: [python, -m, moderation.publisher]
     environment:
@@ -294,12 +294,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
   discord-dms:
-    image: ${DISCORD_DMS_IMAGE:?Set DISCORD_DMS_IMAGE in .env, e.g. owner/repo:version}
+    image: ${DISCORD_DMS_IMAGE:-sentientmoss/pad-discord-dms-service:latest}
     pull_policy: always
     command: [uvicorn, discord_dms.api:app, --host, 0.0.0.0, --port, '8000', --no-access-log, --ws-ping-interval, '30', --ws-ping-timeout, '60', --log-config, /run/student-id/application-logging.json]
-    env_file: .local/lab2/discord-dms.env
+    env_file: .local/stack/discord-dms.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: discord-dms
       INSTANCE_ID: ${DISCORD_DMS_SLOT1_INSTANCE_ID:?Set DISCORD_DMS_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://discord-dms-slot-1:8000
@@ -319,7 +319,7 @@ services:
     ports:
       - '127.0.0.1:${DMS_PORT:-8009}:8000'
     volumes:
-      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
       - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
@@ -339,11 +339,11 @@ services:
         aliases: [discord-dms-slot-1]
     restart: unless-stopped
   applicant:
-    image: ${APPLICANT_IMAGE:?Set APPLICANT_IMAGE in .env, e.g. owner/repo:version}
+    image: ${APPLICANT_IMAGE:-mcittkmims/applicant-service:latest}
     pull_policy: always
-    env_file: .local/lab2/applicant.env
+    env_file: .local/stack/applicant.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: applicant
       INSTANCE_ID: ${APPLICANT_SLOT1_INSTANCE_ID:?Set APPLICANT_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://applicant-slot-1:8081
@@ -366,11 +366,11 @@ services:
         aliases: [applicant-slot-1]
     restart: unless-stopped
   credential:
-    image: ${CREDENTIAL_IMAGE:?Set CREDENTIAL_IMAGE in .env, e.g. owner/repo:version}
+    image: ${CREDENTIAL_IMAGE:-mcittkmims/credential-service:latest}
     pull_policy: always
-    env_file: .local/lab2/credential.env
+    env_file: .local/stack/credential.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: credential
       INSTANCE_ID: ${CREDENTIAL_SLOT1_INSTANCE_ID:?Set CREDENTIAL_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://credential-slot-1:8082
@@ -425,11 +425,11 @@ services:
       retries: 10
       start_period: 20s
   university-record:
-    image: ${UNIVERSITY_RECORD_IMAGE:?Set UNIVERSITY_RECORD_IMAGE in .env, e.g. owner/repo:version}
+    image: ${UNIVERSITY_RECORD_IMAGE:-maxnoragami/university-record-service:latest}
     pull_policy: always
-    env_file: .local/lab2/university_record.env
+    env_file: .local/stack/university_record.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: university_record
       INSTANCE_ID: ${UNIVERSITY_RECORD_SLOT1_INSTANCE_ID:?Set UNIVERSITY_RECORD_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://university-record-slot-1:8006
@@ -446,7 +446,7 @@ services:
       TASK_TIMEOUT: ${JAVA_TASK_TIMEOUT:-30s}
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
-      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
     depends_on:
       university-mongodb:
         condition: service_healthy
@@ -471,11 +471,11 @@ services:
       retries: 10
       start_period: 10s
   server-rules:
-    image: ${SERVER_RULES_IMAGE:?Set SERVER_RULES_IMAGE in .env, e.g. owner/repo:version}
+    image: ${SERVER_RULES_IMAGE:-maxnoragami/server-rules-service:latest}
     pull_policy: always
-    env_file: .local/lab2/rules.env
+    env_file: .local/stack/rules.env
     environment:
-      <<: *lab3
+      <<: *registration
       SERVICE_NAME: rules
       INSTANCE_ID: ${SERVER_RULES_SLOT1_INSTANCE_ID:?Set SERVER_RULES_SLOT1_INSTANCE_ID in .env}
       INSTANCE_HTTP_URL: http://server-rules-slot-1:8005
@@ -492,7 +492,7 @@ services:
       TASK_TIMEOUT: ${JAVA_TASK_TIMEOUT:-30s}
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
-      - ./.local/lab2/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
     depends_on:
       rules-db:
         condition: service_healthy

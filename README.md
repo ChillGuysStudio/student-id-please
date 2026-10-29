@@ -6,23 +6,23 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 ## Architecture
 
-Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the Lab 2 target topology.
+Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the topology.
 
-<img src="docs/architecture.png" alt="Architecture diagram of the Lab 2 topology" width="1080"/>
+<img src="docs/architecture.png" alt="Architecture diagram of the gateway topology" width="1080"/>
 
-The figure and its [editable source](docs/architecture.drawio) show the Lab 2 topology. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. RabbitMQ appears greyed as Lab 4 scope.
+The figure and its [editable source](docs/architecture.drawio) show the gateway topology. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. RabbitMQ appears greyed because it is outside the gateway-routed paths.
 
-[Architecture](docs/architecture.md) explains ownership and technology choices. The [Lab 3 demonstration guide](docs/lab3-demonstration.md) explains multi-replica scaling, Discovery, and safe operator verification. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
+[Architecture](docs/architecture.md) explains ownership and technology choices. The [demonstration guide](docs/demonstration.md) explains multi-replica scaling, Discovery, and safe operator verification. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
 
 ## Gateway
 
-The selected gateway is shared Go infrastructure, separate from the eight domain services. In the Lab 2 target, all client-to-service REST traffic uses its public listener. All service-to-service REST traffic uses its internal listener, which is not publicly exposed. The gateway validates client identity, routes requests, and bounds task duration and concurrency. Domain services retain business authorization and data ownership.
+The selected gateway is shared Go infrastructure, separate from the eight domain services. All client-to-service REST traffic uses its public listener. All service-to-service REST traffic uses its internal listener, which is not publicly exposed. The gateway validates client identity, routes requests, and bounds task duration and concurrency. Domain services retain business authorization and data ownership.
 
 Realtime negotiation uses REST through the gateway and returns a direct Discord DMs WebSocket URL. Clients connect to Discord DMs for the upgrade and chat frames. The gateway does not relay frames. Chat tickets, permissions, Redis delivery, and stored history belong to Discord DMs.
 
 RabbitMQ events and service-owned storage connections are not REST routing paths and do not pass through the gateway.
 
-Gateway `2.0.2` and University `2.0.3` are published public native images. The [current live observation](docs/lab2-live-snapshot.md) records a real Session start, direct two-peer chat frames, image sources and remaining acceptance checks. The older [disposable-source run](docs/lab2-runtime.md) is historical. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions; the [guided Postman demo](postman/LAB2-GUIDED.md) covers real Gateway HTTP flows and bounded concurrent tasks.
+[`docs/releases/services.json`](docs/releases/services.json) records the released version, source commit, and image digest of each service. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions; the [guided Postman demo](postman/GUIDED-DEMO.md) covers real Gateway HTTP flows and bounded concurrent tasks.
 
 ## Team and services
 
@@ -45,11 +45,9 @@ Rules introduced by updates to this README or the other project documentation ap
 
 ## Documentation
 
-- [Later published Lab 3 packages and restart evidence](docs/lab3-package-updates.md)
-- [Published Lab 3 increment and remaining acceptance](docs/lab3-published-increment.md)
-- [Lab 3 demonstration guide](docs/lab3-demonstration.md)
+- [Demonstration guide](docs/demonstration.md)
 - [HTTP conventions](docs/contracts/http.md)
-- [Lab 3 discovery and resilience contract](docs/contracts/lab3.md)
+- [Discovery and resilience contract](docs/contracts/resilience.md)
 - [Domain types](docs/contracts/domain.md)
 - [Service APIs](docs/contracts/api.md)
 - [Case initialization](docs/contracts/cases.md)

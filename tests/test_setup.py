@@ -1,15 +1,16 @@
 """Check generated adapter configuration without Docker or private service checkouts."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("prepare_lab2", ROOT / "scripts/prepare_lab2.py")
-prepare_lab2 = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(prepare_lab2)
+spec = importlib.util.spec_from_file_location("setup", ROOT / "scripts/setup.py")
+setup = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(setup)
 
 
 def read_env(path):
@@ -17,21 +18,21 @@ def read_env(path):
             (line.split("=", 1) for line in path.read_text().splitlines())}
 
 
-class Lab2ConfigurationTests(unittest.TestCase):
+class SetupTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.keys = patch.object(prepare_lab2, "rsa_pair", return_value={"keys": [{"kid": "gateway-v1"}]})
+        self.keys = patch.object(setup, "rsa_pair", return_value={"keys": [{"kid": "gateway-v1"}]})
         self.keys.start()
         self.addCleanup(self.keys.stop)
-        self.openssl = patch.object(prepare_lab2.shutil, "which", return_value="openssl")
+        self.openssl = patch.object(setup.shutil, "which", return_value="openssl")
         self.openssl.start()
         self.addCleanup(self.openssl.stop)
 
     def test_runtime_and_current_receiver_adapters_match(self):
-        prepare_lab2.prepare(self.root, "test/gateway@sha256:" + "a" * 64, 18080, 18009)
-        directory = self.root / ".local/lab2"
+        setup.prepare(self.root, 28080, 18009)
+        directory = self.root / ".local/stack"
         runtime = read_env(directory / "gateway.env")
         receivers = json.loads(runtime["GATEWAY_RECEIVERS"])
         credentials = json.loads(runtime["GATEWAY_SERVICE_TOKENS"])
@@ -41,7 +42,7 @@ class Lab2ConfigurationTests(unittest.TestCase):
         self.assertEqual(runtime["GATEWAY_EXTERNAL_WS_URL"], "ws://localhost:18009")
         all_tokens = list(credentials.values()) + [value["HopToken"] for value in receivers.values()]
         self.assertEqual(len(all_tokens), len(set(all_tokens)))
-        for owner in prepare_lab2.OWNERS:
+        for owner in setup.OWNERS:
             settings = read_env(directory / f"{owner}.env")
             if owner in ("player", "session"):
                 self.assertEqual(settings["AUTH_MODE"], "gateway")
@@ -69,13 +70,12 @@ class Lab2ConfigurationTests(unittest.TestCase):
         self.assertEqual(rules["RULES_SERVICE_TOKEN"], credentials["rules"])
         config = read_env(self.root / ".env")
         self.assertEqual(config["COMPOSE_FILE"], "compose.yaml:compose.replicas.yaml")
-        self.assertEqual(config["PLAYER_IMAGE"], prepare_lab2.IMAGES["PLAYER_IMAGE"])
-        self.assertTrue(config["GATEWAY_IMAGE"].startswith("test/gateway"))
+        self.assertFalse([name for name in config if name.endswith("_IMAGE")])
         self.assertIn("player-slot-2:", (self.root / "compose.replicas.yaml").read_text())
-        ids = [config[f"{name}_SLOT1_INSTANCE_ID"] for name in prepare_lab2.REPLICA_NAMES]
+        ids = [config[f"{name}_SLOT1_INSTANCE_ID"] for name in setup.REPLICA_NAMES]
         ids += [config["GATEWAY_INSTANCE_ID"], config["DISCOVERY_INSTANCE_ID"]]
         self.assertEqual(len(ids), len(set(ids)))
-        tokens = [config[f"{name}_CONTROL_TOKEN"] for name in prepare_lab2.CONTROL_NAMES]
+        tokens = [config[f"{name}_CONTROL_TOKEN"] for name in setup.CONTROL_NAMES]
         self.assertEqual(len(tokens), len(set(tokens)))
         self.assertEqual(config["DISCOVERY_DISCORD_WEBHOOK_URL"], "")
         self.assertNotIn("PLAYER_VERSION", config)
@@ -85,16 +85,20 @@ class Lab2ConfigurationTests(unittest.TestCase):
     def test_existing_configuration_is_never_overwritten(self):
         (self.root / ".env").write_text("existing development file")
         with self.assertRaisesRegex(ValueError, "unchanged"):
-            prepare_lab2.prepare(self.root, "test/gateway:local")
+            setup.prepare(self.root)
         self.assertEqual((self.root / ".env").read_text(), "existing development file")
         self.assertFalse((self.root / ".local").exists())
 
-    def test_missing_image_or_invalid_ports_create_nothing(self):
-        for image, gateway_port, dms_port in (("bad image", 8080, 8009), ("test/gateway:local", 8080, 8080),
-                                               ("test/gateway:local", 0, 8009)):
+    def test_invalid_ports_create_nothing(self):
+        for gateway_port, dms_port in ((8080, 8080), (0, 8009), (8080, 70000)):
             with self.assertRaises(ValueError):
-                prepare_lab2.prepare(self.root, image, gateway_port, dms_port)
+                setup.prepare(self.root, gateway_port, dms_port)
             self.assertFalse((self.root / ".env").exists())
+
+    def test_compose_images_default_to_latest(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        self.assertNotIn("_IMAGE:?", compose)
+        self.assertEqual(len(re.findall(r"image: \$\{[A-Z_]+_IMAGE:-[a-z0-9._-]+/[a-z0-9._-]+:latest\}", compose)), 11)
 
     def test_compose_exposes_only_public_gateway_and_direct_dms(self):
         compose = (ROOT / "compose.yaml").read_text()

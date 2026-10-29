@@ -12,15 +12,15 @@ Mocks do not decide admission policy inside Session or make missing authorizatio
 
 ## Connect real services
 
-The [Player and Session runtime packet](player-session-runtime.md) records the owned receivers' exact environment names, gateway mappings, peer endpoint decisions, and remaining runtime checks for Lab 2.
+[`compose.yaml`](../compose.yaml) and [`scripts/setup.py`](../scripts/setup.py) define each receiver's environment names, gateway mappings, and generated credentials.
 
-The Lab 2 target sends every client REST request through the public gateway and every service REST request through the private internal gateway. This includes peer calls to `/api/v1` paths. The gateway validates client `Authorization` and never forwards the original header downstream. Receivers retain business checks against Session roles, participation, lifecycle, and resource permissions. A service credential does not prove the initiating player's permission.
+The deployment sends every client REST request through the public gateway and every service REST request through the private internal gateway. This includes peer calls to `/api/v1` paths. The gateway validates client `Authorization` and never forwards the original header downstream. Receivers retain business checks against Session roles, participation, lifecycle, and resource permissions. A service credential does not prove the initiating player's permission.
 
 Realtime negotiation uses public gateway REST and returns a direct service WebSocket URL. The upgrade and frames do not pass through the gateway. Ticket requests and history recovery remain public gateway REST. Database connections also bypass the gateway.
 
 An integrated deployment supplies internal gateway route prefixes as peer URLs, service credentials, receiver-hop credentials, verification keys, and broker routing. Every caller and receiver must agree on these settings. Direct-mode bearer forwarding is legacy standalone compatibility, not the integrated rule. See [HTTP authentication and authorization](contracts/http.md#authentication-and-authorization).
 
-Moderation and Discord DMs have gateway receiver and outgoing adapters. They reject original `Authorization` and preserve domain checks. Compose now configures the public gateway, private internal gateway peer URLs, and direct DMs WebSocket ingress. That wiring does not prove compatible public images or working Player and Session proofs. See the [disposable runtime results](lab2-runtime.md) for tested paths and remaining failures.
+Moderation and Discord DMs have gateway receiver and outgoing adapters. They reject original `Authorization` and preserve domain checks. Compose now configures the public gateway, private internal gateway peer URLs, and direct DMs WebSocket ingress. That wiring does not prove compatible public images or working Player and Session proofs.
 
 Integration checks use the public service images and the same request fixtures used for mock tests. They verify actual responses, gateway routing, rejected direct REST bypasses, persisted records, and delivered events. They also check `503 TASK_LIMIT_EXCEEDED` and `504 TASK_TIMEOUT` at the gateway and each service. A process health check proves only that the process responds.
 

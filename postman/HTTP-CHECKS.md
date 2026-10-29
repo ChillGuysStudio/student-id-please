@@ -1,23 +1,23 @@
-# Check Lab 3 HTTP without changing registry state
+# Check HTTP without changing registry state
 
-The [Lab 3 contract](../docs/contracts/lab3.md) defines expected HTTP responses. These Newman folders check only observable read-only behavior. They do not register, remove, or reactivate a service. Do not run the Lab 2 default runner for this check, because its default creates players and sessions.
+The [discovery and resilience contract](../docs/contracts/resilience.md) defines expected HTTP responses. These Newman folders check only observable read-only behavior. They do not register, remove, or reactivate a service. Do not run the default guided-demo runner for this check, because its default creates players and sessions.
 
 ## Run the safe public folder
 
 From the CPR root, run the existing pinned runner against the public Gateway:
 
 ```sh
-./scripts/run_lab2_newman.sh --lab3-safe --gateway-url http://127.0.0.1:8080
+./scripts/run_newman.sh --http --gateway-url http://127.0.0.1:8080
 ```
 
-The folder sends four anonymous GET requests. It checks Gateway liveness, denial of private status and registry reads on public ingress, and denial of an unauthenticated Player read. It also checks that public responses do not expose Gateway's private attribution headers. A successful run says nothing about routing or registered replicas. The runner writes redacted HTML under ignored `.local/lab3-postman/`, and private raw results under that directory's `run-*` subdirectory.
+The folder sends four anonymous GET requests. It checks Gateway liveness, denial of private status and registry reads on public ingress, and denial of an unauthenticated Player read. It also checks that public responses do not expose Gateway's private attribution headers. A successful run says nothing about routing or registered replicas. The runner writes redacted HTML under ignored `.local/postman/http-checks/`, and private raw results under that directory's `run-*` subdirectory.
 
 ## Run private operator reads separately
 
-Copy `postman/lab3-http.postman_environment.json` into ignored `.local/lab3-postman/`. Set `discovery_url` to a reachable private Discovery listener and replace `control_token` in the copy with the operator credential. Do not put the token in shell arguments, the checked-in template, or a published report. This folder is not part of safe public smoke.
+Copy `postman/http-checks.postman_environment.json` into ignored `.local/postman/http-checks/`. Set `discovery_url` to a reachable private Discovery listener and replace `control_token` in the copy with the operator credential. Do not put the token in shell arguments, the checked-in template, or a published report. This folder is not part of safe public smoke.
 
 ```sh
-./scripts/run_lab2_newman.sh --lab3-private --environment .local/lab3-postman/operator.postman_environment.json
+./scripts/run_newman.sh --http-private --environment .local/postman/http-checks/operator.postman_environment.json
 ```
 
 The folder reads Discovery status, a default ready-only registry snapshot, and an unavailable-inclusive snapshot. It checks instance UUIDs, boot IDs, registration IDs, lease time, readiness, load ratios, epoch, and revision where the response contains instances. An empty snapshot is valid; it does not prove successful registration or filtering. IDs saved in the private Newman environment are diagnostic only, not evidence of round-robin routing. Do not print or publish the populated environment or raw run files. The HTML reporter removes response bodies, headers, URLs, scripts, raw failures, and environment values before rendering. The runner returns a nonzero exit code on assertion or request failure.

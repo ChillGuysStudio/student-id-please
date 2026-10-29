@@ -2,7 +2,7 @@
 
 CPR checks require Git, Python 3, and a shell. Docker is needed only to run service images. Private source checkout is optional.
 
-The [Lab 3 discovery and resilience contract](contracts/lab3.md) defines the implementation target, configuration names, and service acceptance cases for replicas and Discovery. The [Lab 3 demonstration guide](lab3-demonstration.md) describes safe verification commands on a prepared operator laptop. The public-image procedure below remains the current Lab 2 setup. It does not yet configure Lab 3 registration or balancing.
+The [discovery and resilience contract](contracts/resilience.md) defines configuration names and service acceptance cases for replicas and Discovery. The [demonstration guide](demonstration.md) describes safe verification commands on a prepared operator laptop.
 
 ## Clone CPR
 
@@ -15,53 +15,50 @@ cd student-id-please
 
 Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. DMs exposes `127.0.0.1:8009` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
 
-The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each domain service. `.env` selects every service image as `owner/repo:version`, for example `PLAYER_IMAGE=tirppy/student-id-player-service:3.0.0`. Any published tag works, including `latest`. `scripts/replicas.py` turns `REPLICAS` into the ignored `compose.replicas.yaml`, and `.env` loads it through `COMPOSE_FILE`. The Compose project is `student-id-lab3`.
+The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each domain service. Every service image defaults to `latest` in `compose.yaml`, for example `${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}`. To pin a version, set the matching `*_IMAGE` key in `.env` to `owner/repo:version`, for example `PLAYER_IMAGE=tirppy/student-id-player-service:3.0.0`. An unset or empty key means `latest`. [`releases/services.json`](releases/services.json) lists the released versions. `scripts/replicas.py` turns `REPLICAS` into the ignored `compose.replicas.yaml`, and `.env` loads it through `COMPOSE_FILE`. The Compose project is `student-id-please`.
 
-1. Optionally choose a Gateway image with `--gateway-image owner/repo:version`. Otherwise the generator writes the released version.
-2. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
+1. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
 
 	```sh
-	python3 scripts/prepare_lab2.py            # or: --tag latest
+	python3 scripts/setup.py
 	```
 
-	The command creates ignored `.env` and `.local/lab2/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
+	The command creates ignored `.env` and `.local/stack/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
 
-3. Review the generated `.env`. Change a `*_IMAGE` value to select another version, or run the generator with `--tag latest`. To change replica counts, set `REPLICAS` or `<SERVICE>_REPLICAS`, then run `python3 scripts/replicas.py`. The generator also pins the gateway public key and configures receiver-hop credentials through `SERVICE_TOKENS.gateway`. Copy your Discord webhook into `DISCOVERY_DISCORD_WEBHOOK_URL` if you want real alerts. Keep `.env` and `.local/` out of commits.
-4. Validate Compose without printing resolved values. `scripts/prepare_lab2.py` also generates the Lab 3 instance IDs and control tokens that `.env.example` lists:
+2. Review the generated `.env`. To pin an image version, add the matching `*_IMAGE` key. To change replica counts, set `REPLICAS` or `<SERVICE>_REPLICAS`, then run `python3 scripts/replicas.py`. The generator also pins the gateway public key and configures receiver-hop credentials through `SERVICE_TOKENS.gateway`. Copy your Discord webhook into `DISCOVERY_DISCORD_WEBHOOK_URL` if you want real alerts. Keep `.env` and `.local/` out of commits.
+3. Validate Compose without printing resolved values. `scripts/setup.py` also generates the instance IDs and control tokens that `.env.example` lists:
 
 	```sh
 	docker compose config --quiet
 	```
 
-5. Pull the public images:
+4. Pull the public images:
 
 	```sh
 	docker compose pull
 	```
 
-6. Start the deployment:
+5. Start the deployment:
 
 	```sh
 	docker compose up -d --wait
 	```
 
-7. Seed the University Record reference catalog. Without it, starting a session fails with `409 DEPENDENCY_REJECTED`. Run the command once on a fresh stack:
+6. Seed the University Record reference catalog. Without it, starting a session fails with `409 DEPENDENCY_REJECTED`. Run the command once on a fresh stack:
 
 	```sh
 	python3 scripts/seed_university_catalog.py
 	```
 
-	The script registers a local seed player, stores its credentials in `.local/lab2/seed-admin.json`, grants it admin for the import, and revokes admin afterwards. It prints the number of created, already present, and failed entries. Running it again is safe.
+	The script registers a local seed player, stores its credentials in `.local/stack/seed-admin.json`, grants it admin for the import, and revokes admin afterwards. It prints the number of created, already present, and failed entries. Running it again is safe.
 
-8. Inspect container status:
+7. Inspect container status:
 
 	```sh
 	docker compose ps
 	```
 
-Service and helper containers use `pull_policy: always`, so `docker compose up` pulls
-the tag that `.env` selects. A version tag such as `3.0.7` is stable, and `latest` moves
-with each release. `docs/releases/` records the exact digest of each release. Docker selects the host's native platform
+Service and helper containers use `pull_policy: always`. Docker selects the host's native platform
 from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
@@ -70,7 +67,7 @@ Java services select their current gateway adapters. Moderation and DMs use `AUT
 
 Inspect Java startup and make protected public gateway calls after `--wait`. A running container without a health check can still restart before its API binds. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
 
-Run `docker compose down` to stop the stack and keep its data. Add `--volumes` only for a disposable project whose stored data you intend to delete. The source snapshot override used for local testing stays under ignored `.local/lab2/`; it does not change CPR's service pointers or establish public-image publication.
+Run `docker compose down` to stop the stack and keep its data. Add `--volumes` only for a disposable project whose stored data you intend to delete.
 
 ## Install CPR hooks
 

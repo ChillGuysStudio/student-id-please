@@ -1,8 +1,8 @@
 {
-  "name": "student-id-lab2-newman",
+  "name": "student-id-newman",
   "private": true,
   "version": "1.0.0",
-  "description": "Local Lab 2 Newman runner and privacy-filtered htmlextra reports",
+  "description": "Local Newman runner and privacy-filtered htmlextra reports",
   "scripts": {
     "test": "node --test report.test.cjs"
   },

@@ -4,7 +4,7 @@ Applicant owns profile presets and immutable presented claims for a case.
 
 ## Public image
 
-The image is [`mcittkmims/applicant-service`](https://hub.docker.com/r/mcittkmims/applicant-service/tags). `APPLICANT_IMAGE` in `.env` selects its image as `owner/repo:version`. The local API address is `http://localhost:8081`.
+The image is [`mcittkmims/applicant-service`](https://hub.docker.com/r/mcittkmims/applicant-service/tags). Set `APPLICANT_SERVICE_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The local API address is `http://localhost:8081`.
 
 Source code is in the [private repository](https://github.com/mcittkmims/applicant-service). Public images run without private-source access.
 
