@@ -1,6 +1,7 @@
 """Guard the read-only default and private operator-only HTTP checks collection."""
 
 import json
+import re
 from pathlib import Path
 import unittest
 
@@ -49,6 +50,43 @@ class HttpChecksCollectionTests(unittest.TestCase):
         self.assertEqual(values["control_name"]["value"], "operator")
         self.assertEqual(values["control_token"]["value"], "REPLACE_IN_PRIVATE_COPY")
         self.assertEqual(values["control_token"]["type"], "secret")
+
+
+SERVICE_COLLECTIONS = sorted((ROOT / "postman").glob("*-service.json"))
+
+
+class ServiceCollectionTests(unittest.TestCase):
+    def requests(self, items):
+        for item in items:
+            if "item" in item:
+                yield from self.requests(item["item"])
+            else:
+                yield item["request"]
+
+    def test_expected_service_collections_exist(self):
+        self.assertEqual(
+            [path.name for path in SERVICE_COLLECTIONS],
+            [
+                "applicant-service.json",
+                "credential-service.json",
+                "discord-dms-service.json",
+                "moderation-service.json",
+                "server-rules-service.json",
+                "university-record-service.json",
+            ],
+        )
+
+    def test_collections_use_the_gateway_and_no_lab_names(self):
+        for path in SERVICE_COLLECTIONS:
+            with self.subTest(collection=path.name):
+                text = path.read_text()
+                collection = json.loads(text)
+                variables = {entry["key"]: entry["value"] for entry in collection["variable"]}
+                self.assertEqual(variables["gateway_url"], "http://127.0.0.1:8080")
+                self.assertIsNone(re.search(r"\blab[ -]?\d", text, re.IGNORECASE))
+                for request in self.requests(collection["item"]):
+                    url = request["url"] if isinstance(request["url"], str) else request["url"]["raw"]
+                    self.assertTrue(url.startswith("{{gateway_url}}/api/v1/") or url.startswith("{{gateway_url}}/.well-known/"), url)
 
 
 if __name__ == "__main__":

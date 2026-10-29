@@ -35,4 +35,4 @@ The shared deployment reads [`.env.example`](../../.env.example).
 
 [Service APIs](../contracts/api.md), [HTTP conventions](../contracts/http.md), and [event definitions](../contracts/events.md) define the shared behavior. [Integration principles](../integration.md) describe mocked and integrated deployments.
 
-The [Session Postman collection](../../postman/session-service.json) provides request fixtures. [Verification cases](../verification.md) describe expected failure and retry behavior.
+The [guided demo collection](../../postman/GUIDED-DEMO.md) sends this service's public requests through the Gateway. [Verification cases](../verification.md) describe expected failure and retry behavior.
