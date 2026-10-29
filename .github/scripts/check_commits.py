@@ -19,12 +19,17 @@ SUBJECT_GUIDANCE = (
 )
 
 
+# Match the identities AI tools use, not ordinary names: a person called Claude must still pass.
+AI_IDENTITY = (
+    r"(?:@anthropic\.com|@openai\.com|@opencode\.ai|\bCopilot@users\.noreply\.github\.com"
+    r"|\bclaude (?:opus|sonnet|haiku|code)\b|\bchatgpt\b|\bgithub copilot\b|\bgemini \d)"
+)
 AI_ATTRIBUTION = re.compile(
-    r"^co-authored-by:.*(claude|anthropic|openai|chatgpt|copilot|gemini|opencode)"
-    r"|generated (with|by) .*(claude|chatgpt|copilot|gemini|opencode)",
+    r"^co-authored-by:.*" + AI_IDENTITY
+    + r"|^[^\w\n]*generated (?:with|by) \[?(?:claude code|chatgpt|github copilot|gemini|opencode)\b",
     re.IGNORECASE | re.MULTILINE,
 )
-AI_AUTHOR = re.compile(r"claude|anthropic\.com|noreply@openai", re.IGNORECASE)
+AI_AUTHOR = re.compile(AI_IDENTITY, re.IGNORECASE)
 ATTRIBUTION_GUIDANCE = (
     "Commits name only the human contributor: remove AI co-author trailers and "
     "'Generated with' lines, and author the commit with your own identity."
