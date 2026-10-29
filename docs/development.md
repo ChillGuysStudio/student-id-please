@@ -15,9 +15,9 @@ cd student-id-please
 
 Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. DMs exposes `127.0.0.1:8009` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
 
-The stack runs the Lab 3 release images pinned in [`compose.published.yaml`](../compose.published.yaml): two replicas of each domain service, Discovery, and Gateway. The generated `.env` sets `COMPOSE_FILE=compose.yaml:compose.published.yaml`, so plain `docker compose` commands use those pins. The Compose project is `student-id-lab3`.
+`compose.yaml` runs Discovery, the Gateway, and two replicas of each domain service. [`compose.published.yaml`](../compose.published.yaml) pins the Gateway and domain service images to their release digests, and the generated `.env` loads it through `COMPOSE_FILE`. `compose.yaml` pins the Discovery digest itself. The Compose project is `student-id-lab3`.
 
-1. Choose an explicit published gateway version or digest. Set `GATEWAY_IMAGE` to that reference. A local image is test-only, not a published release.
+1. Pick any published Gateway reference for `GATEWAY_IMAGE`, such as the digest in `compose.published.yaml`. `compose.yaml` requires the variable, and `compose.published.yaml` replaces it with the released digest.
 2. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
 
 	```sh
@@ -51,8 +51,8 @@ The stack runs the Lab 3 release images pinned in [`compose.published.yaml`](../
 	docker compose ps
 	```
 
-Service and helper containers use `pull_policy: always`. With the published pins,
-every service image is an immutable digest. Docker selects the host's native platform
+Service and helper containers use `pull_policy: always`. The Gateway, Discovery, and
+domain service images are immutable digests. Databases and brokers use version tags. Docker selects the host's native platform
 from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.

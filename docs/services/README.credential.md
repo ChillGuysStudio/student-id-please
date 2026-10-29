@@ -4,7 +4,7 @@ Credential owns document templates, immutable case documents, and deterministic 
 
 ## Public image
 
-The image is [`mcittkmims/credential-service`](https://hub.docker.com/r/mcittkmims/credential-service/tags). The `CREDENTIAL_SERVICE_VERSION` variable selects its tag in [Compose](../../compose.yaml). The local API address is `http://localhost:8082`.
+The image is [`mcittkmims/credential-service`](https://hub.docker.com/r/mcittkmims/credential-service/tags). [`compose.published.yaml`](../../compose.published.yaml) pins its released image digest. The local API address is `http://localhost:8082`.
 
 Source code is in the [private repository](https://github.com/mcittkmims/credential-service). Public images run without private-source access.
 
