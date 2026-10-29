@@ -191,33 +191,39 @@ class Stack:
         hit = [r for r in rows if r["state"] == "removed" and (r.get("removed_at") or "") >= since_iso]
         return sorted(hit, key=lambda r: r["service_name"] != "gateway")
 
-    def recover(self, since_iso: str, expected: int | None = None, settle: float = 20.0, deadline: float = 420.0, log=lambda s: None):
+    def recover(self, since_iso: str, expected: int | None = None, quiet: float = 18.0, min_elapsed: float = 0.0,
+                deadline: float = 420.0, log=lambda s: None):
         """Reactivate everything removed since `since_iso` (Gateway first) until the registry stays fully ready.
 
-        A caller can remove the Gateway and the Gateway can remove a caller slot, so each round rescans. Returns the
-        list of reactivated services."""
-        end = time.monotonic() + deadline
-        done, quiet = [], 0
+        A caller can remove the Gateway and the Gateway can remove a caller slot, so each round rescans. A removal
+        report that is still pending lands seconds later, and a cold Java replica can be removed after it is ready, so
+        the registry must stay ready for `quiet` seconds, and at least `min_elapsed` seconds must pass in total.
+        Returns the list of reactivated services."""
+        begin = time.monotonic()
+        end = begin + deadline
+        done, ready_since = [], None
         while time.monotonic() < end:
             rows = self.registry()
             if any("removal_outcome=pending" in l.text for l in self.recent_lines("gateway", 25)):
-                quiet = 0
+                ready_since = None
                 time.sleep(3)
                 continue
             victims = self.removed_since(since_iso, rows)
             if victims:
-                quiet = 0
+                ready_since = None
                 for row in victims:
                     result = self.reactivate(row)
                     log(f"reactivated {result.get('service')}: {result.get('ok')} {result.get('last', '')}")
                     done.append(result.get("service"))
                 continue
             live = self.live_rows(rows)
-            ready = all(r["state"] == "ready" for r in live) and (expected is None or len(live) == expected)
-            quiet = quiet + 1 if ready else 0
-            if quiet >= 3:
-                return done
-            time.sleep(max(1.0, settle / 6))
+            if all(r["state"] == "ready" for r in live) and (expected is None or len(live) == expected):
+                ready_since = ready_since or time.monotonic()
+                if time.monotonic() - ready_since >= quiet and time.monotonic() - begin >= min_elapsed:
+                    return done
+            else:
+                ready_since = None
+            time.sleep(3)
         raise StackError("The registry did not return to all ready: " + self.redactor.scrub(self.registry_summary()))
 
     def registry_summary(self) -> str:
