@@ -50,4 +50,4 @@ Discord DMs issues a single-use chat ticket with a 30-second lifetime. It stores
 
 Redis Pub/Sub delivers committed messages to connected replicas. It does not replay missed messages. After reconnecting with a new ticket, the client reads REST history and deduplicates by message ID.
 
-[Verification cases](verification.md) list the expected results for failures, retries, and concurrency.
+The [HTTP conventions](contracts/http.md) define the expected results for failures and retries, and the [demonstration guide](demonstration.md) shows how to verify concurrent writes and replica routing.

@@ -50,10 +50,6 @@ class DocumentationTests(unittest.TestCase):
         self.assertIn("leaves repository", self.check("[Outside](../secret.md)")[0])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class ArchitectureDiagram(unittest.TestCase):
     def test_embedded_copies_match_the_mermaid_source(self):
         source = (ROOT / "docs/diagrams/architecture.mmd").read_text().strip()
@@ -61,3 +57,6 @@ class ArchitectureDiagram(unittest.TestCase):
             blocks = re.findall(r"```mermaid\n(.*?)\n```", (ROOT / name).read_text(), re.S)
             self.assertEqual([block.strip() for block in blocks], [source], name)
 
+
+if __name__ == "__main__":
+    unittest.main()

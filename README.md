@@ -84,7 +84,7 @@ flowchart TB
 	UnivReplicas --- RabbitMQBroker
 ```
 
-[Architecture](docs/architecture.md) explains ownership and technology choices. The [demonstration guide](docs/demonstration.md) explains multi-replica scaling, Discovery, and safe operator verification. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
+[Architecture](docs/architecture.md) explains ownership and technology choices. The [demonstration guide](docs/demonstration.md) shows how to start the stack and run the verification suite. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
 
 ## Gateway
 
@@ -125,7 +125,6 @@ Rules introduced by updates to this README or the other project documentation ap
 - [Case initialization](docs/contracts/cases.md)
 - [Simulation data](docs/contracts/simulation.md)
 - [RabbitMQ events](docs/contracts/events.md)
-- [Verification cases](docs/verification.md)
 - [Release procedure](docs/releases.md)
 - [GitHub checks and permissions](docs/github.md)
 

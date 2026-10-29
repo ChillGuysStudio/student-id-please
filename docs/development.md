@@ -2,7 +2,7 @@
 
 CPR checks require Git, Python 3, and a shell. Docker is needed only to run service images. Private source checkout is optional.
 
-The [discovery and resilience contract](contracts/resilience.md) defines configuration names and service acceptance cases for replicas and Discovery. The [demonstration guide](demonstration.md) describes safe verification commands on a prepared operator laptop.
+The [discovery and resilience contract](contracts/resilience.md) defines configuration names and service acceptance cases for replicas and Discovery. The [demonstration guide](demonstration.md) shows how to start the stack and run the verification suite on a prepared laptop.
 
 ## Clone CPR
 
@@ -68,6 +68,16 @@ Java services select their current gateway adapters. Moderation and DMs use `AUT
 Inspect Java startup and make protected public gateway calls after `--wait`. A running container without a health check can still restart before its API binds. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
 
 Run `docker compose down` to stop the stack and keep its data. Add `--volumes` only for a disposable project whose stored data you intend to delete.
+
+## Verify the stack
+
+With the stack running, open the menu of checks for the course grades. It needs [uv](https://docs.astral.sh/uv/), which loads `rich` and `websockets` for the run without installing anything globally:
+
+```sh
+uv run scripts/verify.py
+```
+
+To run every suite without prompts, use `uv run scripts/verify.py all --yes`. Cases that change the stack warn you first and always restore it. Reports go to `.local/verify/<run-id>/`. The [demonstration guide](demonstration.md) explains each suite.
 
 ## Install CPR hooks
 
