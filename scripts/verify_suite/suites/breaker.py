@@ -295,6 +295,6 @@ SUITE = Suite(
     id="breaker", title="Caller circuit breakers", grade="7 and 10",
     description="Each caller opens its breaker after three failed Gateway hops in a window, Discovery removes the Gateway, and recovery restores it.",
     cases=[case_for(c) for c in CALLERS] + [
-        Case("all", "All six callers, one after another", all_callers, seconds=len(CALLERS) * 150,
+        Case("all", "All six callers, one after another", all_callers, seconds=len(CALLERS) * 150, aggregate=True,
              mutation=Mutation(faults="blocks each caller from the Gateway in turn, which makes Discovery remove the Gateway each time.",
                                restores="deletes each rule, reactivates the Gateway and any removed caller slot, and waits for every instance to be ready."))])

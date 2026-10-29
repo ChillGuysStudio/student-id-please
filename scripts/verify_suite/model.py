@@ -50,6 +50,7 @@ class Case:
     run: Callable
     mutation: Optional[Mutation] = None
     seconds: int = 30
+    aggregate: bool = False  # runs other cases of the suite, so a whole-suite run skips it
 
 
 @dataclass
@@ -63,7 +64,11 @@ class Suite:
 
     @property
     def duration(self) -> int:
-        return sum(case.seconds for case in self.cases)
+        return sum(case.seconds for case in self.runnable())
+
+    def runnable(self) -> list:
+        """The cases a whole-suite run executes. Aggregate cases only repeat the others."""
+        return [case for case in self.cases if not case.aggregate]
 
 
 @dataclass
