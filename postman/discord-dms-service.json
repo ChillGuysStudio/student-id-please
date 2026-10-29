@@ -1,33 +1,84 @@
 {
   "info": {
-    "name": "Student ID Lab 1 - Discord DMs Service",
-    "description": "Use with the published sentientmoss/pad-discord-dms-service:0.1.1 image, PostgreSQL, Redis, and configured Session and University Record services or a matching local test fixture. Import the collection and set moderator_token, junior_token, outsider_token, and session_id in a local Postman environment. Never save tokens in the collection. Default IDs and assertions describe a synthetic active shift with a Moderator, a Junior Moderator with enrollment and course permissions, and a player outside the shift. Run Channel access, Ticket workflow, and Errors and limits in order. Run WebSocket manual checks within 30 seconds of its fresh ticket, then run After WebSocket send. Run Dependency failures separately without upstream configuration. Postman collection v2.1 and Newman do not export or execute WebSocket frames; the manual folder gives the URL, frames, and expected results.",
+    "name": "Discord DMs service",
+    "description": "Public Gateway requests for the Discord DMs service: channel lists, message history, and chat tickets for an active shift. Set moderator_token, junior_token, outsider_token, and session_id in a private Postman environment. Run the folders in order. The WebSocket connection itself does not go through the Gateway and is not part of this collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "gateway_public_url", "value": "http://localhost:8080" },
-    { "key": "gateway_internal_url", "value": "http://localhost:8083" },
-    { "key": "dms_ops_url", "value": "http://127.0.0.1:8009" },
-    { "key": "dms_ws_url", "value": "ws://127.0.0.1:8009" },
-    { "key": "session_id", "value": "00000000-0000-4000-8000-000000000301" },
-    { "key": "moderator_id", "value": "00000000-0000-4000-8000-000000000302" },
-    { "key": "junior_id", "value": "00000000-0000-4000-8000-000000000303" },
-    { "key": "general_channel_id", "value": "" },
-    { "key": "enrollment_channel_id", "value": "" },
-    { "key": "faculty_channel_id", "value": "" },
-    { "key": "course_channel_id", "value": "" },
-    { "key": "ticket", "value": "" },
-    { "key": "ticket_key", "value": "" },
-    { "key": "junior_ticket", "value": "" },
-    { "key": "client_message_id", "value": "" },
-    { "key": "message_id", "value": "" },
-    { "key": "moderator_token", "value": "" },
-    { "key": "junior_token", "value": "" },
-    { "key": "outsider_token", "value": "" }
+    {
+      "key": "gateway_url",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "session_id",
+      "value": "00000000-0000-4000-8000-000000000301"
+    },
+    {
+      "key": "moderator_id",
+      "value": "00000000-0000-4000-8000-000000000302"
+    },
+    {
+      "key": "junior_id",
+      "value": "00000000-0000-4000-8000-000000000303"
+    },
+    {
+      "key": "general_channel_id",
+      "value": ""
+    },
+    {
+      "key": "enrollment_channel_id",
+      "value": ""
+    },
+    {
+      "key": "faculty_channel_id",
+      "value": ""
+    },
+    {
+      "key": "course_channel_id",
+      "value": ""
+    },
+    {
+      "key": "ticket",
+      "value": ""
+    },
+    {
+      "key": "ticket_key",
+      "value": ""
+    },
+    {
+      "key": "junior_ticket",
+      "value": ""
+    },
+    {
+      "key": "client_message_id",
+      "value": ""
+    },
+    {
+      "key": "message_id",
+      "value": ""
+    },
+    {
+      "key": "moderator_token",
+      "value": ""
+    },
+    {
+      "key": "junior_token",
+      "value": ""
+    },
+    {
+      "key": "outsider_token",
+      "value": ""
+    }
   ],
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{moderator_token}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{moderator_token}}",
+        "type": "string"
+      }
+    ]
   },
   "event": [
     {
@@ -66,13 +117,40 @@
       "name": "Channel access",
       "description": "Run first. The demo Moderator can use every channel; the Junior Moderator has enrollment and course permissions but no faculty permission.",
       "item": [
-        { "name": "200 Health", "request": { "method": "GET", "url": "{{dms_ops_url}}/healthz", "auth": { "type": "noauth" } } },
-        { "name": "200 Moderator channels", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" } },
+        {
+          "name": "200 Moderator channels",
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/channels",
+            "header": []
+          }
+        },
         {
           "name": "200 Junior channels",
-          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/channels",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{junior_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": []
+          }
         },
-        { "name": "200 General history", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=50" } }
+        {
+          "name": "200 General history",
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=50",
+            "header": []
+          }
+        }
       ]
     },
     {
@@ -81,15 +159,76 @@
       "item": [
         {
           "name": "201 Create ticket",
-          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": {
+            "method": "POST",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/chat-tickets",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{ticket_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
         },
         {
           "name": "201 Retry ticket with same key",
-          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": {
+            "method": "POST",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/chat-tickets",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{ticket_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
         },
         {
           "name": "201 Junior ticket",
-          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": {
+            "method": "POST",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/chat-tickets",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{junior_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
         }
       ]
     },
@@ -99,63 +238,144 @@
       "item": [
         {
           "name": "403 Outsider channels denied",
-          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] } },
-          "response": [{ "name": "Not a participant", "originalRequest": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Forbidden", "code": 403, "_postman_previewlanguage": "json", "body": "{\"code\":\"FORBIDDEN\",\"message\":\"Session participation not found\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/channels",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{outsider_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": []
+          },
+          "response": [
+            {
+              "name": "Not a participant",
+              "originalRequest": {
+                "method": "GET",
+                "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/channels"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "body": "{\"code\":\"FORBIDDEN\",\"message\":\"Session participation not found\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}"
+            }
+          ]
         },
-        { "name": "401 No token", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels", "auth": { "type": "noauth" } } },
+        {
+          "name": "401 No token",
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/channels",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": []
+          }
+        },
         {
           "name": "403 Faculty history denied to Junior",
-          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{faculty_channel_id}}/messages", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } }
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/channels/{{faculty_channel_id}}/messages",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{junior_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": []
+          }
         },
         {
           "name": "400 Invalid history cursor",
-          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?cursor=not-a-cursor" }
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/channels/{{general_channel_id}}/messages?cursor=not-a-cursor",
+            "header": []
+          }
         },
         {
           "name": "422 History limit out of range",
-          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=101" }
+          "request": {
+            "method": "GET",
+            "url": "{{gateway_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=101",
+            "header": []
+          }
         },
         {
           "name": "422 Ticket with extra field",
-          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"extra\":true}" } },
-          "response": [{ "name": "Validation error", "originalRequest": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets" }, "status": "Unprocessable Entity", "code": 422, "_postman_previewlanguage": "json", "body": "{\"detail\":[{\"type\":\"extra_forbidden\",\"loc\":[\"body\",\"extra\"],\"msg\":\"Extra inputs are not permitted\"}]}" }]
+          "request": {
+            "method": "POST",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/chat-tickets",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"extra\":true}"
+            }
+          },
+          "response": [
+            {
+              "name": "Validation error",
+              "originalRequest": {
+                "method": "POST",
+                "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/chat-tickets"
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "body": "{\"detail\":[{\"type\":\"extra_forbidden\",\"loc\":[\"body\",\"extra\"],\"msg\":\"Extra inputs are not permitted\"}]}"
+            }
+          ]
         },
         {
           "name": "403 Outsider cannot get ticket",
-          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{outsider_token}}", "type": "string" }] }, "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
-        }
-      ]
-    },
-    {
-      "name": "WebSocket manual checks",
-      "description": "The exported Postman v2.1 format and Newman cannot run WebSocket frames. Run Channel access first. Execute Fresh ticket for WebSocket, then within 30 seconds open a new WebSocket request in Postman at {{dms_ws_url}}/api/v1/sessions/{{session_id}}/ws?ticket={{ticket}}. Save it in this collection so collection variables resolve, or paste the resolved values. Send {\"type\":\"message.send\",\"client_message_id\":\"{{client_message_id}}\",\"channel_id\":\"{{general_channel_id}}\",\"text\":\"Postman manual demo\"}. Expect message.ack with the same client_message_id and a message.created frame. Send the identical frame again: expect the same message_id in message.ack and no new message.created. Change only text with the same ID: expect error MESSAGE_CONFLICT. Close and reconnect with the consumed ticket: expect HTTP 401. Request a new ticket to reconnect. Run After WebSocket send to check durable history. For a permission failure, get a Junior ticket, connect with it, and send to {{faculty_channel_id}}: expect error FORBIDDEN. The Moderator can send to that channel.",
-      "item": [
-        {
-          "name": "201 Fresh ticket for WebSocket",
-          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{ticket_key}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
-        }
-      ]
-    },
-    {
-      "name": "After WebSocket send",
-      "description": "Run after sending the exact client_message_id from WebSocket manual checks. A committed message must appear in REST history and survive a reconnect.",
-      "item": [
-        { "name": "200 History after WebSocket send", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100" } },
-        { "name": "200 Junior reads general history", "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/channels/{{general_channel_id}}/messages?limit=100", "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{junior_token}}", "type": "string" }] } } }
-      ]
-    },
-    {
-      "name": "Dependency failures",
-      "description": "Run separately with MOCK_CONTRACT_FILE empty and SESSION_URL and SESSION_SERVICE_TOKEN unset. Keep JWT verification, PostgreSQL, and Redis configured. A failed Session authorization lookup must return 503 and grant no channel, history, or ticket access. Use a separate container and override gateway_public_url so the other demo stack can stay available.",
-      "item": [
-        {
-          "name": "503 Session unavailable for channels",
-          "request": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" },
-          "response": [{ "name": "Dependency unavailable", "originalRequest": { "method": "GET", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/channels" }, "status": "Service Unavailable", "code": 503, "_postman_previewlanguage": "json", "body": "{\"code\":\"DEPENDENCY_UNAVAILABLE\",\"message\":\"session is not configured\",\"request_id\":\"00000000-0000-4000-8000-000000000001\",\"details\":[]}" }]
-        },
-        {
-          "name": "503 Session unavailable for tickets",
-          "request": { "method": "POST", "url": "{{gateway_public_url}}/api/v1/sessions/{{session_id}}/chat-tickets", "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } }
+          "request": {
+            "method": "POST",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/chat-tickets",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{outsider_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
         }
       ]
     }
