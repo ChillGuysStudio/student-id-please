@@ -34,4 +34,4 @@ The shared deployment reads [`.env.example`](../../.env.example).
 
 The [retained workload agreement](../contracts/retained-workload.md) defines snapshot reads with explicit session/attempt context, independent local snapshot and reservation checks, and status polls for subscriber projections. Its receiver-before-policy rollout lists the remaining owner work. Merged reservation and event receiver repairs are not deployment evidence, and this agreement enables no Gateway route.
 
-The [University Record Postman collection](../../postman/university-record-service.json) sends this service's public requests through the Gateway. Its `gateway_url` variable defaults to `http://127.0.0.1:8080`. [Verification cases](../verification.md) describe expected failure and retry behavior.
+The [University Record Postman collection](../../postman/university-record-service.json) sends this service's public requests through the Gateway. Its `gateway_url` variable defaults to `http://127.0.0.1:8080`. The [HTTP conventions](../contracts/http.md) define expected failure and retry behavior.
