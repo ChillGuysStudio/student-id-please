@@ -19,6 +19,28 @@ SUBJECT_GUIDANCE = (
 )
 
 
+# Match the identities AI tools use, not ordinary names: a person called Claude must still pass.
+AI_IDENTITY = (
+    r"(?:@anthropic\.com|@openai\.com|@opencode\.ai|\bCopilot@users\.noreply\.github\.com"
+    r"|\bclaude (?:opus|sonnet|haiku|code)\b|\bchatgpt\b|\bgithub copilot\b|\bgemini \d)"
+)
+AI_ATTRIBUTION = re.compile(
+    r"^co-authored-by:.*" + AI_IDENTITY
+    + r"|^[^\w\n]*generated (?:with|by) \[?(?:claude code|chatgpt|github copilot|gemini|opencode)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+AI_AUTHOR = re.compile(AI_IDENTITY, re.IGNORECASE)
+ATTRIBUTION_GUIDANCE = (
+    "Commits name only the human contributor: remove AI co-author trailers and "
+    "'Generated with' lines, and author the commit with your own identity."
+)
+
+
+def ai_attribution(message, author=""):
+    """Return whether a commit credits an AI tool as author or co-author."""
+    return bool(AI_ATTRIBUTION.search(message) or AI_AUTHOR.search(author))
+
+
 def validate_subject(subject):
     """Return whether a subject follows the convention."""
     return COMMIT_SUBJECT.fullmatch(subject) is not None
@@ -26,9 +48,13 @@ def validate_subject(subject):
 
 def check_message_file(path):
     """Check only the first line of a complete commit message."""
-    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    message = Path(path).read_text(encoding="utf-8")
+    lines = message.splitlines()
     if not lines or not validate_subject(lines[0]):
         raise ValueError(SUBJECT_GUIDANCE)
+    author = subprocess.run(["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True).stdout
+    if ai_attribution(message, author):
+        raise ValueError(ATTRIBUTION_GUIDANCE)
 
 
 def resolve_commit(ref):
@@ -49,6 +75,21 @@ def commits_in_range(base, head):
     return [tuple(line.split("\t", 1)) for line in result.stdout.splitlines()]
 
 
+def attributed_commits(base, head):
+    """Return short SHAs of introduced commits that credit an AI tool."""
+    base, head = resolve_commit(base), resolve_commit(head)
+    result = subprocess.run(
+        ["git", "log", "--format=%H%x1f%an <%ae>%x1f%B%x1e", f"{base}..{head}", "--"],
+        check=True, capture_output=True, text=True,
+    )
+    flagged = []
+    for record in filter(str.strip, result.stdout.split("\x1e")):
+        sha, author, body = record.strip("\n").split("\x1f", 2)
+        if ai_attribution(body, author):
+            flagged.append(sha[:7])
+    return flagged
+
+
 def check_range(base, head, *, allow_empty=False):
     """Validate introduced commits; PRs must not be empty, pushes may be."""
     commits = commits_in_range(base, head)
@@ -61,6 +102,9 @@ def check_range(base, head, *, allow_empty=False):
     if invalid:
         details = "\n".join(f"  - {entry}" for entry in invalid)
         raise ValueError(f"{SUBJECT_GUIDANCE}\nInvalid commits:\n{details}")
+    flagged = attributed_commits(base, head)
+    if flagged:
+        raise ValueError(f"{ATTRIBUTION_GUIDANCE}\nAttributed commits: {', '.join(flagged)}")
     print(f"Commit policy valid for {len(commits)} commit(s).")
 
 
