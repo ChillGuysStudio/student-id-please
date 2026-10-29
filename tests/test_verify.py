@@ -244,9 +244,6 @@ class WindowTests(unittest.TestCase):
         clock.sample(1100.2 - 1.8 + 0.0, 100.2)
         self.assertEqual(len(clock.segs), 2)
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class EvidenceTests(unittest.TestCase):
     def test_every_step_that_captures_logs_filters_them(self):
@@ -282,3 +279,7 @@ class CollapseTests(unittest.TestCase):
         merged = ui.collapse(lines)
         self.assertEqual([(line.text, count) for line, count in merged],
                          [("alert event=critical_load", 2), ("alert event=load_recovered", 1)])
+
+
+if __name__ == "__main__":
+    unittest.main()
