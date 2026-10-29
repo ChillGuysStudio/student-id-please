@@ -4,11 +4,11 @@ These conventions apply to service calls in mocked and integrated deployments. [
 
 ## Paths and data types
 
-Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. In the Lab 2 target, all client-to-service REST uses the public gateway listener and all service-to-service REST uses the internal gateway listener. Each endpoint belongs to the service named in its section.
+Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. All client-to-service REST uses the public gateway listener and all service-to-service REST uses the internal gateway listener. Each endpoint belongs to the service named in its section.
 
 Realtime negotiation uses public gateway REST and returns a direct Discord DMs WebSocket URL. The upgrade and frames bypass the gateway, even though the path starts with `/api/v1`. Database connections also bypass the gateway. See the [request paths and interaction map](../architecture.md).
 
-The [Lab 3 discovery and resilience contract](lab3.md) defines private control-plane endpoints, status fields, replica routing, and caller failure accounting. Its direct registration and probe paths are an explicit exception to business REST routing. Its control mutations use resource and operation identities rather than the business idempotency cache. Existing business authentication and response schemas remain unchanged.
+The [discovery and resilience contract](resilience.md) defines private control-plane endpoints, status fields, replica routing, and caller failure accounting. Its direct registration and probe paths are an explicit exception to business REST routing. Its control mutations use resource and operation identities rather than the business idempotency cache. Existing business authentication and response schemas remain unchanged.
 
 Requests and non-empty responses use `application/json`. Field names use `snake_case`. Services serialize UUIDs in canonical lowercase hyphenated form before comparison or deterministic generation.
 
@@ -25,7 +25,7 @@ Requests and non-empty responses use `application/json`. Field names use `snake_
 
 ## Authentication and authorization
 
-### Lab 2 gateway mode
+### Gateway mode
 
 Clients send `Authorization: Bearer <access_token>` only to the public gateway. Player issues the tokens. The gateway validates the signature, issuer, audience, and expiry. No original `Authorization` reaches downstream services.
 
@@ -45,7 +45,7 @@ The [retained initialization HTTP policy](retained-workload.md) defines exact in
 
 ### Legacy direct mode
 
-Standalone direct mode is Lab 1 compatibility, not the Lab 2 integrated rule. In that mode, services verify Player bearer tokens themselves. Player access tokens expire after 15 minutes. Refresh tokens expire after 7 days. Player stores refresh-token hashes, rotates refresh tokens after use, and revokes the refresh session on logout.
+Standalone direct mode is a compatibility mode, not the integrated rule. In that mode, services verify Player bearer tokens themselves. Player access tokens expire after 15 minutes. Refresh tokens expire after 7 days. Player stores refresh-token hashes, rotates refresh tokens after use, and revokes the refresh session on logout.
 
 Legacy internal calls use `X-Service-Name` and `X-Service-Token`. Receivers check `SERVICE_TOKENS` and endpoint caller allowlists. The legacy names are `player`, `session`, `applicant`, `credential`, `rules`, `university_record`, `moderation`, and `dms`. Legacy player-action calls also forward the initiating bearer for receiver verification. This forwarding is not allowed in gateway mode. The current Discord DMs gateway adapter uses `discord-dms`, not legacy `dms`. Caller names must match the selected adapter and configured allowlists.
 
@@ -75,13 +75,13 @@ Common error shape: `Error = {code: string, message: string, request_id: Id, det
 | `503` | Unavailable dependency or `TASK_LIMIT_EXCEEDED` |
 | `504` | `TASK_TIMEOUT` |
 
-The Lab 2 target requires finite task deadlines and concurrent task limits on every service and the gateway. Capacity exhaustion returns `503 TASK_LIMIT_EXCEEDED`. An HTTP task deadline returns `504 TASK_TIMEOUT`. Current Moderation and Discord DMs implementations use the shared error shape and `Retry-After: 1` for both errors. A timeout does not prove rollback. Retry a write with its original idempotency key to recover a committed result.
+The deployment requires finite task deadlines and concurrent task limits on every service and the gateway. Capacity exhaustion returns `503 TASK_LIMIT_EXCEEDED`. An HTTP task deadline returns `504 TASK_TIMEOUT`. Current Moderation and Discord DMs implementations use the shared error shape and `Retry-After: 1` for both errors. A timeout does not prove rollback. Retry a write with its original idempotency key to recover a committed result.
 
 An existing case that is not ready returns `409 CASE_NOT_READY` with `Retry-After: 1`. It does not return an empty result that a caller could treat as an absence of facts. A rate-limit response also includes `Retry-After` in seconds. The endpoint tables list success responses. These common errors apply to every relevant endpoint.
 
 Internal reads time out after 2 seconds. A caller can retry a safe read or a command that carries the original idempotency key. It retries at most twice with backoff. When a dependency fails, the caller returns `503` instead of inventing facts or a decision result. Services use the same pagination, timeout, and size limits.
 
-In the Lab 3 target, [bounded calls and failure accounting](lab3.md#bounded-calls-and-failure-accounting) use a default 2-second outbound timeout and a 7-second rolling failure window. No layer automatically replays business writes after a failure or replica change. An explicit command retry still needs its original key and shared durable results. Gateway owns backend failure reports, while service callers account for their own Gateway hop.
+[Bounded calls and failure accounting](resilience.md#bounded-calls-and-failure-accounting) use a default 2-second outbound timeout and a 7-second rolling failure window. No layer automatically replays business writes after a failure or replica change. An explicit command retry still needs its original key and shared durable results. Gateway owns backend failure reports, while service callers account for their own Gateway hop.
 
 Example error response:
 

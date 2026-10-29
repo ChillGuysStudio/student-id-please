@@ -97,7 +97,7 @@ Callers verify that the returned `case_id` and `session_id` match their pinned v
 
 If `R2` returns `state = ready` without all three canonical owner names in `ready_services`, returns mismatched identifiers, times out, or fails with `503` or `504`, the caller fails closed with `503` or `504`. Pending responses, `404` responses, timeouts, and malformed payloads never become an empty-ready result or a negative admission decision.
 
-Invalid hop credentials, bad signatures, expired grants, or mixed token profiles return `401`. Disallowed callers, wrong actor roles, cross-session or wrong-case scopes, and prefix or wildcard grants return `403`. Noncurrent cases and `lobby`, `ending`, or `ended` shifts return `409` or `403` under the receiver's existing domain rules. Each outbound call on `R1`, `R2`, `POST /internal/v1/policy/evaluations`, and `W5` through `W7` uses a separate [Lab 3 transport attempt](lab3.md#bounded-calls-and-failure-accounting).
+Invalid hop credentials, bad signatures, expired grants, or mixed token profiles return `401`. Disallowed callers, wrong actor roles, cross-session or wrong-case scopes, and prefix or wildcard grants return `403`. Noncurrent cases and `lobby`, `ending`, or `ended` shifts return `409` or `403` under the receiver's existing domain rules. Each outbound call on `R1`, `R2`, `POST /internal/v1/policy/evaluations`, and `W5` through `W7` uses a separate [transport attempt](resilience.md#bounded-calls-and-failure-accounting).
 
 ## Contract fixtures and owner checks
 

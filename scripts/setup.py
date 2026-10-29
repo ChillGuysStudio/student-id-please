@@ -25,20 +25,6 @@ OWNERS = {
     "moderation": ("moderation", "moderation", "MODERATION", "http://moderation:8000"),
     "discord-dms": ("discord-dms", "discord-dms", "DMS", "http://discord-dms:8000"),
 }
-# Released Lab 3 images, written to .env as owner/repo:version. Edit .env to change a version, or
-# run with --tag latest to follow each repository's newest release.
-IMAGES = {
-    "GATEWAY_IMAGE": "maxnoragami/gateway-service:3.0.7",
-    "DISCOVERY_IMAGE": "maxnoragami/discovery-service:3.0.6",
-    "PLAYER_IMAGE": "tirppy/student-id-player-service:3.0.0",
-    "SESSION_IMAGE": "tirppy/student-id-session-service:3.0.8",
-    "MODERATION_IMAGE": "sentientmoss/pad-moderation-service:3.0.5",
-    "DISCORD_DMS_IMAGE": "sentientmoss/pad-discord-dms-service:3.0.3",
-    "APPLICANT_IMAGE": "mcittkmims/applicant-service:3.0.3",
-    "CREDENTIAL_IMAGE": "mcittkmims/credential-service:3.0.5",
-    "UNIVERSITY_RECORD_IMAGE": "maxnoragami/university-record-service:3.0.4",
-    "SERVER_RULES_IMAGE": "maxnoragami/server-rules-service:3.0.5",
-}
 PASSWORDS = (
     "PLAYER_DB_PASSWORD", "SESSION_DB_PASSWORD", "MODERATION_DB_PASSWORD", "DMS_DB_PASSWORD",
     "RABBITMQ_PASSWORD", "REDIS_PASSWORD", "CHAT_TICKET_SECRET", "UNIVERSITY_MONGO_PASSWORD",
@@ -86,20 +72,10 @@ def rsa_pair(directory, name):
                       "n": encode(bytes.fromhex(modulus)), "e": "AQAB"}]}
 
 
-def select_images(gateway_image=None, tag=None):
-    images = {name: (ref.rsplit(":", 1)[0] + ":" + tag if tag else ref) for name, ref in IMAGES.items()}
-    if gateway_image:
-        images["GATEWAY_IMAGE"] = gateway_image
-    if any(not ref or any(char.isspace() for char in ref) for ref in images.values()):
-        raise ValueError("Image references must be owner/repo:version without spaces")
-    return images
-
-
-def prepare(root, gateway_image=None, gateway_port=8080, dms_port=8009, tag=None):
-    images = select_images(gateway_image, tag)
+def prepare(root, gateway_port=8080, dms_port=8009):
     if not all(1 <= port <= 65535 for port in (gateway_port, dms_port)) or gateway_port == dms_port:
         raise ValueError("Select distinct valid public and WebSocket ports")
-    directory = root / ".local/lab2"
+    directory = root / ".local/stack"
     if (root / ".env").exists() or directory.exists():
         raise ValueError("Existing development configuration is unchanged. Use a fresh clone for another stack")
     if not shutil.which("openssl"):
@@ -116,7 +92,6 @@ def prepare(root, gateway_image=None, gateway_port=8080, dms_port=8009, tag=None
     config.update({f"{name}_SLOT1_INSTANCE_ID": uuid.uuid4() for name in REPLICA_NAMES})
     config.update(REPLICAS="2", REPLICA_SEED=uuid.uuid4(), COMPOSE_FILE="compose.yaml:compose.replicas.yaml")
     config.update(GATEWAY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_DISCORD_WEBHOOK_URL="")
-    config.update(images)
     config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
@@ -165,17 +140,15 @@ def prepare(root, gateway_image=None, gateway_port=8080, dms_port=8009, tag=None
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--gateway-image", help="override GATEWAY_IMAGE (owner/repo:version)")
-    parser.add_argument("--tag", help="use this tag for every service image, e.g. latest")
     parser.add_argument("--gateway-port", type=int, default=8080)
     parser.add_argument("--dms-port", type=int, default=8009)
     args = parser.parse_args()
     try:
-        prepare(ROOT, args.gateway_image, args.gateway_port, args.dms_port, args.tag)
+        prepare(ROOT, args.gateway_port, args.dms_port)
     except (ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Development configuration failed: {error}\n")
-    print("Created ignored .env and .local/lab2 configuration. No credentials were printed.")
-    print("Service images are set in .env as owner/repo:version (*_IMAGE).")
+    print("Created ignored .env and .local/stack configuration. No credentials were printed.")
+    print("Service images default to latest. Set a *_IMAGE key in .env to pin a version.")
     print("Wrote compose.replicas.yaml for REPLICAS=2; see scripts/replicas.py to change it.")
 
 

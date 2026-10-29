@@ -1,4 +1,4 @@
-"""Guard the read-only default and private operator-only Lab 3 collection."""
+"""Guard the read-only default and private operator-only HTTP checks collection."""
 
 import json
 from pathlib import Path
@@ -6,11 +6,11 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COLLECTION = ROOT / "postman/lab3-http.postman_collection.json"
-ENVIRONMENT = ROOT / "postman/lab3-http.postman_environment.json"
+COLLECTION = ROOT / "postman/http-checks.postman_collection.json"
+ENVIRONMENT = ROOT / "postman/http-checks.postman_environment.json"
 
 
-class Lab3PostmanTests(unittest.TestCase):
+class HttpChecksCollectionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.collection = json.loads(COLLECTION.read_text())

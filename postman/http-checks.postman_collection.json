@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Lab 3 read-only HTTP checks",
+    "name": "Read-only HTTP checks",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": "Run the safe public folder without credentials. The private folder reads Discovery with an operator credential supplied only in a private environment. Neither folder registers, removes, or reactivates instances."
   },
@@ -55,7 +55,7 @@
             "pm.test('Authenticated Discovery status returns 200', () => pm.expect(pm.response.code).to.equal(200));",
             "pm.test('Status identity and readiness are typed', () => { const s = pm.response.json(); pm.expect(s.service_name).to.equal('discovery'); pm.expect(s.instance_id).to.match(uuid); pm.expect(s.boot_id).to.match(uuid); pm.expect(s.live).to.equal(true); pm.expect(s.ready).to.be.a('boolean'); pm.expect(s.reason === null || typeof s.reason === 'string').to.equal(true); });",
             "pm.test('Load fields match measured utilization', () => { const l = pm.response.json().load; pm.expect(l.active_tasks).to.be.a('number'); pm.expect(l.active_tasks).to.be.at.least(0); pm.expect(l.max_concurrent_tasks).to.be.above(0); pm.expect(l.utilization).to.be.closeTo(l.active_tasks / l.max_concurrent_tasks, 0.000001); pm.expect(l.critical).to.equal(l.utilization >= 0.90); });",
-            "if (pm.response.code === 200) pm.environment.set('lab3_discovery_instance_id', pm.response.json().instance_id);"
+            "if (pm.response.code === 200) pm.environment.set('http_checks_discovery_instance_id', pm.response.json().instance_id);"
           ] } }]
         },
         {
@@ -69,7 +69,7 @@
             "pm.test('Registry lookup returns 200, even when empty', () => pm.expect(pm.response.code).to.equal(200));",
             "pm.test('Snapshot epoch, revision and instances are typed', () => { const s = pm.response.json(); pm.expect(s.discovery_epoch).to.match(uuid); pm.expect(s.revision).to.be.at.least(0); pm.expect(Number.isInteger(s.revision)).to.equal(true); pm.expect(s.instances).to.be.an('array'); });",
             "pm.test('Default results contain only eligible leased instances', () => { const s = pm.response.json(); s.instances.forEach(i => { pm.expect(i.instance_id).to.match(uuid); pm.expect(i.registration_id).to.match(uuid); pm.expect(i.state).to.equal('ready'); pm.expect(i.status.ready).to.equal(true); pm.expect(i.status.instance_id).to.equal(i.instance_id); pm.expect(i.status.boot_id).to.equal(i.boot_id); pm.expect(Date.parse(i.lease_expires_at)).to.be.above(Date.now()); }); });",
-            "if (pm.response.code === 200) { const s = pm.response.json(); pm.environment.set('lab3_discovery_epoch', s.discovery_epoch); pm.environment.set('lab3_registry_revision', String(s.revision)); }"
+            "if (pm.response.code === 200) { const s = pm.response.json(); pm.environment.set('http_checks_discovery_epoch', s.discovery_epoch); pm.environment.set('http_checks_registry_revision', String(s.revision)); }"
           ] } }]
         },
         {
@@ -82,7 +82,7 @@
             "const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;",
             "pm.test('Unavailable-inclusive lookup returns 200', () => pm.expect(pm.response.code).to.equal(200));",
             "pm.test('Instance identity, lease and health fields are consistent', () => { pm.response.json().instances.forEach(i => { pm.expect(i.instance_id).to.match(uuid); pm.expect(i.registration_id).to.match(uuid); pm.expect(i.boot_id).to.match(uuid); pm.expect(['pending', 'ready', 'unhealthy', 'expired', 'removed']).to.include(i.state); pm.expect(Number.isFinite(Date.parse(i.lease_expires_at))).to.equal(true); pm.expect(i.status === null || i.status.instance_id === i.instance_id).to.equal(true); if (i.status) { pm.expect(i.status.load.max_concurrent_tasks).to.be.above(0); pm.expect(i.status.load.utilization).to.be.closeTo(i.status.load.active_tasks / i.status.load.max_concurrent_tasks, 0.000001); } }); });",
-            "if (pm.response.code === 200) { const instances = pm.response.json().instances; pm.environment.set('lab3_instance_ids', JSON.stringify(instances.map(i => i.instance_id))); pm.environment.set('lab3_registration_ids', JSON.stringify(instances.map(i => i.registration_id))); }"
+            "if (pm.response.code === 200) { const instances = pm.response.json().instances; pm.environment.set('http_checks_instance_ids', JSON.stringify(instances.map(i => i.instance_id))); pm.environment.set('http_checks_registration_ids', JSON.stringify(instances.map(i => i.registration_id))); }"
           ] } }]
         }
       ]

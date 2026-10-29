@@ -38,7 +38,7 @@ test('allowlist removes URLs, credentials, bodies, scripts and raw diagnostics',
 });
 
 test('native htmlextra renders success, failures and skipped assertions without secrets', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lab2-native-reporter-test-'));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'native-reporter-test-'));
     try {
         for (const options of [{}, { failure: true }, { skipped: true }]) {
             const raw = fixture(options);
@@ -109,7 +109,7 @@ test('argument validation prevents ambiguous render/run modes', () => {
     assert.throws(() => sanitize([{}]), /Not a Newman/);
 });
 
-test('Lab 3 report omits control credentials, webhook, headers and private IDs', () => {
+test('HTTP checks report omits control credentials, webhook, headers and private IDs', () => {
     const raw = fixture({ failure: true });
     const canaries = ['CONTROL_CANARY_123456789', 'WEBHOOK_CANARY_123456789', 'INSTANCE_CANARY_123456789'];
     raw.environment.values.push({ key: 'control_token', value: canaries[0] }, { key: 'discord_webhook_url', value: canaries[1] });
@@ -118,10 +118,10 @@ test('Lab 3 report omits control credentials, webhook, headers and private IDs',
     raw.run.executions[0].response.stream = { data: [...Buffer.from(canaries.join(' '))] };
     raw.run.executions[0].item.name = 'Discovery status schema';
     raw.run.executions[0].assertions[0].assertion = 'Authenticated Discovery status returns 200';
-    const lab3 = path.resolve(__dirname, '../../postman/lab3-http.postman_collection.json');
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lab3-redaction-'));
+    const httpChecks = path.resolve(__dirname, '../../postman/http-checks.postman_collection.json');
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'redaction-'));
     try {
-        const safe = sanitize([raw], lab3);
+        const safe = sanitize([raw], httpChecks);
         const output = path.join(directory, 'report.html');
         const html = render(safe, output);
         verifyNoSecrets([raw], html);
@@ -135,10 +135,10 @@ test('Lab 3 report omits control credentials, webhook, headers and private IDs',
     } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
-test('Lab 3 folder flags cannot trigger the stateful Lab 2 run or overload', () => {
-    assert.equal(parseArgs(['--lab3-safe']).lab3, 'Safe public smoke');
-    assert.equal(parseArgs(['--lab3-private']).lab3, 'Private operator reads');
-    assert.throws(() => parseArgs(['--lab3-safe', '--with-overload']), /cannot run with overload/);
-    assert.throws(() => parseArgs(['--lab3-private', '--lab3-safe']), /Choose one/);
-    assert.throws(() => parseArgs(['--lab3-safe', '--from-json', 'private.json']), /cannot be combined/);
+test('HTTP check flags cannot trigger the stateful guided run or overload', () => {
+    assert.equal(parseArgs(['--http']).http, 'Safe public smoke');
+    assert.equal(parseArgs(['--http-private']).http, 'Private operator reads');
+    assert.throws(() => parseArgs(['--http', '--with-overload']), /cannot run with overload/);
+    assert.throws(() => parseArgs(['--http-private', '--http']), /Choose one/);
+    assert.throws(() => parseArgs(['--http', '--from-json', 'private.json']), /cannot be combined/);
 });
