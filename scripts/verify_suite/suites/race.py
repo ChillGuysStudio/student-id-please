@@ -51,7 +51,7 @@ def _race(ctx, flow, label, path, token, body_for, services, durable, idem, succ
         outcome = {}
         started = datetime.datetime.now(datetime.timezone.utc)
         seen = rf"vf={ctx.run_id}-race-{marker} HTTP" if mark else rf"POST {path} HTTP"
-        with ctx.step(f"Attempt {attempt}: send one write twice at the same moment", services=services, match=seen) as step:
+        with ctx.step(f"Attempt {attempt}: send one write twice at the same moment") as step:
             results = flow.race(marker, "POST", path, [(token, body, key)] * 2, mark=mark)
             outcome["results"] = results
             outcome["ended"] = datetime.datetime.now(datetime.timezone.utc)
@@ -86,6 +86,7 @@ def _race(ctx, flow, label, path, token, body_for, services, durable, idem, succ
         observable = sum(per.values()) == 2
         with ctx.step("Each replica received one copy of the write") as step:
             step.note("received by: " + (", ".join(f"{k}={v}" for k, v in sorted(per.items())) or "no access-log lines"))
+            ctx.evidence(step, [line for line in lines if "POST" in line.text])
             if not observable:
                 # Gateway can cancel a request at its deadline, and a cancelled request is never logged.
                 step.note("the access logs do not show exactly two requests, so the split cannot be proved here")

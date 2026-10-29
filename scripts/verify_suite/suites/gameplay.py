@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import re
 import subprocess
 import time
 import urllib.parse
@@ -41,6 +42,7 @@ def guided(ctx):
                                    match=r'"(GET|POST|PUT|PATCH|DELETE) /api/v1/')
         counts = Counter(f"{l.service}#{l.replica}" for l in lines)
         step.note(", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+        ctx.evidence(step, lines)
         for expected in ("player#1", "player#2", "session#1", "session#2"):
             ctx.expect(counts[expected] > 0, f"{expected} served no request")
 
@@ -114,6 +116,7 @@ def shift(ctx):
                                    match=rf"vf={ctx.run_id}-shift-|/api/v1/sessions/{sid}/decisions")
         counts = Counter(f"{l.service}#{l.replica}" for l in lines)
         step.note(", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+        ctx.evidence(step, lines)
         for expected in ("session#1", "session#2", "moderation#1", "moderation#2"):
             ctx.expect(counts[expected] > 0, f"{expected} served no request of this shift")
 
@@ -146,7 +149,13 @@ def chat(ctx):
                 if n == 0 or urllib.parse.urlsplit(body["url"]).port != urllib.parse.urlsplit(urls[0]).port:
                     urls.append(body["url"])
                     break
-        step.note("replica ports: " + ", ".join(str(urllib.parse.urlsplit(u).port) for u in urls))
+        ports = [urllib.parse.urlsplit(u).port for u in urls]
+        owners = {}
+        for service in ("discord-dms", "discord-dms-slot-2"):
+            published = stack.docker("port", stack.container(service), "8000/tcp").stdout
+            owners.update({int(p): service for p in re.findall(r":(\d+)\s*$", published, re.M)})
+        step.note("negotiated ports: " + ", ".join(f"{p} ({owners.get(p, 'unknown')})" for p in ports))
+        step.note("the services log no negotiation line, so the WebSocket accept lines in the next steps show each replica")
         ctx.expect(len(urls) == 2, "negotiation kept returning the same replica")
         state["urls"] = urls
     client_id = str(uuid.uuid4())
@@ -161,7 +170,7 @@ def chat(ctx):
                 return data
         raise TimeoutError(kind)
     with ctx.step("A message sent to replica 1 reaches the client on replica 2", services=["discord-dms", "discord-dms-slot-2"],
-                  match=r"message|ticket|websocket|connect") as step:
+                  match=r'WebSocket .*(\[accepted\]| 401$)') as step:
         with connect(state["urls"][0], open_timeout=10, proxy=None) as first, connect(state["urls"][1], open_timeout=10, proxy=None) as second:
             first.send(json.dumps(frame))
             ack = wait(first, "message.ack")

@@ -90,9 +90,10 @@ def scale_up_down(ctx):
         step.note("served by: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         ctx.expect(len(counts) == 3, "requests reached only: " + ", ".join(sorted(counts)))
 
-    with ctx.step("Remove SESSION_REPLICAS and let the third replica go", services=[THIRD], fatal=True):
+    with ctx.step("Remove SESSION_REPLICAS and let the third replica go", fatal=True) as step:
         _apply(ctx, original, remove_orphans=True)
         ctx.expect(THIRD not in stack.containers(), "the third Session container is still running")
+        step.note(f"{THIRD} is gone from the running containers, and Docker deletes its logs with it")
 
     with ctx.step("The removed replica no longer routes", services=["session", "session-slot-2"],
                   match=rf"vf={ctx.run_id}-down") as step:
@@ -107,7 +108,8 @@ def scale_up_down(ctx):
         ctx.expect(not third, "Discovery still lists session-slot-3 as ready")
         ctx.expect(set(served.values()) <= {"session#1", "session#2"}, "a request reached an unexpected replica")
 
-    with ctx.step("Both original replicas are ready again and all instances are ready") as step:
+    with ctx.step("Both original replicas are ready again and all instances are ready", services=["session", "session-slot-2"],
+                  match=r"discovery_attempt .*method=PUT .*state=ready", window=(10.0, 2.0)) as step:
         stack.recover(since)
         ready = [r for r in stack.live_rows() if r["service_name"] == "session" and r["state"] == "ready"]
         ctx.expect(len(ready) == 2, f"{len(ready)} ready Session replicas")

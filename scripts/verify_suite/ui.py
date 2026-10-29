@@ -1,6 +1,7 @@
 """Terminal output built on rich: header, steps with log lines, menu, prompts, and the summary table."""
 from __future__ import annotations
 
+import re
 import sys
 
 from rich.console import Console
@@ -8,6 +9,23 @@ from rich.markup import escape
 from rich.table import Table
 
 from .util import fmt_duration
+
+DEFAULT_LOG_LINES = 4
+_VARIABLE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\b[0-9a-f]{8,}\b|\d+")
+
+
+def collapse(lines) -> list:
+    """Merge lines of the same service and replica whose text differs only in numbers and ids.
+
+    Returns (first line of the group, group size) pairs in order of first appearance."""
+    groups: dict = {}
+    for line in lines:
+        key = (line.service, line.replica, _VARIABLE.sub("#", line.text))
+        if key in groups:
+            groups[key][1] += 1
+        else:
+            groups[key] = [line, 1]
+    return [(line, count) for line, count in groups.values()]
 
 STATUS_STYLE = {"passed": "[green]pass[/]", "failed": "[bold red]FAIL[/]", "skipped": "[yellow]skipped[/]"}
 
@@ -65,13 +83,18 @@ class UI:
             return
         for note in step.notes:
             self.console.print(f"      [dim]{escape(note)}[/]")
-        limit = None if self.verbose else 6
-        shown = step.logs if limit is None else step.logs[:limit]
-        for line in shown:
+        if self.verbose:
+            rows = [(line, 1) for line in step.logs]
+        else:
+            rows = collapse(step.logs)
+        shown = rows if self.verbose else rows[:DEFAULT_LOG_LINES]
+        for line, count in shown:
             who = f"{line.service} #{line.replica}"
-            self.console.print(f"      [dim]{escape(line.stamp)}[/] [magenta]{escape(who):<24}[/] {escape(line.text)}")
-        if limit is not None and len(step.logs) > limit:
-            self.console.print(f"      [dim]... {len(step.logs) - limit} more lines (use --verbose)[/]")
+            times = f" [dim]×{count}[/]" if count > 1 else ""
+            self.console.print(f"      [dim]{escape(line.stamp)}[/] [magenta]{escape(who):<24}[/] {escape(line.text)}{times}")
+        hidden = sum(count for _, count in rows[len(shown):])
+        if hidden:
+            self.console.print(f"      [dim]... {hidden} more lines (use --verbose)[/]")
 
     # ---------------------------------------------------------------- prompts
     def confirm_mutation(self, case, options) -> bool:

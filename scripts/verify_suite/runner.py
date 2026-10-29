@@ -31,6 +31,19 @@ class Context:
         if not condition:
             raise Check(message)
 
+    def evidence(self, step: Step, lines, per_replica: bool = True):
+        """Attach log lines to a step as proof. With `per_replica`, keep the first line of each service and replica."""
+        seen, kept = set(), []
+        for line in lines:
+            key = (line.service, line.replica)
+            if per_replica and key in seen:
+                continue
+            seen.add(key)
+            kept.append(line)
+        for line in kept:
+            line.text = self.stack.redactor.scrub(line.text)
+        step.logs = kept
+
     def on_exit(self, title: str, function):
         """Register a restore action. Actions run in reverse order when the case ends, even after Ctrl-C."""
         self._cleanups.append((title, function))
