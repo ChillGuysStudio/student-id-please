@@ -24,6 +24,7 @@ To publish a release:
 5. Rebase the PR into `main`.
 6. Wait for release publication and the Sync Dev with Main workflow to finish.
 7. Verify the Git tag, GitHub release, and, for a service, the public versioned image and `latest` image.
+8. For a service, [record the release in CPR](#record-a-service-release-in-cpr).
 
 The PR title must contain the version and a short summary. Complete its `Why?`, `Changes`, and `How to Test?` sections as required by the [contribution rules](../CONTRIBUTING.md).
 
@@ -49,11 +50,25 @@ Publish the image version without the Git tag's `v` prefix. For example, Git tag
 
 Verify anonymous access to the index and both runtime images. Publication failures must fail the workflow. Retries preserve the original source and version digests, and older runs must not replace a newer `latest` image.
 
-## Update a service pointer
+## Record a service release in CPR
 
-Obtain the service's published `main` SHA and matching public DockerHub image. Confirm that `latest` points to that image. If the service is not checked out, [initialize your two services](development.md#check-out-your-two-services) first. Finish or save local service work before changing its checkout. Leave services you cannot access uninitialized.
+CPR records the released state of each service in one file, `docs/releases/services.json`. It has one row per service. The submodule pointer and that row must describe the same release, and `tests/test_service_releases.py` fails when the pointer and the `source_sha` differ.
 
-From the CPR root, set `SERVICE` to your service folder and replace `SERVICE_SHA` with its published commit:
+After a service release publishes, open one CPR PR that updates the service's row and its submodule pointer together. Set these fields in the row:
+
+- `version` is the image version without the `v` prefix, such as `3.0.9`.
+- `source_sha` is the commit on the service's `main` branch that the release published.
+- `image` is the repository name followed by the digest of the multi-platform index.
+- `platforms` holds the `amd64` and `arm64` runtime image digests.
+- `revision_labels` holds the OCI revision label of each runtime image. Each value equals `source_sha`.
+- `publication_run` is the ID of the workflow run that published the images.
+- `repository_source_labels_verified` is `true` when the labels were checked against the public images. If it is `false`, add `repository_source_evidence` to explain why.
+
+Rows can also carry `configs`, the digest of each image config, and `release_pull_request`. Keep those fields on rows that already have them.
+
+If the service is not checked out, [initialize your two services](development.md#check-out-your-two-services) first. Finish or save local service work before changing its checkout. Leave services you cannot access uninitialized.
+
+From the CPR root, set `SERVICE` to your service folder and replace `SERVICE_SHA` with the `source_sha` you recorded:
 
 ```sh
 SERVICE=moderation-service
@@ -64,8 +79,18 @@ git add -- "$SERVICE"
 git diff --cached --submodule=short -- "$SERVICE"
 ```
 
-Include the source SHA, image reference, and verification result in the CPR PR description. This changes the commit recorded by CPR. `scripts/services.py update` instead makes local checkouts match the commits CPR already records.
+Then run `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests`. Include the source SHA, the image digest, and the verification result in the CPR PR description. This changes the commit recorded by CPR. `scripts/services.py update` instead makes local checkouts match the commits CPR already records.
 
 Private owners configure their publishing workflows to follow the version sequence and image-publication requirements above. An image labelled with its source SHA allows verification without private-source access.
 
-For a repeatable CPR release, record immutable image digests. The `latest` tag can change independently of CPR's service pointers.
+## Image references in compose.yaml
+
+`compose.yaml` does not read `services.json`. Each service image falls back to `owner/repo:latest`, for example `${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}`. The `latest` tag can change independently of CPR's service pointers.
+
+To pin a version, set the service's `X_IMAGE` variable in `.env`. Use the `image` value from the service's row, which names the index by digest:
+
+```sh
+PLAYER_IMAGE=tirppy/student-id-player-service@sha256:replace-with-the-index-digest
+```
+
+`tests/test_service_releases.py` checks that each fallback repository in `compose.yaml` matches the repository in the service's row.
