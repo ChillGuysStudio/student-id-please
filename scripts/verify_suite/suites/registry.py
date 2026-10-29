@@ -27,7 +27,8 @@ def registered_and_ready(ctx):
         step.note(f"{len(expected)} containers register; {len(rows)} registry rows (removed rows without a container are tombstones)")
         ctx.expect(not missing, "not registered: " + ", ".join(missing))
         ctx.expect(not doubled, "registered twice: " + ", ".join(doubled))
-    with ctx.step("Every registered instance is ready and healthy") as step:
+    with ctx.step("Every registered instance is ready and healthy", services=["discovery"], match=r"health_transition .*(?<![_a-z])state=ready",
+                  window=(60.0, 2.0)) as step:
         by_id = {r["instance_id"]: r for r in stack.registry()}
         bad = []
         for service, instance in sorted(expected.items()):

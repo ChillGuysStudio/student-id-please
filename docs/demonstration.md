@@ -53,7 +53,7 @@ A passing `all` run ends with a summary table in which every suite shows `pass`.
 | Option | Effect |
 | --- | --- |
 | `--yes` | Run cases that change the stack without asking. |
-| `--verbose` | Print every captured log line. Without it, each step shows at most six. |
+| `--verbose` | Print every captured log line. Without it, each step shows at most four lines, and lines that differ only in numbers or IDs merge into one line with a `×N` count. The JSON and Markdown reports keep every line. |
 | `--quiet` | Print failures and the summary table only. |
 | `--root DIR` | Read `.env`, `.local/stack/`, and `.local/postman/` from `DIR`. The default is this repository. |
 

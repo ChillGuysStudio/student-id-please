@@ -86,7 +86,8 @@ def critical_load(ctx):
     child.stdin.close()
     child.stdin = None
     overload = None
-    with ctx.step(f"Hold {limit} incomplete requests, then send one more", fatal=True) as step:
+    with ctx.step(f"Hold {limit} incomplete requests, then send one more", services=["gateway"], match=r"task_limit_exceeded",
+                  fatal=True) as step:
         time.sleep(1.0)
         with concurrent.futures.ThreadPoolExecutor(max_workers=25) as pool:
             futures = [pool.submit(_occupy, port) for _ in range(limit)]
@@ -107,7 +108,8 @@ def critical_load(ctx):
         time.sleep(4.0)
         release()
     out, err = child.communicate(timeout=40)
-    with ctx.step("Gateway load reaches critical, then returns to zero") as step:
+    with ctx.step("Gateway load reaches critical, then returns to zero", services=["discovery"],
+                  match=r"alert event=(critical_load|load_recovered) service_name=gateway", window=(20.0, 2.0)) as step:
         ctx.expect(child.returncode == 0, "the status sampler failed")
         data = json.loads(out)
         samples_ = data["samples"]
