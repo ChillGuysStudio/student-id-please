@@ -27,4 +27,4 @@ These cases cover service behavior with mocks or real images. CPR workflow check
 | Failed permission or periodic lifecycle check | No restricted message is saved or delivered. Invalid frames cannot postpone lifecycle and token-expiry checks. |
 | Documentation-only service main update or late publishing rerun | Each new HEAD publishes an attributable public image. An older run does not replace a newer main image at `latest`. |
 
-The [Postman collections](../postman/) provide service request fixtures. Player and Session also have runners under `tools/`. WebSocket checks need a client that supports WebSocket frames.
+The [Postman collections](../postman/) provide service request fixtures. WebSocket checks need a client that supports WebSocket frames.
