@@ -2,7 +2,7 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The [architecture diagram](architecture.png) and its [editable source](architecture.drawio) show the services, request paths, storage, and planned event connections. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The [architecture diagram](diagrams/architecture.mmd) shows the services, replicas, request paths, storage, and event connections. GitHub renders the Mermaid source as a diagram. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
 
 ## Request paths
 

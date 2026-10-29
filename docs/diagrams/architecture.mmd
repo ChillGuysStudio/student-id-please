@@ -1,79 +1,71 @@
 flowchart TB
-	subgraph Clients["Clients"]
-		Client["Client or Operator"]
+	Client["Client or operator"]
+
+	subgraph GatewaySvc["Gateway (shared Go, one instance)"]
+		GWPub["Public listener :8080\nClient REST and negotiation"]
+		GWInt["Internal listener :8083\nService-to-service REST"]
 	end
 
-	subgraph GatewaySvc["Gateway Service (Shared Go)"]
-		GWPub["Public Listener (:8080)\nClient REST and Negotiation"]
-		GWInt["Internal Listener (:8083)\nService-to-Service REST Proxy"]
-	end
-
-	subgraph DiscoverySvc["Discovery Service (Shared Go, :8081, discovery-slot-1)"]
-		DiscoveryNode["Discovery Engine\nRegistration, Probes, Leases"]
-		DiscStorage[("Durable Removal Volume\n(Configured DISCOVERY_STATE_FILE)")]
+	subgraph DiscoverySvc["Discovery (shared Go, :8081)"]
+		DiscoveryNode["Registration, leases,\nstatus probes, removals"]
+		DiscStorage[("Removal state file\nDISCOVERY_STATE_FILE")]
 		DiscoveryNode --- DiscStorage
 	end
 
-	subgraph DiscordDMsDomain["Discord DMs Domain Replicas"]
-		DMS1["Discord DMs Slot 1 (:8009)"]
-		DMS2["Discord DMs Slot 2 (:18009)"]
-		RedisRelay[("Redis Store\nPub/Sub and Tickets")]
-		DMS1 <--> RedisRelay
-		DMS2 <--> RedisRelay
+	DiscordHook["Discord webhook\nalerts"]
+
+	subgraph DomainReplicas["Domain services, two replicas each (slot 1 and slot 2)"]
+		PlayerReplicas["Player"]
+		SessionReplicas["Session"]
+		ApplicantReplicas["Applicant"]
+		CredentialReplicas["Credential"]
+		RulesReplicas["Server Rules"]
+		UnivReplicas["University Record"]
+		ModReplicas["Moderation"]
+		DMReplicas["Discord DMs\nslot 1 :8009, slot 2 :18009"]
 	end
 
-	subgraph DomainReplicas["Domain Service Replicas (2 per Domain)"]
-		PlayerReplicas["Player Replicas (Slot 1 and Slot 2)"]
-		SessionReplicas["Session Replicas (Slot 1 and Slot 2)"]
-		ApplicantReplicas["Applicant Replicas (Slot 1 and Slot 2)"]
-		CredentialReplicas["Credential Replicas (Slot 1 and Slot 2)"]
-		RulesReplicas["Server Rules Replicas (Slot 1 and Slot 2)"]
-		UnivReplicas["University Record Replicas (Slot 1 and Slot 2)"]
-		ModReplicas["Moderation Replicas (Slot 1 and Slot 2)"]
+	ModPublisher["Moderation outbox publisher"]
+
+	subgraph Stores["Storage and messaging"]
+		PGStores[("PostgreSQL databases\nplayer, session, moderation,\ndms, server rules")]
+		MongoShared[("MongoDB rs0\napplicant, credential")]
+		MongoUniv[("MongoDB\nuniversity records")]
+		RedisStore[("Redis\nSession views, DMs relay and tickets")]
+		RabbitMQBroker[("RabbitMQ\nbroker events")]
 	end
 
-	subgraph ModerationWorkers["Moderation Outbox Worker"]
-		ModPublisher["Moderation Outbox Publisher\n(Drains outbox table)"]
-	end
+	Client -->|"REST and negotiation"| GWPub
+	Client <-->|"Direct WebSocket chat"| DMReplicas
 
-	subgraph DomainStores["Domain-Owned Storage (9 Backing Stores)"]
-		PGStores[("PostgreSQL (5 Stores)\nPlayer, Session, Rules, Mod, DMs")]
-		MongoStores[("MongoDB Replica Set (2 Stores)\nApplicant, Credential, Univ")]
-		RabbitMQBroker[("RabbitMQ Broker\nVerified: CaseInitialized, DecisionScored, ShiftEnded\nUnverified contract: DisciplinaryActionApplied")]
-	end
+	GWPub -->|"Round-robin over ready replicas"| DomainReplicas
+	DomainReplicas -->|"Service-to-service REST"| GWInt
+	GWInt -->|"Round-robin over ready replicas"| DomainReplicas
 
-	subgraph ExternalServices["External Destinations"]
-		DiscordHook["Discord Webhook\nReceipt IDs logged; no credentials"]
-	end
+	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
+	GWInt -.->|"Register and renew lease"| DiscoveryNode
+	GWPub -.->|"Background snapshot refresh"| DiscoveryNode
+	GWInt -.->|"Background snapshot refresh"| DiscoveryNode
+	DiscoveryNode -.->|"Status probes"| DomainReplicas
+	DiscoveryNode -.->|"Status probes"| GatewaySvc
+	DomainReplicas -.->|"Report breaker removals"| DiscoveryNode
+	DiscoveryNode -->|"Alerts"| DiscordHook
 
-	Client -->|"Public REST and Negotiation (:8080)"| GWPub
-	Client -->|"Direct WS Chat Frames (:8009)"| DMS1
-	Client -->|"Direct WS Chat Frames (:18009)"| DMS2
-
-	GWPub -->|"Round-Robin Business REST"| DomainReplicas
-	GWPub -->|"Round-Robin Realtime Negotiation"| DiscordDMsDomain
-
-	DomainReplicas -->|"Internal Service REST (:8083)"| GWInt
-	DiscordDMsDomain -->|"Internal Service REST (:8083)"| GWInt
-	GWInt -->|"Proxied Internal Dispatch"| DomainReplicas
-
-	GWPub -.->|"Background Snapshot Refresh (:8081)"| DiscoveryNode
-	GWInt -.->|"Background Snapshot Refresh (:8081)"| DiscoveryNode
-
-	DomainReplicas -.->|"Direct Registration PUT (:8081)"| DiscoveryNode
-	DiscordDMsDomain -.->|"Direct Registration PUT (:8081)"| DiscoveryNode
-	DiscoveryNode -.->|"Direct Private Status Probes"| DomainReplicas
-	DiscoveryNode -.->|"Direct Private Status Probes"| DiscordDMsDomain
-	DiscoveryNode -.->|"Direct Private Status Probes"| GatewaySvc
-
+	PlayerReplicas --- PGStores
+	SessionReplicas --- PGStores
 	ModReplicas --- PGStores
-	ModPublisher --- PGStores
-	ModPublisher -->|"Publishes Outbox Events"| RabbitMQBroker
+	RulesReplicas --- PGStores
+	DMReplicas --- PGStores
+	ApplicantReplicas --- MongoShared
+	CredentialReplicas --- MongoShared
+	UnivReplicas --- MongoUniv
+	SessionReplicas --- RedisStore
+	DMReplicas --- RedisStore
 
-	DiscoveryNode -->|"Outbound Alerts"| DiscordHook
-
-	DomainReplicas --- PGStores
-	DomainReplicas --- MongoStores
-	DomainReplicas --- RabbitMQBroker
-	DiscordDMsDomain --- PGStores
-	SessionReplicas -.->|"Cached Views"| RedisRelay
+	ModReplicas --- ModPublisher
+	ModPublisher -->|"Outbox events"| RabbitMQBroker
+	PlayerReplicas --- RabbitMQBroker
+	SessionReplicas --- RabbitMQBroker
+	ApplicantReplicas --- RabbitMQBroker
+	CredentialReplicas --- RabbitMQBroker
+	UnivReplicas --- RabbitMQBroker

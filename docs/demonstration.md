@@ -2,8 +2,6 @@
 
 This guide covers the multi-replica architecture, safe demonstration steps for a prepared operator laptop, the requirements checklist for grades 3 through 10, and verified runtime facts.
 
-The gateway topology diagram in [architecture.png](architecture.png) and its editable source in [architecture.drawio](architecture.drawio) show the baseline without replicas or Discovery.
-
 ## Architecture
 
 The deployment scales each of the eight domain services to two replicas and adds the Discovery service for instance registration, health monitoring, and circuit breaker removals. Gateway and Discovery use Go, the accepted shared banned language. Domain services continue to use Java with Spring Boot or Python with FastAPI according to the team ownership mapping:
@@ -14,89 +12,7 @@ The deployment scales each of the eight domain services to two replicas and adds
 - Alexandru (`Tirppy`): Player and Session (Python, FastAPI)
 - Shared infrastructure: Gateway and Discovery (Go)
 
-The diagram below shows the replicated topology. Its standalone Mermaid source is in [diagrams/architecture.mmd](diagrams/architecture.mmd).
-
-```mermaid
-flowchart TB
-	subgraph Clients["Clients"]
-		Client["Client or Operator"]
-	end
-
-	subgraph GatewaySvc["Gateway Service (Shared Go)"]
-		GWPub["Public Listener (:8080)\nClient REST and Negotiation"]
-		GWInt["Internal Listener (:8083)\nService-to-Service REST Proxy"]
-	end
-
-	subgraph DiscoverySvc["Discovery Service (Shared Go, :8081, discovery-slot-1)"]
-		DiscoveryNode["Discovery Engine\nRegistration, Probes, Leases"]
-		DiscStorage[("Durable Removal Volume\n(Configured DISCOVERY_STATE_FILE)")]
-		DiscoveryNode --- DiscStorage
-	end
-
-	subgraph DiscordDMsDomain["Discord DMs Domain Replicas"]
-		DMS1["Discord DMs Slot 1 (:8009)"]
-		DMS2["Discord DMs Slot 2 (:18009)"]
-		RedisRelay[("Redis Store\nPub/Sub and Tickets")]
-		DMS1 <--> RedisRelay
-		DMS2 <--> RedisRelay
-	end
-
-	subgraph DomainReplicas["Domain Service Replicas (2 per Domain)"]
-		PlayerReplicas["Player Replicas (Slot 1 and Slot 2)"]
-		SessionReplicas["Session Replicas (Slot 1 and Slot 2)"]
-		ApplicantReplicas["Applicant Replicas (Slot 1 and Slot 2)"]
-		CredentialReplicas["Credential Replicas (Slot 1 and Slot 2)"]
-		RulesReplicas["Server Rules Replicas (Slot 1 and Slot 2)"]
-		UnivReplicas["University Record Replicas (Slot 1 and Slot 2)"]
-		ModReplicas["Moderation Replicas (Slot 1 and Slot 2)"]
-	end
-
-	subgraph ModerationWorkers["Moderation Outbox Worker"]
-		ModPublisher["Moderation Outbox Publisher\n(Drains outbox table)"]
-	end
-
-	subgraph DomainStores["Domain-Owned Storage (9 Backing Stores)"]
-		PGStores[("PostgreSQL (5 Stores)\nPlayer, Session, Rules, Mod, DMs")]
-		MongoStores[("MongoDB Replica Set (2 Stores)\nApplicant, Credential, Univ")]
-		RabbitMQBroker[("RabbitMQ Broker\nVerified: CaseInitialized, DecisionScored, ShiftEnded\nUnverified contract: DisciplinaryActionApplied")]
-	end
-
-	subgraph ExternalServices["External Destinations"]
-		DiscordHook["Discord Webhook\nReceipt IDs logged; no credentials"]
-	end
-
-	Client -->|"Public REST and Negotiation (:8080)"| GWPub
-	Client -->|"Direct WS Chat Frames (:8009)"| DMS1
-	Client -->|"Direct WS Chat Frames (:18009)"| DMS2
-
-	GWPub -->|"Round-Robin Business REST"| DomainReplicas
-	GWPub -->|"Round-Robin Realtime Negotiation"| DiscordDMsDomain
-
-	DomainReplicas -->|"Internal Service REST (:8083)"| GWInt
-	DiscordDMsDomain -->|"Internal Service REST (:8083)"| GWInt
-	GWInt -->|"Proxied Internal Dispatch"| DomainReplicas
-
-	GWPub -.->|"Background Snapshot Refresh (:8081)"| DiscoveryNode
-	GWInt -.->|"Background Snapshot Refresh (:8081)"| DiscoveryNode
-
-	DomainReplicas -.->|"Direct Registration PUT (:8081)"| DiscoveryNode
-	DiscordDMsDomain -.->|"Direct Registration PUT (:8081)"| DiscoveryNode
-	DiscoveryNode -.->|"Direct Private Status Probes"| DomainReplicas
-	DiscoveryNode -.->|"Direct Private Status Probes"| DiscordDMsDomain
-	DiscoveryNode -.->|"Direct Private Status Probes"| GatewaySvc
-
-	ModReplicas --- PGStores
-	ModPublisher --- PGStores
-	ModPublisher -->|"Publishes Outbox Events"| RabbitMQBroker
-
-	DiscoveryNode -->|"Outbound Alerts"| DiscordHook
-
-	DomainReplicas --- PGStores
-	DomainReplicas --- MongoStores
-	DomainReplicas --- RabbitMQBroker
-	DiscordDMsDomain --- PGStores
-	SessionReplicas -.->|"Cached Views"| RedisRelay
-```
+The [architecture diagram](diagrams/architecture.mmd) shows the replicated topology. GitHub renders the Mermaid source as a diagram.
 
 ### Request paths and network boundaries
 

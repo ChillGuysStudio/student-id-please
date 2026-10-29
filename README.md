@@ -8,9 +8,7 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the topology.
 
-<img src="docs/architecture.png" alt="Architecture diagram of the gateway topology" width="1080"/>
-
-The figure and its [editable source](docs/architecture.drawio) show the gateway topology. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. RabbitMQ appears greyed because it is outside the gateway-routed paths.
+The [architecture diagram](docs/diagrams/architecture.mmd) shows the gateway, Discovery, the two replicas of each domain service, and their storage. GitHub renders the Mermaid source as a diagram. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them.
 
 [Architecture](docs/architecture.md) explains ownership and technology choices. The [demonstration guide](docs/demonstration.md) explains multi-replica scaling, Discovery, and safe operator verification. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
 
