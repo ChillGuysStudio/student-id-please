@@ -63,6 +63,8 @@ from each published manifest; no AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
 
+Each bind mount ends in `:ro,z`. On an SELinux host such as Fedora, `z` makes Docker relabel the file so containers can read it. Hosts without SELinux ignore the option. Use lowercase `z`, because several services mount the same key files.
+
 Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's existing peer settings select HTTP, not mocks. `scripts/start_broker.sh` creates the two broker users required by the Applicant and Credential constructors. It does not create exchanges or queues. The default `studentid` account and existing broker volume remain.
 
 Inspect Java startup and make protected public gateway calls after `--wait`. A running container without a health check can still restart before its API binds. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
