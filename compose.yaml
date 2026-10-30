@@ -21,8 +21,8 @@ services:
     ports:
       - '127.0.0.1:${GATEWAY_PORT:-8080}:8080'
     volumes:
-      - ./.local/stack/gateway-private.pem:/keys/gateway-private.pem:ro
-      - ./.local/stack/player-public.pem:/keys/player-public.pem:ro
+      - ./.local/stack/gateway-private.pem:/keys/gateway-private.pem:ro,z
+      - ./.local/stack/player-public.pem:/keys/player-public.pem:ro,z
     healthcheck:
       test: [CMD, /gateway, --healthcheck]
       interval: 5s
@@ -137,7 +137,7 @@ services:
       UNIVERSITY_BROKER_PASSWORD: ${UNIVERSITY_BROKER_PASSWORD:?Set UNIVERSITY_BROKER_PASSWORD in .env}
     volumes:
       - broker-data:/var/lib/rabbitmq
-      - ./scripts/start_broker.sh:/run/start_broker.sh:ro
+      - ./scripts/start_broker.sh:/run/start_broker.sh:ro,z
     healthcheck:
       test: [CMD-SHELL, 'test -f /tmp/broker-users-ready && rabbitmq-diagnostics -q ping']
       interval: 5s
@@ -187,9 +187,9 @@ services:
       JWT_PRIVATE_KEY_PATH: /keys/player-private.pem
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
-      - ./.local/stack/player-private.pem:/keys/player-private.pem:ro
-      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
+      - ./.local/stack/player-private.pem:/keys/player-private.pem:ro,z
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
     depends_on:
       player-db:
         condition: service_healthy
@@ -219,9 +219,9 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
-      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
-      - ./.local/stack/player-public.pem:/keys/player-public.pem:ro
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./.local/stack/player-public.pem:/keys/player-public.pem:ro,z
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
     depends_on:
       session-db:
         condition: service_healthy
@@ -263,8 +263,8 @@ services:
       PLAYER_URL: http://gateway-slot-1:8083
       PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
     volumes:
-      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -319,8 +319,8 @@ services:
     ports:
       - '127.0.0.1:${DMS_PORT:-8009}:8000'
     volumes:
-      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -446,7 +446,7 @@ services:
       TASK_TIMEOUT: ${JAVA_TASK_TIMEOUT:-30s}
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
-      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
     depends_on:
       university-mongodb:
         condition: service_healthy
@@ -492,7 +492,7 @@ services:
       TASK_TIMEOUT: ${JAVA_TASK_TIMEOUT:-30s}
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
-      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
     depends_on:
       rules-db:
         condition: service_healthy

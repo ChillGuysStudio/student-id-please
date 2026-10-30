@@ -100,6 +100,16 @@ class SetupTests(unittest.TestCase):
         self.assertNotIn("_IMAGE:?", compose)
         self.assertEqual(len(re.findall(r"image: \$\{[A-Z_]+_IMAGE:-[a-z0-9._-]+/[a-z0-9._-]+:latest\}", compose)), 11)
 
+    def test_bind_mounts_carry_the_shared_selinux_label(self):
+        # On SELinux hosts such as Fedora, a bind mount without `z` is unreadable inside the container.
+        # `Z` would give each file a private label, but the key files are shared by several services.
+        mounts = re.findall(r"^\s+- (\./\S+)$", (ROOT / "compose.yaml").read_text(), re.MULTILINE)
+        self.assertTrue(mounts)
+        for mount in mounts:
+            options = mount.rsplit(":", 1)[1].split(",")
+            self.assertIn("z", options, mount)
+            self.assertNotIn("Z", options, mount)
+
     def test_compose_exposes_only_public_gateway_and_direct_dms(self):
         compose = (ROOT / "compose.yaml").read_text()
         self.assertEqual(compose.count("    ports:\n"), 2)
