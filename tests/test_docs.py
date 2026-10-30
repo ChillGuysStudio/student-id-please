@@ -53,9 +53,15 @@ class DocumentationTests(unittest.TestCase):
 class ArchitectureDiagram(unittest.TestCase):
     def test_embedded_copies_match_the_mermaid_source(self):
         source = (ROOT / "docs/diagrams/architecture.mmd").read_text().strip()
-        for name in ("README.md", "docs/architecture.md"):
+        for name in ("docs/architecture.md",):
             blocks = re.findall(r"```mermaid\n(.*?)\n```", (ROOT / name).read_text(), re.S)
             self.assertEqual([block.strip() for block in blocks], [source], name)
+
+    def test_readme_shows_the_drawn_diagram(self):
+        readme = (ROOT / "README.md").read_text()
+        self.assertIn('src="docs/architecture.png"', readme)
+        self.assertTrue((ROOT / "docs/architecture.png").is_file())
+        self.assertTrue((ROOT / "docs/architecture.drawio").is_file())
 
 
 if __name__ == "__main__":
