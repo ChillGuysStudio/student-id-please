@@ -180,7 +180,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 | Session                               | Player                                   | Apply `ShiftEnded` once                                                            |
 | Moderation                            | Player                                   | Apply `DisciplinaryActionApplied` once                                             |
 
-[HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details.
+[HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details. The [logging contract](contracts/logging.md) defines log records, retention, instance exports, and the administrator log download.
 
 All client-to-service REST uses the public gateway, and all service-to-service REST uses the internal gateway. The final four rows describe RabbitMQ event delivery. Planned [Message Broker](#message-broker) dispatch replaces the internal gateway hop for service-to-service requests and carries these events as topics. RabbitMQ events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway.
 
