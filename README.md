@@ -6,9 +6,9 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 ## Architecture
 
-Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway section below describes the topology.
+Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. The gateway and Message Broker sections below describe the current topology and the planned change.
 
-The diagram below shows the gateway, Service Discovery, the domain services, and their storage. Its editable source is [`docs/architecture.drawio`](docs/architecture.drawio). Green dashed arrows are the Discovery calls: registration, lease renewal, health probes, and Gateway removal reports. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them.
+The diagram below shows the gateway, Service Discovery, the domain services, and their storage. Its editable source is [`docs/architecture.drawio`](docs/architecture.drawio). Green dashed arrows are the Discovery calls: registration, lease renewal, health probes, and Gateway removal reports. Client and service REST pass through the gateway. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them. This drawing does not show the Message Broker yet. The [architecture diagram](docs/architecture.md) shows the Broker and its planned connections.
 
 <img src="docs/architecture.png" alt="Architecture diagram: Gateway, Service Discovery, the Java and Python services with their databases, and RabbitMQ" width="1080"/>
 
@@ -21,6 +21,14 @@ The selected gateway is shared Go infrastructure, separate from the eight domain
 Realtime negotiation uses REST through the gateway and returns a direct Discord DMs WebSocket URL. Clients connect to Discord DMs for the upgrade and chat frames. The gateway does not relay frames. Chat tickets, permissions, Redis delivery, and stored history belong to Discord DMs.
 
 RabbitMQ events and service-owned storage connections are not REST routing paths and do not pass through the gateway.
+
+## Message Broker
+
+The Message Broker is shared Go infrastructure in the private `ChillGuysStudio/message-broker-service` repository. Its released image, `maxnoragami/message-broker-service:4.0.0`, serves only `GET /health` on port 8080. The current Compose configuration does not run it, and it handles no traffic yet.
+
+The Broker will take over service-to-service dispatch, replica load balancing, and breakers from the gateway. A targeted request names its destination service. The gateway forwards it to the Broker, which delivers it to one ready replica of that service. A topic event names a topic, not its recipients. The publisher sends it without knowing who subscribes, and each subscribing service receives one copy. Services declare their topics when they register with Discovery.
+
+Client authentication, direct Discord DMs WebSockets, event schemas, and domain ownership stay unchanged. [Message Broker boundaries](docs/architecture.md#message-broker) define the private listener, request correlation, deadlines, and authentication.
 
 [`docs/releases/services.json`](docs/releases/services.json) records the released version, source commit, and image digest of each service. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions; the [guided Postman demo](postman/GUIDED-DEMO.md) covers real Gateway HTTP flows and bounded concurrent tasks.
 
