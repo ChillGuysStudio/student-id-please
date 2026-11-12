@@ -4,13 +4,13 @@ This reference defines the implementation target for [CPR #125](https://github.c
 
 ## Request paths and identity
 
-Business REST retains the [HTTP contract](http.md) and [Gateway authorization](../architecture.md#gateway-authorization). Clients use the public Gateway. Domain services use the internal Gateway, including authorization callbacks, case readiness reads, and chat permission reads. Discovery changes destinations, not route ownership, caller allowlists, receiver audiences, signed assertions, delegation, or business authorization. Disabled routes remain disabled. Discovery never supplies credentials or identity policy.
+Business REST retains the [HTTP contract](http.md) and [Gateway authorization](../architecture.md#gateway-authorization). Clients use the public Gateway. Domain services use the [Message Broker](broker.md), including authorization callbacks, case readiness reads, and chat permission reads. Discovery changes destinations, not route ownership, caller allowlists, receiver audiences, signed assertions, delegation, or business authorization. Disabled routes remain disabled. Discovery never supplies credentials or identity policy.
 
-Registration, registry lookup, removal, reactivation, and status probes use direct private HTTP. This is a control-plane exception to the business REST rule. Requiring Gateway to discover Discovery through Gateway would create a startup cycle. `DISCOVERY_URL` is a fixed deployment address, not a discovered business route. Discovery probes the advertised instance directly, without Gateway, so it measures that instance. Neither Gateway listener exposes registry operations to public clients.
+Registration, registry lookup, removal, reactivation, and status probes use direct private HTTP. This is a control-plane exception to the business REST rule. Requiring the Broker to discover Discovery through the Broker would create a startup cycle. `DISCOVERY_URL` is a fixed deployment address, not a discovered business route. Discovery probes the advertised instance directly, without the Broker, so it measures that instance. Neither Gateway nor the Broker exposes registry operations to public clients.
 
-Control-plane requests use `X-Control-Name` and `X-Control-Token`, separate from business service credentials and Gateway receiver-hop tokens. Receivers authenticate these headers against `CONTROL_PLANE_TOKENS`. Names are the registry service names below, plus the separate control-plane principals `discovery` and `operator`. A service can register or renew only its own service name. Authenticated callers can look up instances. Registered callers can report their own breaker trips. Only `discovery` and `operator` can probe a registered service's private status endpoint. Discovery sends probes with `CONTROL_PLANE_NAME=discovery` and its outgoing `CONTROL_PLANE_TOKEN`. Every monitored receiver must have a `discovery` entry in `CONTROL_PLANE_TOKENS` whose value matches that token. Discovery's own status endpoint also accepts authenticated control callers for bootstrap recovery. `operator` can remove and reactivate instances. A service can remove its own instance for shutdown. No Player bearer, Gateway assertion, or player authority enters this API.
+Control-plane requests use `X-Control-Name` and `X-Control-Token`, separate from business service credentials and Broker receiver-hop tokens. Receivers authenticate these headers against `CONTROL_PLANE_TOKENS`. Names are the registry service names below, plus the separate control-plane principals `discovery` and `operator`. A service can register or renew only its own service name. Authenticated callers can look up instances. Registered callers can report their own breaker trips. Only `discovery` and `operator` can probe a registered service's private status endpoint. Discovery sends probes with `CONTROL_PLANE_NAME=discovery` and its outgoing `CONTROL_PLANE_TOKEN`. Every monitored receiver must have a `discovery` entry in `CONTROL_PLANE_TOKENS` whose value matches that token. Discovery's own status endpoint also accepts authenticated control callers for bootstrap recovery. `operator` can remove and reactivate instances. A service can remove its own instance for shutdown. No Player bearer, Gateway assertion, or player authority enters this API.
 
-The canonical registry names are `player`, `session`, `applicant`, `credential`, `rules`, `university_record`, `moderation`, `discord-dms`, and `gateway`. These are route-owner names, not aliases for authenticated business callers or JWT targets. In particular, University's existing identity target remains `university-record`. Discovery itself uses `discovery` in status and logs but does not discover or register itself through HTTP.
+The canonical registry names are `player`, `session`, `applicant`, `credential`, `rules`, `university_record`, `moderation`, `discord-dms`, `gateway`, and `message-broker`. These are route-owner names, not aliases for authenticated business callers or JWT targets. In particular, University's existing identity target remains `university-record`. Discovery itself uses `discovery` in status and logs but does not discover or register itself through HTTP.
 
 ## Configuration
 
@@ -20,7 +20,7 @@ The following names are the target settings. Services adapt their configuration 
 | --- | --- |
 | `SERVICE_NAME` | Every process. One canonical name above, or `discovery`. |
 | `INSTANCE_ID` | Every process. Optional. By default each process generates a canonical UUID at startup, so one instance is one process lifetime. Set it only for tests. |
-| `INSTANCE_HTTP_URL` | Every registered process. Optional. By default the process advertises `http://<its container address>:<its listen port>`, detected at startup, which reaches this replica and not a service-wide DNS name. Gateway advertises its internal listener. |
+| `INSTANCE_HTTP_URL` | Every registered process. Optional. By default the process advertises `http://<its container address>:<its listen port>`, detected at startup, which reaches this replica and not a service-wide DNS name. Gateway advertises its control listener on `:8083`. The Broker advertises `http://message-broker:8080`. |
 | `INSTANCE_WS_URL` | DMs only. Required client-reachable WebSocket origin for this replica. Other services advertise `null`. |
 | `DISCOVERY_URL` | All callers. Required private Discovery root origin, for example `http://discovery:8084`. |
 | `DISCOVERY_ADDR` | Discovery. Default `:8084`, never published as public ingress. |
@@ -43,7 +43,7 @@ The following names are the target settings. Services adapt their configuration 
 
 On a graceful stop, such as `docker stop` or scaling down, a registered process removes its own instance with reason `shutdown` before its listener closes. Discovery stops routing it immediately. A shutdown removal never needs reactivation. A process that dies without stopping gracefully drops out when its lease expires.
 
-HTTP origins have scheme `http` or `https`, a concrete host and port, and no path except `/`. They contain no credentials, query, or fragment. They must resolve to the intended replica from Gateway and Discovery. Wildcard, loopback, multicast, and link-local destinations are invalid. Private container IPs and replica-specific DNS names are valid. Bind addresses such as `0.0.0.0` are not advertised addresses. Control-plane credentials and addresses come from trusted deployment configuration, never client input.
+HTTP origins have scheme `http` or `https`, a concrete host and port, and no path except `/`. They contain no credentials, query, or fragment. They must resolve to the intended replica from the Broker and Discovery. Wildcard, loopback, multicast, and link-local destinations are invalid. Private container IPs and replica-specific DNS names are valid. Bind addresses such as `0.0.0.0` are not advertised addresses. Control-plane credentials and addresses come from trusted deployment configuration, never client input.
 
 DMs WebSocket origins use `wss`. Existing `GATEWAY_ALLOW_INSECURE_WS` and `GATEWAY_ALLOW_LOCAL_WS` flags retain their separate meanings for local demonstrations. Both flags are required for `ws://localhost:18009`. No flag permits wildcard or link-local addresses. A remote demonstration uses the laptop's reachable host name or address, not the client's own `localhost`.
 
@@ -51,7 +51,7 @@ Existing inbound task limits remain in force. Gateway and current Python adapter
 
 ## Status and load
 
-Every domain service, Gateway, and Discovery exposes authenticated `GET /internal/v1/status` on its private listener. It returns `200 Status` when the process can produce a status snapshot, even when `ready` is false. Existing liveness paths and response bodies remain unchanged, including Player and Session `/health` and Gateway, Moderation, and DMs `/healthz`. Liveness does not depend on Discovery or remote business peers.
+Every domain service, Gateway, the Broker, and Discovery exposes authenticated `GET /internal/v1/status` on its private listener. It returns `200 Status` when the process can produce a status snapshot, even when `ready` is false. Existing liveness paths and response bodies remain unchanged, including Player and Session `/health` and Gateway, Moderation, and DMs `/healthz`. Liveness does not depend on Discovery or remote business peers.
 
 The schemas use the [HTTP type notation](http.md#paths-and-data-types). `Number` is a finite JSON number. All fields are required unless marked optional.
 
@@ -72,7 +72,7 @@ Status = {
 }
 ```
 
-`live` is true in a successful snapshot. `ready` means local configuration, required storage, and the listener can serve business requests. It does not recursively require every business peer to be ready. Gateway also needs a current registry snapshot before it can route. Discovery needs its removal state loaded and writable before it accepts mutations. An unregistered service can be locally ready, but Discovery does not route it until registration and a successful probe complete.
+`live` is true in a successful snapshot. `ready` means local configuration, required storage, and the listener can serve business requests. It does not recursively require every business peer to be ready. The Broker also needs a current registry snapshot before it can dispatch. Discovery needs its removal state loaded and writable before it accepts mutations. An unregistered service can be locally ready, but Discovery does not route it until registration and a successful probe complete.
 
 `active_tasks` counts admitted, unfinished business HTTP tasks, including tasks still executing after cancellation. It excludes health probes, control-plane work, and idle WebSocket connections. `max_concurrent_tasks` is the actual positive admission limit, not a second capacity setting. `utilization` equals `active_tasks / max_concurrent_tasks`. `critical` equals `utilization >= DISCOVERY_CRITICAL_LOAD_RATIO`. At a capacity of 100, 89 active tasks are not critical and 90 are critical. A dead process or failed database check is not evidence of critical load.
 
@@ -141,7 +141,7 @@ Reactivation = {registration_id: Id, operation_id: Id}
 
 ### Startup, duplicates, and restart recovery
 
-Each registrant binds its listeners and starts liveness before its registration loop. It sends its first PUT without waiting for Gateway or other domain services. A failed attempt does not exit the process or hang startup. The registration loop has one in-flight call, uses the bounded caller policy below, and renews every 5 seconds by default. HTTP failures use backoff of 1, 2, then 5 seconds, capped at 5 seconds, subject to the breaker cooldown. A `401`, `403`, or configuration conflict logs a configuration error and retries no faster than every 5 seconds.
+Each registrant binds its listeners and starts liveness before its registration loop. It sends its first PUT without waiting for the Broker, Gateway, or other domain services. A failed attempt does not exit the process or hang startup. The registration loop has one in-flight call, uses the bounded caller policy below, and renews every 5 seconds by default. HTTP failures use backoff of 1, 2, then 5 seconds, capped at 5 seconds, subject to the breaker cooldown. A `401`, `403`, or configuration conflict logs a configuration error and retries no faster than every 5 seconds.
 
 A PUT with the same service, boot ID, and addresses renews the lease to Discovery's current time plus 15 seconds. It creates no duplicate and does not reset health, counters, or removal state. Changed addresses within one boot return `409 REGISTRATION_CONFLICT`. A duplicate live HTTP origin under another ID also returns `409`. A different boot for the same instance ID returns `409` while the previous boot has an unexpired lease. After expiry, Discovery accepts the new boot as pending with a fresh generation. Removed IDs remain removed even after expiry or a new boot. Discovery can update their candidate boot and addresses only after the previous lease expires.
 
@@ -153,13 +153,9 @@ After Discovery restarts, active registrations start empty, removed IDs remain d
 
 ### Lookup, refresh, and round-robin
 
-Gateway refreshes one complete snapshot every second. A refresh runs in the background, never once per business request. An atomic replacement prevents partially updated route sets. The last successful snapshot remains usable for at most 5 seconds after receipt. An empty successful snapshot clears old destinations immediately. An epoch change also clears old membership and counters for obsolete generations. Failed refreshes cannot extend cache age. There is no fallback to static domain URLs in discovery mode.
+The Broker and Gateway each refresh one complete snapshot every second. A refresh runs in the background, never once per business request. An atomic replacement prevents partially updated route sets. The last successful snapshot remains usable for at most 5 seconds after receipt. An empty successful snapshot clears old destinations immediately. An epoch change also clears old membership and counters for obsolete generations. Failed refreshes cannot extend cache age. There is no fallback to static domain URLs in discovery mode.
 
-Other service callers refresh the same registry to identify Gateway and to report a Gateway-hop failure against the correct generation. Their business destination remains the configured internal `GATEWAY_URL`, not a direct domain URL. It must match exactly one registered Gateway origin. Unknown, removed, stale, or ambiguous Gateway identity prevents a new business dispatch with `503 DEPENDENCY_UNAVAILABLE`. Registration and lookup still use the fixed Discovery address, so this does not block bootstrap.
-
-Gateway selects only ready, leased instances from a current snapshot, minus its local breaker exclusions. Each owner has one thread-safe round-robin cursor shared by proxy, authorization, and realtime clients. Selection uses instance IDs in lexical order. Starting with IDs A and B, selections are A, B, A, B. When membership changes, the next selection is the first surviving ID greater than the last selected ID, with wraparound. An added C therefore enters without starving A or B. Cursors advance only for a dispatch, not for an authorization rejection before dispatch. An authorization dependency dispatch counts as its own selection.
-
-Gateway selects an instance once for each physical backend attempt and keeps that instance's identity through signing, sending, body consumption, logging, and failure reporting. No request header chooses a backend. No instance is selected for an unagreed route. When no eligible instance remains, Gateway returns `503 NO_HEALTHY_INSTANCES` with `Retry-After: 1` and does not dial a stale address. Already dispatched calls can finish within their original bounds. Removal does not cancel committed effects or replay in-flight requests.
+The Broker selects backend instances by round-robin and owns their local exclusions. Gateway selects only the DMs instance for realtime negotiation. Other callers use the registry to identify the Broker generation for hop accounting. The [Message Broker contract](broker.md#selection-and-breaker) defines selection, pins, and caller hop rules.
 
 Local breaker exclusion is immediate. After Discovery acknowledges removal, every registry reader stops new dispatches to that generation within one refresh interval plus the refresh call budget, at most 3 seconds with defaults. If refresh fails, cache expiry stops dispatch within 5 seconds of the last successful snapshot. Lease expiry is also checked at selection time, not only at refresh.
 
@@ -179,33 +175,19 @@ At the third failure, the caller excludes that generation locally, logs `circuit
 
 If Discovery cannot accept the report, the caller keeps the local exclusion and retains one pending removal per destination generation. It retries the same `operation_id` under the bounded control-call policy. A duplicate removal for an already removed generation returns its removed record without another transition or notification. `409 STALE_REGISTRATION` discards the old report. For operator or shutdown removal, `failures` is empty and `task_timeout_ms` still declares `T`. Operator uses its authenticated role rather than a registered caller instance. No local exclusion is cleared merely because a refresh still shows an old ready record.
 
-### Attribution through Gateway
+### Attribution through the Broker
 
-Gateway owns the physical backend attempts for both client REST and service REST. It records and reports failures for the exact selected backend, including failures from authorization reads and realtime ticket issuance. An upstream domain service must not report that backend attempt again or count its resulting `5xx` against Gateway.
-
-On authenticated internal responses, Gateway constructs these private headers locally after it removes any backend-supplied copies:
-
-| Header | Meaning |
-| --- | --- |
-| `X-Gateway-Instance-Id` | The Gateway process's stable instance ID. |
-| `X-Gateway-Registration-Id` | Its current registered generation. |
-| `X-Gateway-Failure-Origin` | `backend`, `gateway`, or `none`. |
-| `X-Gateway-Backend-Instance-Id` | Required only for `backend`, the instance responsible for the failed backend attempt. |
-| `X-Gateway-Backend-Registration-Id` | Required only for `backend`, that attempt's generation. |
-| `X-Gateway-Backend-Attempt-Id` | Required only for `backend`, the already recorded attempt ID. |
-
-`backend` means a qualifying backend failure caused this response. It can identify an authorization dependency even when the requested business endpoint was never sent. `gateway` means Gateway itself failed, such as its own admission rejection or task expiry without a previously recorded backend failure. `none` covers success, expected `4xx`, policy rejection before a backend attempt, and lack of healthy instances. A lack of backend capacity must not evict a healthy Gateway process. These headers grant no authority, reach only the authenticated private hop, and never appear on public responses. Public bodies keep their existing safe error shape and contain no internal addresses.
-
-A domain caller records only connection errors and timeouts of its physical Gateway hop, or qualifying responses with verified `gateway` origin. It uses the configured Gateway origin and its current registry generation, not a destination claimed by client input. For `backend`, Gateway already owns reporting. For `none`, no breaker failure is added. Missing or inconsistent internal metadata fails closed with a diagnostic and no guessed backend report. A hop with no response can be counted against Gateway even if Gateway independently observed a backend timeout. Those are two different physical attempts, not duplicate reports of one backend attempt.
+The Broker owns the physical backend attempts for client REST and service REST. It records and reports failures for the exact selected backend, including failures from policy reads and realtime ticket issuance. An upstream caller, including Gateway, must not report that backend attempt again or count its resulting `5xx` against the Broker. The [Message Broker contract](broker.md#responses-and-hop-accounting) defines the `X-Broker-*` attribution headers and the rules for counting a Broker hop.
 
 ### Caller coverage and bootstrap exception
 
 | Caller | Outbound paths that require the policy | Failure owner |
 | --- | --- | --- |
-| Gateway | Public and internal proxy dispatch, Session context and other authorization reads, DMs ticket client | Gateway records the selected backend generation through one shared recorder. |
-| Session, Applicant, Credential, Rules, University Record, Moderation, and DMs | All business peer operations through internal Gateway, including permission and readiness callbacks | The service records its Gateway hop. Gateway records backend attempts. |
+| Message Broker | Service and Gateway dispatch, and its own policy reads | The Broker records the selected backend generation through one shared recorder. |
+| Gateway | Public dispatch, its Session context reads, and DMs ticket issuance through the Broker | Gateway records its Broker hop. The Broker records backend attempts. |
+| Session, Applicant, Credential, Rules, University Record, Moderation, and DMs | All business peer operations through the Broker, including permission and readiness callbacks | The service records its Broker hop. The Broker records backend attempts. |
 | Player | Registration, renewal, lookup, removal reporting, and any future business HTTP | Player already needs a control-plane breaker even without a current business peer caller. |
-| All registrants, including Gateway | Direct registration, registry refresh, removal reports, and operator reactivation clients | The direct caller records Discovery failures across all these endpoints. |
+| All registrants, including Gateway and the Broker | Direct registration, registry refresh, removal reports, and operator reactivation clients | The direct caller records Discovery failures across all these endpoints. |
 | Discovery | Direct status probes for every registered instance, including Gateway | A failed probe makes that instance unavailable and can raise an alert. Probes never remove an instance; removal comes only from caller breaker reports, shutdown, and the operator. |
 | Discovery notification adapter | Outbound Discord delivery | The adapter bounds calls and records failures for its configured external destination. It never evicts a domain instance for a Discord outage. |
 
@@ -233,11 +215,11 @@ Replicas of one logical owner share that owner's durable data and idempotency re
 
 ## Direct DMs WebSockets
 
-`POST /api/v1/sessions/{session_id}/realtime-negotiation` remains public Gateway REST with body `{}` and a UUID `Idempotency-Key`. Success remains `200 {url: string, expires_at: Time}`. Gateway checks participation, selects one ready DMs instance, issues the ticket through that selected HTTP origin, and builds `url` from that same record's `ws_url` plus `/api/v1/sessions/{session_id}/ws?ticket=...`. It does not use another replica's WebSocket address or a client-supplied Host header. Ticket format, single use, expiry, actor authority, and recurring permission checks remain DMs responsibilities.
+`POST /api/v1/sessions/{session_id}/realtime-negotiation` remains public Gateway REST with body `{}` and a UUID `Idempotency-Key`. Success remains `200 {url: string, expires_at: Time}`. Gateway checks participation, selects one ready DMs instance, issues the ticket through the Broker pinned to that instance, and builds `url` from that same record's `ws_url` plus `/api/v1/sessions/{session_id}/ws?ticket=...`. It does not use another replica's WebSocket address or a client-supplied Host header. Ticket format, single use, expiry, actor authority, and recurring permission checks remain DMs responsibilities.
 
 For example, two DMs records can advertise `http://dms-a:8009` with `ws://localhost:18009`, and `http://dms-b:8009` with `ws://localhost:28009` for a local client with both development flags enabled. A shared DNS name that randomly routes a connection is not a replica-specific advertised origin. Gateway's former single `GATEWAY_EXTERNAL_WS_URL` is not the discovery-mode source of this address. The existing public chat-ticket response `{ticket, expires_at}` does not change. The negotiation route supplies the instance-correct connection URL.
 
-The client connects directly to the advertised DMs address. Gateway never relays upgrades or frames. Removing an instance prevents new negotiations to it but does not forcibly close an already authorized socket. A failed connection does not cause Gateway to replay ticket issuance or silently move the socket. The client obtains a new ticket through a new explicit negotiation and recovers messages through Gateway REST history. An uncertain retry of the original negotiation retains its original key and must not remint a consumed or expired ticket. DMs replicas share the required ticket state and Redis delivery so peers on different replicas can exchange frames.
+The client connects directly to the advertised DMs address. Neither Gateway nor the Broker relays upgrades or frames. Removing an instance prevents new negotiations to it but does not forcibly close an already authorized socket. A failed connection does not cause Gateway to replay ticket issuance or silently move the socket. The client obtains a new ticket through a new explicit negotiation and recovers messages through Gateway REST history. An uncertain retry of the original negotiation retains its original key and must not remint a consumed or expired ticket. DMs replicas share the required ticket state and Redis delivery so peers on different replicas can exchange frames.
 
 ## Logs and notification interface
 
@@ -267,12 +249,12 @@ These are implementation and integrated-runtime acceptance cases. The CPR docume
 
 | Component | Required contract checks |
 | --- | --- |
-| Every domain service and Gateway | Preserve liveness under saturation. Check identity and readiness status. Observe utilization at 89 and 90 of 100 admitted tasks. Register two distinct replica IDs and reject collisions. Bound all new control calls. |
+| Every domain service, Gateway, and the Broker | Preserve liveness under saturation. Check identity and readiness status. Observe utilization at 89 and 90 of 100 admitted tasks. Register two distinct replica IDs and reject collisions. Bound all new control calls. |
 | Discovery registration | Exercise first PUT, duplicate PUT, delayed startup, lease expiry, boot conflict, address conflict, empty lookup, restart reconstruction, corrupt removal state, and removed-instance renewal. |
 | Discovery monitoring | Probe each replica directly. Separate `ready: false` from critical load. Check bounded slow probes, transitions, alert cooldown, and healthy recovery without resetting a removal. |
-| Gateway routing | With stable IDs A and B, observe A, B, A, B across actual dispatches. Add C, remove B, and continue without stale B dispatches or static fallback. Cover proxy, authorization reads, and realtime clients. |
+| Broker routing | With stable IDs A and B, observe A, B, A, B across actual dispatches. Add C, remove B, and continue without stale B dispatches or static fallback. Cover service and Gateway dispatch, policy reads, and the DMs pin. |
 | Every HTTP caller | Use a deterministic clock for two failures, a third inside `3.5 * T`, the inclusive boundary, and a failure outside it. Mix endpoints on one destination. Separate replicas and generations. Cover connection errors, timeouts, `5xx`, expected `4xx`, body failure, and cancellation. |
-| Gateway attribution | Fail a Session authorization read and a DMs ticket call. Verify the actual backend tuple, one recorded outcome per attempt, no public metadata leak, no service re-report, and no Gateway eviction for `NO_HEALTHY_INSTANCES`. Separately fail the Gateway connection and count its hop. |
+| Broker attribution | Fail a Session policy read and a DMs ticket call. Verify the actual backend tuple, one recorded outcome per attempt, no public metadata leak, no caller re-report, and no Broker eviction for `NO_HEALTHY_INSTANCES`. Separately fail the Broker connection and count its hop. |
 | Removal and re-entry | Trip on three real failures, exclude locally, persist and propagate removal, keep a healthy replica serving, reject immediate PUT-based recovery, restart Discovery with the tombstone intact, and require cooldown, two probes, and explicit reactivation. Reject delayed old-generation reports. |
 | Bootstrap and reports | Hold Discovery offline during startup and during removal reporting. Verify finite calls, local exclusions, one half-open probe, registry cache expiry, and eventual registration or removal without circular dependencies. Include Player's new control-plane calls. |
 | Writes and shared state | Lose a response after commit. Confirm no hidden replay or new key, recover the original result through another replica, and preserve once-only domain effects. |
