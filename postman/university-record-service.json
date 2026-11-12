@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "5f420a87-0c85-466b-8880-a4f85b5df5ad",
     "name": "University Record service",
-    "description": "Public Gateway requests for the University Record service: create, read, replace, and delete all eight reference kinds as an administrator, and check dependency protection. Set admin_token to a Bearer access token for a global administrator. The collection can run repeatedly.",
+    "description": "Public Gateway requests for the University Record service. Reference data and Read replace and delete every kind create, read, replace, and delete all eight reference kinds and check dependency protection; they need admin_token for a global administrator and can run repeatedly. Session record permissions needs session_id, junior_token and junior_id for a Junior Moderator in that session, moderator_token for its Moderator, and outsider_token for a player outside it.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -12,6 +12,26 @@
     },
     {
       "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "junior_id",
+      "value": ""
+    },
+    {
+      "key": "junior_token",
+      "value": ""
+    },
+    {
+      "key": "moderator_token",
+      "value": ""
+    },
+    {
+      "key": "outsider_token",
       "value": ""
     }
   ],
@@ -168,16 +188,20 @@
           "request": {
             "method": "GET",
             "url": "{{gateway_url}}/api/v1/admin/university-data",
-            "header": []
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('authentication required', () => pm.response.to.have.status(401));",
-                  "pm.test('uses auth code', () => pm.expect(pm.response.json().code).to.eql('UNAUTHENTICATED'));"
-                ]
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('uses UNAUTHORIZED', () => pm.expect(pm.response.json().code).to.eql('UNAUTHORIZED'));"
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -993,6 +1017,101 @@
         }
       ],
       "description": "Loops read, replace, delete, and read-again over every reference kind, then proves the case is unchanged. Run the whole folder in the Runner, or send requests individually after setting crud_id manually (Replace also needs crud_body)."
+    },
+    {
+      "name": "Session record permissions",
+      "item": [
+        {
+          "name": "Read own record permissions as Junior Moderator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('permissions read', () => pm.response.to.have.status(200));",
+                  "pm.test('returns the caller grant', () => { const body = pm.response.json(); pm.expect(body.player_id).to.eql(pm.variables.get('junior_id')); pm.expect(body.session_id).to.eql(pm.variables.get('session_id')); pm.expect(body.record_kinds).to.be.an('array'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/record-permissions/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{junior_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reject record permissions outside the session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('uses FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/record-permissions/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{outsider_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reject reference list for a non-administrator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('uses FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/university-data",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{moderator_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "auth": {

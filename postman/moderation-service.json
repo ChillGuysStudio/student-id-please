@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Moderation service",
-    "description": "Public Gateway requests for the Moderation service: decisions for an active shift, bans, and disciplinary actions. Set moderator_token, admin_token, session_id, case_id, and subject_id in a private Postman environment. Run Decision workflow, then Admin and bans. Run Alternative ban flow only against a fresh case, because it decides the same case.",
+    "description": "Public Gateway requests for the Moderation service: decisions for an active session, bans, and disciplinary actions. Set session_id and case_id for the current ready case, moderator_token and moderator_id for the assigned Moderator, outsider_token for a player outside the session, admin_token for a global administrator, and subject_id for the case subject in a private Postman environment. Run Decision workflow, then Admin and bans. Run Alternative ban flow only against a fresh case whose applicant has a University identity, because it decides the same case. A case without one returns 422 SUBJECT_REQUIRED for a ban.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,19 +11,19 @@
     },
     {
       "key": "session_id",
-      "value": "00000000-0000-4000-8000-000000000201"
+      "value": ""
     },
     {
       "key": "case_id",
-      "value": "00000000-0000-4000-8000-000000000202"
+      "value": ""
     },
     {
       "key": "moderator_id",
-      "value": "00000000-0000-4000-8000-000000000203"
+      "value": ""
     },
     {
       "key": "subject_id",
-      "value": "00000000-0000-4000-8000-000000000205"
+      "value": ""
     },
     {
       "key": "unknown_player_id",
@@ -47,6 +47,10 @@
     },
     {
       "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "outsider_token",
       "value": ""
     }
   ],
@@ -82,8 +86,8 @@
           "const body = pm.response.json();",
           "if (pm.response.code >= 400) pm.test('Validation or typed error', () => { if (pm.response.code === 422) pm.expect(body.detail).to.be.an('array'); else pm.expect(body).to.have.all.keys('code', 'message', 'request_id', 'details'); });",
           "if (name === '201 Submit decision' || name === '201 Submit ban instead') pm.collectionVariables.set('decision_id', body.decision_id);",
-          "if (name === '201 Submit decision') pm.test('Correct decision is scored', () => { pm.expect(body.correct).to.eql(true); pm.expect(body.score_delta).to.eql(10); });",
-          "if (name === '201 Submit ban instead') pm.test('Incorrect ban still persists', () => { pm.expect(body.correct).to.eql(false); pm.expect(body.penalty).to.eql(5); });",
+          "if (name === '201 Submit decision') pm.test('Decision is scored against the policy', () => { pm.expect(body.correct).to.eql(body.policy.expected_action === 'accept'); pm.expect(body.score_delta).to.eql(body.correct ? 10 : -5); });",
+          "if (name === '201 Submit ban instead') pm.test('Ban persists with its policy score', () => { pm.expect(body.correct).to.eql(body.policy.expected_action === 'ban'); pm.expect(body.penalty).to.eql(body.correct ? 0 : 5); });",
           "if (name === '200 Read decision' || name === '201 Retry decision with same key') pm.test('Decision ID is stable', () => pm.expect(body.decision_id).to.eql(pm.collectionVariables.get('decision_id')));",
           "if (name === '200 List decisions') pm.test('Committed decision is listed', () => pm.expect(body.items.map(item => item.decision_id)).to.include(pm.collectionVariables.get('decision_id')));",
           "if (name === '200 Ban after decision') pm.test('Accept did not create a ban', () => pm.expect(body.items).to.be.empty);",
@@ -124,7 +128,7 @@
           "name": "200 List decisions",
           "request": {
             "method": "GET",
-            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/decisions?limit=1",
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/decisions?limit=100",
             "header": []
           }
         },
@@ -213,7 +217,7 @@
           }
         },
         {
-          "name": "422 Invalid decision action",
+          "name": "403 Unknown decision action",
           "request": {
             "method": "POST",
             "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/decisions",
@@ -256,7 +260,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{admin_token}}",
+                  "value": "{{outsider_token}}",
                   "type": "string"
                 }
               ]
@@ -347,7 +351,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Lab demo discipline\",\"xp_penalty\":4}"
+              "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Demo discipline\",\"xp_penalty\":4}"
             }
           }
         },
@@ -378,7 +382,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Lab demo discipline\",\"xp_penalty\":4}"
+              "raw": "{\"player_id\":\"{{moderator_id}}\",\"reason\":\"Demo discipline\",\"xp_penalty\":4}"
             }
           }
         },
