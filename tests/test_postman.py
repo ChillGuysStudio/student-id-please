@@ -88,6 +88,32 @@ class ServiceCollectionTests(unittest.TestCase):
                     url = request["url"] if isinstance(request["url"], str) else request["url"]["raw"]
                     self.assertTrue(url.startswith("{{gateway_url}}/api/v1/") or url.startswith("{{gateway_url}}/.well-known/"), url)
 
+    def items(self, items):
+        for item in items:
+            if "item" in item:
+                yield from self.items(item["item"])
+            else:
+                yield item
+
+    def test_collections_assert_success_and_denial_without_stored_tokens(self):
+        for path in SERVICE_COLLECTIONS:
+            with self.subTest(collection=path.name):
+                collection = json.loads(path.read_text())
+                for entry in collection["variable"]:
+                    if entry["key"].endswith("_token"):
+                        self.assertEqual(entry["value"], "", entry["key"])
+                shared = any(event["listen"] == "test" for event in collection.get("event", []))
+                successes, denials = 0, 0
+                for item in self.items(collection["item"]):
+                    scripts = "\n".join("\n".join(event["script"]["exec"]) for event in item.get("event", []) if event["listen"] == "test")
+                    self.assertTrue(shared or "pm.test(" in scripts, item["name"])
+                    self.assertNotIn("Authorization", {header["key"] for header in item["request"].get("header", [])}, item["name"])
+                    expected = re.findall(r"have\.status\((\d{3})\)", scripts) or [item["name"][:3]]
+                    successes += any(code.startswith("2") for code in expected)
+                    denials += any(code in {"401", "403"} for code in expected)
+                self.assertGreater(successes, 0)
+                self.assertGreater(denials, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
