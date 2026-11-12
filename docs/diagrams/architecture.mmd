@@ -14,6 +14,8 @@ flowchart TB
 
 	DiscordHook["Discord webhook\nalerts"]
 
+	BrokerNode["Message Broker (shared Go)\nToday: GET /health only, not in Compose\nPlanned: dispatch, queues, breakers"]
+
 	subgraph DomainReplicas["Domain services, two replicas each (slot 1 and slot 2)"]
 		PlayerReplicas["Player"]
 		SessionReplicas["Session"]
@@ -32,7 +34,7 @@ flowchart TB
 		MongoShared[("MongoDB rs0\napplicant, credential")]
 		MongoUniv[("MongoDB\nuniversity records")]
 		RedisStore[("Redis\nSession views, DMs relay and tickets")]
-		RabbitMQBroker[("RabbitMQ\nbroker events")]
+		RabbitMQBroker[("RabbitMQ\ndomain events")]
 	end
 
 	Client -->|"REST and negotiation"| GWPub
@@ -69,3 +71,13 @@ flowchart TB
 	ApplicantReplicas --- RabbitMQBroker
 	CredentialReplicas --- RabbitMQBroker
 	UnivReplicas --- RabbitMQBroker
+
+	GWPub -.->|"Planned: targeted request,\ndestination known"| BrokerNode
+	DomainReplicas -.->|"Planned: service requests and\ntopic events, subscribers unknown"| BrokerNode
+	BrokerNode -.->|"Planned: one ready replica,\none copy per subscriber"| DomainReplicas
+	BrokerNode -.->|"Planned: instances and\ntopic subscriptions"| DiscoveryNode
+	BrokerNode -.->|"Planned: queue storage"| RabbitMQBroker
+
+	classDef planned stroke:#d9822b,stroke-width:2px,stroke-dasharray:6 4
+	class BrokerNode planned
+	linkStyle 31,32,33,34,35 stroke:#d9822b,stroke-width:2px
