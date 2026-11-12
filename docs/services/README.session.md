@@ -4,7 +4,7 @@ Session owns shift lifecycle, roster, roles, current case references, and aggreg
 
 ## Public image
 
-The image is [`tirppy/student-id-session-service`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). Set `SESSION_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The local API address is `http://localhost:8002`.
+The image is [`tirppy/student-id-session-service`](https://hub.docker.com/r/tirppy/student-id-session-service/tags). Set `SESSION_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The standalone API address is `http://localhost:8002`, not client ingress. In Compose, clients use the gateway.
 
 Source code is in the [private repository](https://github.com/Tirppy/student-id-session-service). Public images run without private-source access.
 
