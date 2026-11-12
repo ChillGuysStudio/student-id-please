@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "5f420a87-0c85-466b-8880-a4f85b5df5ad",
     "name": "University Record service",
-    "description": "Public Gateway requests for the University Record service. Reference data and Read replace and delete every kind create, read, replace, and delete all eight reference kinds and check dependency protection; they need admin_token for a global administrator and can run repeatedly. Session record permissions needs session_id, junior_token and junior_id for a Junior Moderator in that session, moderator_token for its Moderator, and outsider_token for a player outside it.",
+    "description": "Public Gateway requests for the University Record service. Reference data creates, reads, replaces, and deletes all eight reference kinds and checks dependency protection, and Read replace and delete every kind removes what that run created. Both need admin_token for a global administrator and can run repeatedly. Run them together: while the run's course and enrollment exist, a session start fails with 409 DEPENDENCY_REJECTED, because every snapshot requires each course to have a schedule in the current academic year and each enrollment to have its complete Outlook membership set. Session record permissions needs session_id, junior_token and junior_id for a Junior Moderator in that session, moderator_token for its Moderator, and outsider_token for a player outside it.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -32,6 +32,14 @@
     },
     {
       "key": "outsider_token",
+      "value": ""
+    },
+    {
+      "key": "course_page",
+      "value": ""
+    },
+    {
+      "key": "collect_page",
       "value": ""
     }
   ],
@@ -69,8 +77,7 @@
                   "const startYear = 2030 + Math.floor(Math.random() * 60);",
                   "pm.collectionVariables.set('major', major);",
                   "pm.collectionVariables.set('course_id', major + '-API');",
-                  "pm.collectionVariables.set('subject_id', pm.variables.replaceIn('{{$guid}}'));",
-                  "pm.collectionVariables.set('session_id', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('reference_subject_id', pm.variables.replaceIn('{{$guid}}'));",
                   "pm.collectionVariables.set('program_key', pm.variables.replaceIn('{{$guid}}'));",
                   "pm.collectionVariables.set('replace_key', pm.variables.replaceIn('{{$guid}}'));",
                   "pm.collectionVariables.set('delete_key', pm.variables.replaceIn('{{$guid}}'));",
@@ -342,7 +349,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"enrollment\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\n    \"student_id\": \"{{major}}-{{student_yy}}-1\",\n    \"first_name\": \"Eliza\",\n    \"last_name\": \"Caraman\",\n    \"major\": \"{{major}}\",\n    \"year\": 1,\n    \"status\": \"active\",\n    \"enrolled_since\": \"{{academic_start}}\",\n    \"role\": \"student\"\n  }\n}"
+              "raw": "{\n  \"kind\": \"enrollment\",\n  \"subject_id\": \"{{reference_subject_id}}\",\n  \"data\": {\n    \"student_id\": \"{{major}}-{{student_yy}}-1\",\n    \"first_name\": \"Eliza\",\n    \"last_name\": \"Caraman\",\n    \"major\": \"{{major}}\",\n    \"year\": 1,\n    \"status\": \"active\",\n    \"enrolled_since\": \"{{academic_start}}\",\n    \"role\": \"student\"\n  }\n}"
             },
             "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
@@ -375,7 +382,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"registration\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"course_id\": \"{{course_id}}\"}\n}"
+              "raw": "{\n  \"kind\": \"registration\",\n  \"subject_id\": \"{{reference_subject_id}}\",\n  \"data\": {\"course_id\": \"{{course_id}}\"}\n}"
             },
             "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
@@ -408,7 +415,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"outlook_group\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"email\": \"{{email}}\", \"group_name\": \"students\", \"member\": true}\n}"
+              "raw": "{\n  \"kind\": \"outlook_group\",\n  \"subject_id\": \"{{reference_subject_id}}\",\n  \"data\": {\"email\": \"{{email}}\", \"group_name\": \"students\", \"member\": true}\n}"
             },
             "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
@@ -441,7 +448,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"major:{{major}}\",\"member\":true}}"
+              "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{reference_subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"major:{{major}}\",\"member\":true}}"
             },
             "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
@@ -473,7 +480,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"year:1\",\"member\":true}}"
+              "raw": "{\"kind\":\"outlook_group\",\"subject_id\":\"{{reference_subject_id}}\",\"data\":{\"email\":\"{{email}}\",\"group_name\":\"year:1\",\"member\":true}}"
             },
             "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
@@ -505,7 +512,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"fcim_message\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"data\": {\"author_first_name\": \"Eliza\", \"author_last_name\": \"Caraman\", \"channel\": \"general\", \"text\": \"Postman verification\", \"sent_at\": \"{{reference_at}}\"}\n}"
+              "raw": "{\n  \"kind\": \"fcim_message\",\n  \"subject_id\": \"{{reference_subject_id}}\",\n  \"data\": {\"author_first_name\": \"Eliza\", \"author_last_name\": \"Caraman\", \"channel\": \"general\", \"text\": \"Postman verification\", \"sent_at\": \"{{reference_at}}\"}\n}"
             },
             "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
@@ -527,7 +534,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{gateway_url}}/api/v1/admin/university-data?kind=course&limit=10"
+            "url": "{{gateway_url}}/api/v1/admin/university-data?kind=course&limit=100{{course_page}}"
           },
           "event": [
             {
@@ -535,7 +542,10 @@
               "script": {
                 "exec": [
                   "pm.test('listed', () => pm.response.to.have.status(200));",
-                  "pm.test('contains course', () => pm.expect(pm.response.json().items.some(item => item.data.course_id === pm.collectionVariables.get('course_id'))).to.be.true);"
+                  "const body = pm.response.json();",
+                  "const found = body.items.some(item => item.data.course_id === pm.collectionVariables.get('course_id'));",
+                  "if (!found && body.next_cursor) { pm.collectionVariables.set('course_page', '&cursor=' + encodeURIComponent(body.next_cursor)); pm.execution.setNextRequest('List courses'); }",
+                  "else { pm.collectionVariables.set('course_page', ''); pm.test('contains course', () => pm.expect(found).to.be.true); }"
                 ]
               }
             }
@@ -547,7 +557,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{gateway_url}}/api/v1/admin/university-data?subject_id={{subject_id}}&limit=100"
+            "url": "{{gateway_url}}/api/v1/admin/university-data?subject_id={{reference_subject_id}}&limit=100"
           },
           "event": [
             {
@@ -555,7 +565,7 @@
               "script": {
                 "exec": [
                   "pm.test('subject filter listed', () => pm.response.to.have.status(200));",
-                  "pm.test('all rows belong to subject', () => pm.expect(pm.response.json().items.every(item => item.subject_id === pm.collectionVariables.get('subject_id'))).to.be.true);"
+                  "pm.test('all rows belong to subject', () => pm.expect(pm.response.json().items.every(item => item.subject_id === pm.collectionVariables.get('reference_subject_id'))).to.be.true);"
                 ]
               }
             }
@@ -788,7 +798,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"kind\":\"fcim_message\",\"subject_id\":\"{{subject_id}}\",\"data\":{\"author_first_name\":\"Eliza\",\"author_last_name\":\"Caraman\",\"channel\":\"temporary\",\"text\":\"Delete me\",\"sent_at\":\"{{reference_at}}\"}}"
+              "raw": "{\"kind\":\"fcim_message\",\"subject_id\":\"{{reference_subject_id}}\",\"data\":{\"author_first_name\":\"Eliza\",\"author_last_name\":\"Caraman\",\"channel\":\"temporary\",\"text\":\"Delete me\",\"sent_at\":\"{{reference_at}}\"}}"
             },
             "url": "{{gateway_url}}/api/v1/admin/university-data"
           },
@@ -865,7 +875,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{gateway_url}}/api/v1/admin/university-data?limit=100"
+            "url": "{{gateway_url}}/api/v1/admin/university-data?limit=100{{collect_page}}"
           },
           "event": [
             {
@@ -873,13 +883,16 @@
               "script": {
                 "exec": [
                   "pm.test('list available', () => pm.response.to.have.status(200));",
-                  "const subject = pm.collectionVariables.get('subject_id');",
-                  "const ids = ['program_ref', 'course_ref', 'schedule_ref', 'year_ref'].map(k => pm.collectionVariables.get(k));",
-                  "const order = ['fcim_message', 'registration', 'outlook_group', 'schedule', 'enrollment', 'course', 'academic_year', 'program'];",
-                  "const rows = pm.response.json().items.filter(r => r.subject_id === subject || ids.includes(r.reference_id)).sort((a,b) => order.indexOf(a.kind) - order.indexOf(b.kind));",
-                  "pm.test('all eight kinds selected', () => pm.expect(new Set(rows.map(r => r.kind)).size).to.eql(8));",
-                  "pm.collectionVariables.set('crud_queue', JSON.stringify(rows));",
-                  "pm.collectionVariables.set('crud_index', 0);"
+                  "const page = pm.response.json();",
+                  "let seen = []; try { seen = JSON.parse(pm.collectionVariables.get('collect_rows') || '[]'); } catch (ignore) { seen = []; }",
+                  "seen = seen.concat(page.items);",
+                  "if (page.next_cursor) { pm.collectionVariables.set('collect_rows', JSON.stringify(seen)); pm.collectionVariables.set('collect_page', '&cursor=' + encodeURIComponent(page.next_cursor)); pm.execution.setNextRequest(\"Collect this run's references\"); }",
+                  "else {",
+                  "  pm.collectionVariables.set('collect_rows', ''); pm.collectionVariables.set('collect_page', '');",
+                  "  const subject = pm.collectionVariables.get('reference_subject_id'); const ids = ['program_ref', 'course_ref', 'schedule_ref', 'year_ref'].map(k => pm.collectionVariables.get(k)); const order = ['fcim_message', 'registration', 'outlook_group', 'schedule', 'enrollment', 'course', 'academic_year', 'program'];",
+                  "  const rows = seen.filter(r => r.subject_id === subject || ids.includes(r.reference_id)).sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));",
+                  "  pm.test('all eight kinds selected', () => pm.expect(new Set(rows.map(r => r.kind)).size).to.eql(8)); pm.collectionVariables.set('crud_queue', JSON.stringify(rows)); pm.collectionVariables.set('crud_index', 0);",
+                  "}"
                 ]
               }
             }
