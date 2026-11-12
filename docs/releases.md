@@ -46,9 +46,24 @@ After a release PR is rebase-merged into `main`, the Sync Dev with Main workflow
 
 Every service `main` update publishes images from the exact new source commit, including documentation-only changes. Build `linux/amd64` and `linux/arm64` images natively from that commit and publish them under one multi-platform index. Each runtime image records the source SHA in its OCI revision label.
 
-Publish the image version without the Git tag's `v` prefix. For example, Git tag `v2.0.0` corresponds to `username/service-name:2.0.0`. The version tag and `latest` must identify the same index for the current release. Retain an immutable source-SHA reference for verification and retries.
+Publish the image version without the Git tag's `v` prefix. For example, Git tag `v4.0.0` corresponds to `username/service-name:4.0.0`. The default tags are the immutable `X.Y.Z` version and `latest`, both identifying the same multi-platform index for the current release. Keep source traceability in OCI labels and the release's recorded immutable digest, not extra tags.
+
+Add `X.Y.Z-amd64` and `X.Y.Z-arm64` only when a consumer requires separate architecture tags. They must identify the corresponding native children of that version's index. Do not publish source-SHA, lab, temporary, build-number, run-scoped, snapshot, release-candidate, dev, or test tags.
 
 Verify anonymous access to the index and both runtime images. Publication failures must fail the workflow. Retries preserve the original source and version digests, and older runs must not replace a newer `latest` image.
+
+## Clean Docker Hub tags
+
+The service cleanup workflows use the shared [cleanup action](../.github/actions/dockerhub-cleanup/action.yml). They retain `latest`, canonical `X.Y.Z` versions without leading zeros, and optional `X.Y.Z-amd64` and `X.Y.Z-arm64` tags. Every other tag is a deletion candidate. Cleanup does not expire old conventional versions or delete Git tags or GitHub releases.
+
+Before enabling deletion, migrate the publisher to the convention above. Existing publishers that use source-SHA or temporary tags must stop depending on them first. Finish any queued publication or retry before cleanup. The workflows are manually dispatched on `main`, not scheduled or triggered by publication.
+
+1. Release the shared cleanup action in CPR before releasing service workflows that reference it.
+2. Run the service's `Docker Hub cleanup` workflow on `main` with `delete` left false. Review its retained tags and deletion candidates.
+3. Verify that `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` identify an account with delete permission for that service's Docker Hub repository. Push permission alone is insufficient.
+4. To delete the candidates, rerun with `delete` true and set `confirm_repository` to the exact Docker Hub namespace/repository.
+
+Deletion requires both `latest` and at least one conventional version to exist. The action lists all tag pages before deleting anything, removes only nonconforming tag names through the Docker Hub tag API, then verifies the remaining names. It never deletes registry manifests by digest, which could affect valid aliases sharing that digest. Authentication, listing, permission, or deletion failures fail the run without claiming success.
 
 ## Record a service release in CPR
 
