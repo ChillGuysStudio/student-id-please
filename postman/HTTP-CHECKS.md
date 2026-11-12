@@ -16,6 +16,14 @@ The folder sends four anonymous GET requests. It checks Gateway liveness, denial
 
 Copy `postman/http-checks.postman_environment.json` into ignored `.local/postman/http-checks/`. Set `discovery_url` to a reachable private Discovery listener and replace `control_token` in the copy with the operator credential. Do not put the token in shell arguments, the checked-in template, or a published report. This folder is not part of safe public smoke.
 
+Compose runs Discovery on port `8081` without publishing it, so the template's `http://discovery:8081` resolves only on the Compose network, not from the host. To read Discovery status from the Compose host, attach a one-off container to that network. Set `CONTROL_TOKEN` in your shell first; `-e CONTROL_TOKEN` copies it into the container without putting the value in the command line:
+
+```sh
+docker run --rm --network student-id-acceptance_default -e CONTROL_TOKEN curlimages/curl:8.11.1 -sS --variable %CONTROL_TOKEN --expand-header 'X-Control-Token: {{CONTROL_TOKEN}}' -H 'X-Control-Name: operator' http://discovery:8081/internal/v1/status
+```
+
+The network name is `<project>_default`; replace `student-id-acceptance` with your Compose project name. A wrong credential returns `401 INVALID_AUTH`, which still confirms that the listener is reachable.
+
 ```sh
 ./scripts/run_newman.sh --http-private --environment .local/postman/http-checks/operator.postman_environment.json
 ```

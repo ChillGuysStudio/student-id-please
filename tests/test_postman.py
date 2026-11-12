@@ -52,6 +52,49 @@ class HttpChecksCollectionTests(unittest.TestCase):
         self.assertEqual(values["control_token"]["type"], "secret")
 
 
+GUIDED = ROOT / "postman/guided-demo.postman_collection.json"
+GUIDED_ROUTES = {
+    ("POST", "/api/v1/players"), ("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/refresh"),
+    ("POST", "/api/v1/auth/logout"), ("GET", "/.well-known/jwks.json"), ("GET", "/api/v1/players/me"),
+    ("PATCH", "/api/v1/players/me"), ("GET", "/api/v1/players/{id}"), ("GET", "/api/v1/friendships"),
+    ("POST", "/api/v1/friendships"), ("PUT", "/api/v1/friendships/{id}/acceptance"),
+    ("DELETE", "/api/v1/friendships/{id}"), ("POST", "/api/v1/teams"), ("GET", "/api/v1/teams/{id}"),
+    ("DELETE", "/api/v1/teams/{id}"), ("POST", "/api/v1/teams/{id}/members"),
+    ("DELETE", "/api/v1/teams/{id}/members/{id}"), ("GET", "/api/v1/sessions"), ("POST", "/api/v1/sessions"),
+    ("GET", "/api/v1/sessions/{id}"), ("DELETE", "/api/v1/sessions/{id}"),
+    ("POST", "/api/v1/sessions/{id}/participants"), ("PUT", "/api/v1/sessions/{id}/roles"),
+    ("POST", "/api/v1/sessions/{id}/start"), ("POST", "/api/v1/sessions/{id}/cases"),
+    ("GET", "/api/v1/sessions/{id}/cases/{id}/status"), ("POST", "/api/v1/sessions/{id}/end"),
+}
+
+
+class GuidedDemoCollectionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.items = [item for folder in json.loads(GUIDED.read_text())["item"] for item in folder["item"]]
+
+    def test_requests_are_numbered_in_order(self):
+        self.assertEqual([item["name"][:2] for item in self.items], [f"{n:02d}" for n in range(1, len(self.items) + 1)])
+        self.assertTrue(self.items[27]["name"].startswith("28 ") and self.items[28]["name"].startswith("29 "))
+
+    def test_mutations_carry_idempotency_keys_and_every_request_asserts(self):
+        for item in self.items:
+            with self.subTest(request=item["name"]):
+                request = item["request"]
+                headers = {header["key"]: header["value"] for header in request["header"]}
+                if request["method"] != "GET":
+                    self.assertEqual(headers.get("Idempotency-Key"), "{{request_key}}")
+                tests = "\n".join("\n".join(e["script"]["exec"]) for e in item["event"] if e["listen"] == "test")
+                self.assertIn("pm.test(", tests)
+
+    def test_player_and_session_public_routes_are_covered(self):
+        covered = set()
+        for item in self.items:
+            path = item["request"]["url"].removeprefix("{{gateway_url}}")
+            covered.add((item["request"]["method"], re.sub(r"\{\{[a-z0-9_]+\}\}", "{id}", path)))
+        self.assertEqual(GUIDED_ROUTES - covered, set())
+
+
 SERVICE_COLLECTIONS = sorted((ROOT / "postman").glob("*-service.json"))
 
 
