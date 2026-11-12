@@ -4,7 +4,7 @@ These conventions apply to service calls in mocked and integrated deployments. [
 
 ## Paths and data types
 
-Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. All client-to-service REST uses the public gateway listener and all service-to-service REST uses the internal gateway listener. Each endpoint belongs to the service named in its section.
+Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. All client-to-service REST uses the public gateway listener, and all service-to-service REST uses the [Message Broker](broker.md). Each endpoint belongs to the service named in its section.
 
 Realtime negotiation uses public gateway REST and returns a direct Discord DMs WebSocket URL. The upgrade and frames bypass the gateway, even though the path starts with `/api/v1`. Database connections also bypass the gateway. See the [request paths and interaction map](../architecture.md).
 
@@ -29,9 +29,9 @@ Requests and non-empty responses use `application/json`. Field names use `snake_
 
 Clients send `Authorization: Bearer <access_token>` only to the public gateway. Player issues the tokens. The gateway validates the signature, issuer, audience, and expiry. No original `Authorization` reaches downstream services.
 
-Every service REST call uses the private internal gateway, including calls to a peer's `/api/v1` endpoints. Services authenticate to that listener with `X-Service-Name` and `X-Service-Token`. Player actions also need verified actor authority, not a forwarded Player bearer. The existing [gateway identity module](https://github.com/ChillGuysStudio/gateway-service/blob/dev/docs/contracts/gateway-identity.md) defines request assertions, delegation, and chat capabilities. Its contract is not evidence of an assembled runtime.
+Every service REST call uses the private Message Broker, including calls to a peer's `/api/v1` endpoints. Services authenticate to the Broker with `X-Service-Name` and `X-Service-Token`. Player actions also need verified actor authority, not a forwarded Player bearer. The existing [gateway identity module](https://github.com/ChillGuysStudio/gateway-service/blob/dev/docs/contracts/gateway-identity.md) defines request assertions, delegation, and chat capabilities. Its contract is not evidence of an assembled runtime.
 
-Current Moderation and Discord DMs source supports `AUTH_MODE=gateway`. Receivers authenticate the gateway hop, verify `X-Gateway-Assertion`, and reject original `Authorization`. Moderation uses `X-Gateway-Delegation` for peer work. Discord DMs uses `X-Gateway-Chat-Capability` for recurring chat permission reads. Their outgoing adapters send service credentials and the grant, not the Player bearer. See the [Moderation adapter](https://github.com/andyp1xe1/pad-moderation-service/blob/dev/docs/gateway-auth.md) and [Discord DMs adapter](https://github.com/andyp1xe1/pad-discord-dms-service/blob/dev/docs/gateway-auth.md). CPR's older service pointers and current Compose settings do not establish this integration.
+Current Moderation and Discord DMs source supports `AUTH_MODE=gateway`. Receivers authenticate the Broker hop, verify `X-Gateway-Assertion` with the key of its issuer, and reject original `Authorization`. Moderation uses `X-Gateway-Delegation` for peer work. Discord DMs uses `X-Gateway-Chat-Capability` for recurring chat permission reads. Their outgoing adapters send service credentials and the grant, not the Player bearer. See the [Moderation adapter](https://github.com/andyp1xe1/pad-moderation-service/blob/dev/docs/gateway-auth.md) and [Discord DMs adapter](https://github.com/andyp1xe1/pad-discord-dms-service/blob/dev/docs/gateway-auth.md). CPR's older service pointers and current Compose settings do not establish this integration.
 
 Receivers retain business authorization. Session owns participation, shift roles, and lifecycle. Its context query `player_id` must match the verified subject. A service credential or unsigned `X-Player-Id` does not prove player permission. Service-only readiness polls and authenticated event delivery do not substitute for player authorization.
 
@@ -41,7 +41,7 @@ Player-facing responses never contain hidden generation data or another player's
 
 ### Retained workload requests
 
-The [retained initialization HTTP policy](retained-workload.md) defines exact internal workload requests for initialization, local status, identity reservation, and snapshot reads. Gateway's workload assertion proves the named caller and exact request bytes, not player authority. Receivers independently read fresh Session acceptance. A retained snapshot read requires explicit `session_id` and `attempt_id` query parameters and a matching local immutable snapshot. The existing empty-query actor-bound snapshot read remains separate. Invalid actor proof never falls back to workload access. The [decision readiness HTTP policy](decision-readiness.md) defines the separate actor-bound aggregate case-status read for Moderation and Server Rules. Contract agreement alone does not enable a route.
+The [retained initialization HTTP policy](retained-workload.md) defines exact internal workload requests for initialization, local status, identity reservation, and snapshot reads. The Broker's workload assertion proves the named caller and exact request bytes, not player authority. Receivers independently read fresh Session acceptance. A retained snapshot read requires explicit `session_id` and `attempt_id` query parameters and a matching local immutable snapshot. The existing empty-query actor-bound snapshot read remains separate. Invalid actor proof never falls back to workload access. The [decision readiness HTTP policy](decision-readiness.md) defines the separate actor-bound aggregate case-status read for Moderation and Server Rules. Contract agreement alone does not enable a route.
 
 ### Legacy direct mode
 
@@ -81,7 +81,7 @@ An existing case that is not ready returns `409 CASE_NOT_READY` with `Retry-Afte
 
 Internal reads time out after 2 seconds. A caller can retry a safe read or a command that carries the original idempotency key. It retries at most twice with backoff. When a dependency fails, the caller returns `503` instead of inventing facts or a decision result. Services use the same pagination, timeout, and size limits.
 
-[Bounded calls and failure accounting](resilience.md#bounded-calls-and-failure-accounting) use a default 2-second outbound timeout and a 7-second rolling failure window. No layer automatically replays business writes after a failure or replica change. An explicit command retry still needs its original key and shared durable results. Gateway owns backend failure reports, while service callers account for their own Gateway hop.
+[Bounded calls and failure accounting](resilience.md#bounded-calls-and-failure-accounting) use a default 2-second outbound timeout and a 7-second rolling failure window. No layer automatically replays business writes after a failure or replica change. An explicit command retry still needs its original key and shared durable results. The Broker owns backend failure reports, while Gateway and service callers account for their own Broker hop.
 
 Example error response:
 

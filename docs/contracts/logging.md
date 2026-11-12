@@ -22,11 +22,11 @@ Records add fields for their kind:
 
 - **HTTP request:** `event` is `http_request`. The record adds `method`, `route`, and `status`. `route` is the matched route template, such as `/api/v1/sessions/{session_id}`, or `unmatched`. It never contains a raw path value or a query string.
 - **Outbound call:** `event` is `dependency_call`. The record adds `target_service`, plus `target_instance_id`, `attempt_id`, and `status` when they are known.
-- **Gateway dispatch:** `event` is `dispatch`. The record adds `target_service`, `target_instance_id`, `route`, and `status`, so that replica selection is visible.
+- **Broker dispatch:** `event` is `dispatch`. The Broker writes it for each backend attempt. The record adds `caller`, `target_service`, `target_instance_id`, `registration_id`, `attempt_id`, `route`, and `status`, so that replica selection is visible. The [Message Broker contract](broker.md#logging) defines its route values.
 - **Domain event:** `event` is `event_published` or `event_consumed`. The record adds `event_type` and `event_id`. `outcome` is `published`, `processed`, `duplicate`, `retry`, or `rejected`.
 - **Error:** the record adds `error_kind`, a short stable code. It never includes a stack trace at `INFO`.
 
-One user action keeps one `request_id` across every hop. A service sends its current `request_id` as `X-Request-ID` on each outbound call it makes while handling a request. The receiver, including the gateway's internal listener, keeps a valid UUID it receives instead of generating a new one. Work that no request triggered, such as an outbox relay or an event consumer, uses `event_id` for correlation.
+One user action keeps one `request_id` across every hop. A service sends its current `request_id` as `X-Request-ID` on each outbound call it makes while handling a request. The receiver, including the Message Broker, keeps a valid UUID it receives instead of generating a new one. Work that no request triggered, such as an outbox relay or an event consumer, uses `event_id` for correlation.
 
 A request that fails with an unexpected exception produces one `ERROR` record with `event` `unhandled_exception`, the `request_id`, the route template, and `error_kind`, in addition to its `http_request` record.
 
@@ -80,7 +80,7 @@ Authorization: Bearer <administrator access token>
 ```
 
 - Only an access token whose `is_admin` claim is true may download logs. A missing or invalid token returns `401 UNAUTHORIZED`. A non-administrator receives `403 FORBIDDEN`.
-- `service` is optional and repeatable. Allowed values are `gateway`, `discovery`, `player`, `session`, `applicant`, `credential`, `rules`, `university_record`, `moderation`, `moderation-publisher`, and `discord-dms`. Omitting it selects all of them. Any other value returns `400 INVALID_LOG_QUERY`.
+- `service` is optional and repeatable. Allowed values are `gateway`, `message-broker`, `discovery`, `player`, `session`, `applicant`, `credential`, `rules`, `university_record`, `moderation`, `moderation-publisher`, and `discord-dms`. Omitting it selects all of them. Any other value returns `400 INVALID_LOG_QUERY`.
 - `since`, `until`, and `max_bytes` follow the instance rules. `max_bytes` applies to each instance.
 
 The gateway takes its targets from trusted sources only: its own file, Discovery's own export, the instances that the Discovery registry lists (ready and unavailable, but not removed), and the publisher through one ready Moderation instance. It never takes a host, URL, or path from the request. It calls at most 4 targets at once, gives each target 3 seconds, stops collecting after 15 seconds, and stops adding records once the archive holds 16 MiB of uncompressed data.

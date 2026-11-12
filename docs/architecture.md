@@ -119,7 +119,7 @@ REST negotiation returns a direct Discord DMs WebSocket URL. The client sends th
 
 The Message Broker is shared Go infrastructure. Its released image, `maxnoragami/message-broker-service:4.0.0`, serves only `GET /health` on port 8080. The current Compose configuration does not run it, and no request or event passes through it. The gateway still owns request routing, round-robin selection, and breakers, and RabbitMQ still carries domain events.
 
-The planned Broker takes over service-to-service dispatch, replica load balancing, and breakers from the gateway. It carries two kinds of message:
+The planned Broker takes over service-to-service dispatch, replica load balancing, and breakers from the gateway. The [Message Broker dispatch contract](contracts/broker.md) defines its REST dispatch and service-call authorization. It carries two kinds of message:
 
 - A targeted request names its destination service. The gateway forwards a client request to the Broker, and a service sends its own requests there. The Broker delivers each request through the destination service's queue to one ready replica and returns the reply to the caller.
 - A topic event names a topic, not its recipients. The publisher sends it to the Broker without knowing who subscribes. Every subscribing service receives one copy, and that service's replicas compete for it. Services declare the topics they consume when they register with Discovery.
