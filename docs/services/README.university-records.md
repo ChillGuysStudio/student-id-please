@@ -4,7 +4,7 @@ University Record owns university reference data, stable identities, snapshots, 
 
 ## Public image
 
-The image is [`maxnoragami/university-record-service`](https://hub.docker.com/r/maxnoragami/university-record-service/tags). Set `UNIVERSITY_RECORD_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The local API address is `http://localhost:8006`.
+The image is [`maxnoragami/university-record-service`](https://hub.docker.com/r/maxnoragami/university-record-service/tags). Set `UNIVERSITY_RECORD_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The standalone API address is `http://localhost:8006`, not client ingress. In Compose, clients use the gateway.
 
 Source code is in the [private repository](https://github.com/MaxNoragami/university-record-service). Public images run without private-source access.
 
