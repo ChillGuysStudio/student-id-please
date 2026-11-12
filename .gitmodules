@@ -28,3 +28,6 @@
 [submodule "discovery-service"]
 	path = discovery-service
 	url = git@github.com:ChillGuysStudio/discovery-service.git
+[submodule "message-broker-service"]
+	path = message-broker-service
+	url = git@github.com:ChillGuysStudio/message-broker-service.git
