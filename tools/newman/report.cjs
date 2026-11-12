@@ -97,7 +97,7 @@ function sanitize(inputs, collection = COLLECTION) {
     const httpChecks = collection === HTTP_COLLECTION;
     const description = httpChecks
         ? `Saved run started ${date}. Read-only HTTP checks only. URL placeholders are privacy redactions. This report does not prove round-robin, breaker timing, health polling, critical load, direct WebSockets or notification receipt.`
-        : `Saved run started ${date}. ${inputs.length} recorded phase(s), combined without replaying requests. URL placeholders are intentional privacy redactions, not actual targets. ${scope} No Session activation, task-timeout test or direct WebSocket frames are demonstrated by this collection. Report timestamp is the rendering time.`;
+        : `Saved run started ${date}. ${inputs.length} recorded phase(s), combined without replaying requests. URL placeholders are intentional privacy redactions, not actual targets. ${scope} No task-timeout test or direct WebSocket frames are demonstrated by this collection. Report timestamp is the rendering time.`;
     return {
         collection: { info: { name: httpChecks ? 'Read-only HTTP checks' : 'Guided Gateway HTTP demo', description }, item: [...folders].map(([name, item]) => ({ name, item })) },
         run: { stats, timings: { started, completed, responseAverage: responseCount ? timeTotal / responseCount : 0 }, transfers: { responseTotal }, executions, failures,
@@ -188,7 +188,7 @@ function parseArgs(args) {
 }
 
 function help() {
-    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27; these create disposable service data.\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery operator checks; supply a private environment\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
+    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27, then 30–66; these create disposable service data.\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery operator checks; supply a private environment\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery and 30–66\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
 }
 
 async function executePhase(collection, environment) {
@@ -196,6 +196,20 @@ async function executePhase(collection, environment) {
     return new Promise((resolve, reject) => newman.run({ collection, environment,
         reporters: [], silent: true, timeoutRequest: 15000, timeoutScript: 5000
     }, (error, summary) => error ? reject(new Error('Newman failed; private diagnostic withheld.')) : resolve(summary)));
+}
+
+// Folders before the overload folder run first, the overload requests 28 and 29
+// run only on request, and the later folders run last in either mode.
+function phases(source) {
+    const index = source.item.findIndex(folder => (folder.item || []).some(item => item.name.startsWith('28 ')));
+    if (index < 0) throw new Error('The guided collection has no overload folder.');
+    const label = folders => {
+        const numbers = folders.flatMap(folder => folder.item).map(item => item.name.slice(0, 2));
+        return numbers.length ? `${numbers[0]}-${numbers[numbers.length - 1]}` : 'none';
+    };
+    const before = source.item.slice(0, index), after = source.item.slice(index + 1);
+    return { before: { ...source, item: before }, overload: source.item[index], after: { ...source, item: after },
+        labels: { before: label(before), after: label(after) } };
 }
 
 async function runLive(options) {
@@ -223,14 +237,19 @@ async function runLive(options) {
         console.log(`${label}: ${stat.requests.total} requests, ${stat.assertions.total - stat.assertions.failed}/${stat.assertions.total} assertions passed`);
         return !raw.run.error && !raw.run.failures.length && !Object.values(stat).some(value => value.failed > 0);
     }
-    const first = options.http ? { ...source, item: source.item.filter(folder => folder.name === options.http) } : { ...source, item: source.item.slice(0, 3) };
+    const plan = options.http ? null : phases(source);
+    const first = options.http ? { ...source, item: source.item.filter(folder => folder.name === options.http) } : plan.before;
     if (options.http === 'Private operator reads') {
         const values = Object.fromEntries(environment.values.filter(entry => entry.enabled !== false).map(entry => [entry.key, entry.value]));
         if (values.control_name !== 'operator' || !values.control_token || values.control_token === 'REPLACE_IN_PRIVATE_COPY' || !values.discovery_url) throw new Error('Private operator checks require a private environment with a Discovery URL and operator credential.');
     }
     if (options.http) { await execute(first, 'http-checks'); return results; }
-    if (!await execute(first, '01-27') || !options.overload) return results;
-    const step = number => ({ ...source, item: [{ ...source.item[3], item: source.item[3].item.filter(item => item.name.startsWith(`${number} `)) }] });
+    if (!await execute(first, plan.labels.before)) return results;
+    if (!options.overload) {
+        await execute(plan.after, plan.labels.after);
+        return results;
+    }
+    const step = number => ({ ...source, item: [{ ...plan.overload, item: plan.overload.item.filter(item => item.name.startsWith(`${number} `)) }] });
     const helper = spawn('python3', [path.join(ROOT, 'postman/overload.py'), '--port', gateway.port || '80', '--hold-seconds', '7'], { stdio: ['ignore', 'pipe', 'pipe'] });
     let helperError = false;
     helper.on('error', () => { helperError = true; });
@@ -246,10 +265,10 @@ async function runLive(options) {
             helper.stdout.on('data', data); helper.once('close', closed); helper.once('error', error);
         });
         console.log('Overload helper ready: testing request 28.');
-        await execute(step(28), '28');
+        const held = await execute(step(28), '28');
         if (await exited !== 0 || helperError) throw new Error('Overload helper failed; do not claim an overload demonstration.');
         await new Promise(resolve => setTimeout(resolve, 250));
-        await execute(step(29), '29');
+        if (await execute(step(29), '29') && held) await execute(plan.after, plan.labels.after);
     } catch (error) {
         helper.kill('SIGTERM');
         await exited.catch(() => {});
@@ -273,5 +292,5 @@ async function main() {
     process.exitCode = safe.reportMetadata.failed ? 1 : 0;
 }
 
-module.exports = { sanitize, render, verifyNoSecrets, parseArgs, executePhase };
+module.exports = { sanitize, render, verifyNoSecrets, parseArgs, executePhase, phases };
 if (require.main === module) main().catch(() => { console.error('Newman/report generation failed. Private diagnostics are withheld; check inputs, dependencies and Gateway availability.'); process.exitCode = 1; });

@@ -2,7 +2,7 @@
   "info": {
     "name": "Guided Gateway and concurrency demo",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "A numbered real-user demonstration through the public Gateway, followed by a controlled 100-slot overload and recovery. Run requests manually in order, using the separate environment template. These are successful, currently demonstrated lobby and permission flows; this collection does not assert Session activation or WebSocket frame delivery."
+    "description": "A numbered real-user demonstration through the public Gateway, followed by a controlled 100-slot overload and recovery, a complete one-case shift and the account, friendship and team lifecycle. Run requests manually in order, using the separate environment template. This collection does not assert WebSocket frame delivery."
   },
   "event": [
     {
@@ -40,7 +40,7 @@
                 "exec": [
                   "const run = pm.variables.replaceIn(\"{{$randomUUID}}\").replace(/-/g, \"\");",
                   "pm.environment.set(\"run_id\", run);",
-                  "for (const key of [\"session_id\", \"team_id\", \"player0\", \"player1\", \"player2\", \"token0\", \"token1\", \"token2\"]) pm.environment.unset(key);",
+                  "for (const key of [\"session_id\", \"team_id\", \"player0\", \"player1\", \"player2\", \"token0\", \"token1\", \"token2\", \"refresh_token0\", \"case_id\", \"lobby_id\", \"team2_id\", \"friendship3\", \"poll_attempt\"]) pm.environment.unset(key);",
                   "for (let i = 0; i < 3; i++) {",
                   " pm.environment.set(\"username\" + i, \"demo_\" + run.slice(0, 16) + \"_\" + i);",
                   " pm.environment.set(\"email\" + i, \"demo_\" + run + \"_\" + i + \"@example.test\");",
@@ -154,6 +154,7 @@
                   "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
                   "pm.test(\"Bearer tokens are nonempty\", () => pm.expect(data.token_type === \"Bearer\" && typeof data.access_token === \"string\" && data.access_token.length > 20 && typeof data.refresh_token === \"string\" && data.refresh_token.length > 0 && Number.isFinite(data.expires_in) && data.expires_in > 0).to.equal(true));",
                   "pm.environment.set(\"token0\", data.access_token);",
+                  "pm.environment.set(\"refresh_token0\", data.refresh_token);",
                   "})();"
                 ]
               }
@@ -1279,6 +1280,1499 @@
                   "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
                   "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
                   "pm.test(\"Verified real player\", () => pm.expect(data.player_id === pm.environment.get(\"player0\")).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "E. Shift start, case readiness and lobby deletion \u2014 30\u201343",
+      "item": [
+        {
+          "name": "30 \u2014 Junior cannot start the shift",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/start",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31 \u2014 Owner starts the shift",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/start",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Shift is active with pinned inputs\", () => pm.expect(data.session_id === pm.environment.get(\"session_id\") && data.status === \"active\" && typeof data.rule_version === \"string\" && typeof data.started_at === \"string\").to.equal(true));",
+                  "pm.test(\"University snapshot is pinned\", () => pm.expect(typeof data.university_snapshot_id === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(data.university_snapshot_id)).to.equal(true));",
+                  "pm.test(\"Roster is unchanged\", () => pm.expect(Array.isArray(data.participants) && data.participants.length === 3 && data.current_case_id === null).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32 \u2014 Junior cannot open a case",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/cases",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entry_service\": \"applicant\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"SESSION_FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "33 \u2014 Moderator opens a case (202)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/cases",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entry_service\": \"applicant\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(202));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 202) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Canonical case_id\", () => pm.expect(typeof data.case_id === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(data.case_id)).to.equal(true));",
+                  "pm.environment.set(\"case_id\", data.case_id);",
+                  "pm.test(\"Case is accepted for asynchronous initialization\", () => pm.expect(data.session_id === pm.environment.get(\"session_id\") && data.state === \"pending\" && Array.isArray(data.ready_services)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "34 \u2014 Poll case status until ready",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/cases/{{case_id}}/status",
+            "description": "Send to the public Gateway. A Newman or Collection Runner run repeats this request about once per second until the case is ready. When sent manually, an empty Test Results tab means the work is still pending: send it again."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (Number(pm.environment.get(\"poll_attempt\") || 0) > 0) setTimeout(() => {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "const attempt = Number(pm.environment.get(\"poll_attempt\") || 0);",
+                  "if (pm.response.code === 200 && data && !(data.state === \"ready\") && attempt < 30) {",
+                  "  pm.environment.set(\"poll_attempt\", attempt + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "pm.environment.unset(\"poll_attempt\");",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Case is ready in all three record services\", () => pm.expect(data.case_id === pm.environment.get(\"case_id\") && data.session_id === pm.environment.get(\"session_id\") && data.state === \"ready\" && JSON.stringify([...data.ready_services].sort()) === JSON.stringify([\"applicant\", \"credential\", \"university_record\"])).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35 \u2014 Case status without bearer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/cases/{{case_id}}/status",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(401));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 401) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"UNAUTHORIZED\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "36 \u2014 Moderator records the case decision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/decisions",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"case_id\": \"{{case_id}}\", \"action\": \"reject\", \"reason\": \"Guided demo decision\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(201));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 201) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Decision belongs to the current case\", () => pm.expect(data.case_id === pm.environment.get(\"case_id\") && data.session_id === pm.environment.get(\"session_id\") && data.moderator_id === pm.environment.get(\"player0\") && data.action === \"reject\").to.equal(true));",
+                  "pm.test(\"Decision has a canonical ID\", () => pm.expect(typeof data.decision_id === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(data.decision_id)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "37 \u2014 Poll Session until the decision is scored",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}",
+            "description": "Send to the public Gateway. A Newman or Collection Runner run repeats this request about once per second until the scored decision clears the current case. When sent manually, an empty Test Results tab means the work is still pending: send it again."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (Number(pm.environment.get(\"poll_attempt\") || 0) > 0) setTimeout(() => {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "const attempt = Number(pm.environment.get(\"poll_attempt\") || 0);",
+                  "if (pm.response.code === 200 && data && !(data.current_case_id === null && data.processed_count === 1) && attempt < 30) {",
+                  "  pm.environment.set(\"poll_attempt\", attempt + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "pm.environment.unset(\"poll_attempt\");",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Scored case is cleared from the active shift\", () => pm.expect(data.session_id === pm.environment.get(\"session_id\") && data.status === \"active\" && data.current_case_id === null && data.processed_count === 1).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "38 \u2014 Junior cannot end the shift",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/end",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"SESSION_FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "39 \u2014 Owner ends the shift",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/end",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Shift ended with its scored case\", () => pm.expect(data.session_id === pm.environment.get(\"session_id\") && data.status === \"ended\" && data.processed_count === 1 && data.current_case_id === null).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "40 \u2014 Create a disposable lobby",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"team_id\": \"{{team_id}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(201));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 201) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Canonical lobby session_id\", () => pm.expect(typeof data.session_id === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(data.session_id) && data.session_id !== pm.environment.get(\"session_id\")).to.equal(true));",
+                  "pm.environment.set(\"lobby_id\", data.session_id);",
+                  "pm.test(\"Owner-only lobby\", () => pm.expect(data.status === \"lobby\" && data.owner_id === pm.environment.get(\"player0\") && data.participants.length === 1).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "41 \u2014 Junior cannot delete the lobby",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{lobby_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"SESSION_FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "42 \u2014 Owner deletes the lobby",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{lobby_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(204));",
+                  "pm.test(\"Response has no body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "43 \u2014 Deleted lobby no longer exists",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{lobby_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(404));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 404) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"SESSION_NOT_FOUND\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "F. Tokens, profiles, friendships and teams \u2014 44\u201366",
+      "item": [
+        {
+          "name": "44 \u2014 Public token signing keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/.well-known/jwks.json",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"One RS256 verification key\", () => pm.expect(Array.isArray(data.keys) && data.keys.length === 1 && data.keys[0].kty === \"RSA\" && data.keys[0].alg === \"RS256\" && data.keys[0].use === \"sig\" && data.keys[0].kid === \"player-v1\").to.equal(true));",
+                  "pm.test(\"No private key material\", () => pm.expect([\"d\", \"p\", \"q\", \"dp\", \"dq\", \"qi\"].every(field => !(field in data.keys[0]))).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "45 \u2014 Refresh player 0 tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/auth/refresh",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refresh_token\": \"{{refresh_token0}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Bearer tokens are nonempty\", () => pm.expect(data.token_type === \"Bearer\" && typeof data.access_token === \"string\" && data.access_token.length > 20 && Number.isFinite(data.expires_in) && data.expires_in > 0).to.equal(true));",
+                  "pm.test(\"Refresh token is rotated\", () => pm.expect(typeof data.refresh_token === \"string\" && data.refresh_token.length > 0 && data.refresh_token !== pm.environment.get(\"refresh_token0\")).to.equal(true));",
+                  "pm.environment.set(\"token0\", data.access_token);",
+                  "pm.environment.set(\"refresh_token0\", data.refresh_token);",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "46 \u2014 Rename player 0 with the refreshed token",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/players/me",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"display_name\": \"Demo moderator 0\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Display name changed for the token owner\", () => pm.expect(data.player_id === pm.environment.get(\"player0\") && data.display_name === \"Demo moderator 0\").to.equal(true));",
+                  "pm.test(\"No private account fields\", () => pm.expect(!(\"email\" in data) && !(\"password_hash\" in data)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "47 \u2014 Profile change without bearer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/players/me",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"display_name\": \"Unauthenticated change\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(401));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 401) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"UNAUTHORIZED\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "48 \u2014 Teammate reads player 0",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/players/{{player0}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Public profile shows the new name\", () => pm.expect(data.player_id === pm.environment.get(\"player0\") && data.display_name === \"Demo moderator 0\" && Number.isInteger(data.level)).to.equal(true));",
+                  "pm.test(\"No private account fields\", () => pm.expect(!(\"email\" in data) && !(\"password_hash\" in data)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "49 \u2014 Player read without bearer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/players/{{player0}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(401));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 401) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"UNAUTHORIZED\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "50 \u2014 List player 0 friendships",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/friendships",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Both accepted friendships are listed\", () => pm.expect(Array.isArray(data.items) && \"next_cursor\" in data && [\"friendship1\", \"friendship2\"].every(key => data.items.some(f => f.friendship_id === pm.environment.get(key) && f.status === \"accepted\"))).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "51 \u2014 Friendship list without bearer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/friendships",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(401));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 401) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"UNAUTHORIZED\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "52 \u2014 Request a disposable friendship",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/friendships",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"recipient_id\": \"{{player2}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(201));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 201) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Canonical friendship_id\", () => pm.expect(typeof data.friendship_id === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(data.friendship_id)).to.equal(true));",
+                  "pm.environment.set(\"friendship3\", data.friendship_id);",
+                  "pm.test(\"Pending between players 1 and 2\", () => pm.expect(data.status === \"pending\" && data.requester_id === pm.environment.get(\"player1\") && data.recipient_id === pm.environment.get(\"player2\")).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "53 \u2014 Outsider cannot remove the friendship",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/friendships/{{friendship3}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"FRIENDSHIP_FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "54 \u2014 Recipient removes the friendship",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/friendships/{{friendship3}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(204));",
+                  "pm.test(\"Response has no body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "55 \u2014 Removed friendship is no longer listed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/friendships",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Only the accepted friendship remains\", () => pm.expect(Array.isArray(data.items) && !data.items.some(f => f.friendship_id === pm.environment.get(\"friendship3\")) && data.items.some(f => f.friendship_id === pm.environment.get(\"friendship2\"))).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "56 \u2014 Create a disposable team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Disposable {{run_id}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(201));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 201) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Canonical team_id\", () => pm.expect(typeof data.team_id === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(data.team_id) && data.team_id !== pm.environment.get(\"team_id\")).to.equal(true));",
+                  "pm.environment.set(\"team2_id\", data.team_id);",
+                  "pm.test(\"Owner is player 1\", () => pm.expect(data.owner_id === pm.environment.get(\"player1\")).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "57 \u2014 Add player 0 to the disposable team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}/members",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"player_id\": \"{{player0}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Accepted friend joins\", () => pm.expect(JSON.stringify([...data.member_ids].sort()) === JSON.stringify([pm.environment.get(\"player0\"), pm.environment.get(\"player1\")].sort())).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "58 \u2014 Member reads the disposable team",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Team owner and members\", () => pm.expect(data.team_id === pm.environment.get(\"team2_id\") && data.owner_id === pm.environment.get(\"player1\") && data.member_ids.length === 2 && data.member_ids.includes(pm.environment.get(\"player0\"))).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "59 \u2014 Non-member cannot read the team",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"TEAM_FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "60 \u2014 Member cannot remove the owner",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}/members/{{player1}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"TEAM_FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "61 \u2014 Owner removes player 0",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}/members/{{player0}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Only the owner remains\", () => pm.expect(JSON.stringify(data.member_ids) === JSON.stringify([pm.environment.get(\"player1\")])).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "62 \u2014 Removed member cannot delete the team",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"TEAM_FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "63 \u2014 Owner deletes the disposable team",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(204));",
+                  "pm.test(\"Response has no body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "64 \u2014 Deleted team no longer exists",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/teams/{{team2_id}}",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(404));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 404) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"TEAM_NOT_FOUND\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "65 \u2014 Log out player 0",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/auth/logout",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refresh_token\": \"{{refresh_token0}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(204));",
+                  "pm.test(\"Response has no body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "66 \u2014 Logged-out refresh token is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/auth/refresh",
+            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refresh_token\": \"{{refresh_token0}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(401));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 401) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"INVALID_REFRESH\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
                   "})();"
                 ]
               }
