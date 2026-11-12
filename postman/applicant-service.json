@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "7d64d67b-f69c-4d30-89d4-9b73fd6b1a53",
     "name": "Applicant service",
-    "description": "Public Gateway requests for the Applicant service: administrator applicant presets and the assigned Moderator's applicant read. Set admin_token and moderator_token to Bearer access tokens for those roles, and set session_id and case_id for an active shift before the case read. Routes follow docs/contracts/api.md.",
+    "description": "Public Gateway requests for the Applicant service. Applicant presets needs admin_token for a global administrator. Applicant cases needs moderator_token for the assigned Moderator of an active session, with session_id and case_id for its current case. Denied requests also needs outsider_token for a player outside that session. Routes follow docs/contracts/api.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -29,6 +29,10 @@
     {
       "key": "moderator_token",
       "value": ""
+    },
+    {
+      "key": "outsider_token",
+      "value": ""
     }
   ],
   "item": [
@@ -42,9 +46,8 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  pm.collectionVariables.set('presetId', pm.response.json().preset_id);",
-                  "}"
+                  "pm.test('preset created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('presetId', pm.response.json().preset_id);"
                 ],
                 "type": "text/javascript"
               }
@@ -80,7 +83,19 @@
             "method": "GET",
             "header": [],
             "url": "{{gateway_url}}/api/v1/admin/applicant-presets?limit=50"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('presets listed', () => pm.response.to.have.status(200));",
+                  "pm.test('lists the new preset', () => pm.expect(pm.response.json().items.map(item => item.preset_id)).to.include(pm.collectionVariables.get('presetId')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Get preset",
@@ -88,7 +103,19 @@
             "method": "GET",
             "header": [],
             "url": "{{gateway_url}}/api/v1/admin/applicant-presets/{{presetId}}"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('preset read', () => pm.response.to.have.status(200));",
+                  "pm.test('identity preserved', () => pm.expect(pm.response.json().preset_id).to.eql(pm.collectionVariables.get('presetId')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Update preset",
@@ -114,7 +141,19 @@
               }
             },
             "url": "{{gateway_url}}/api/v1/admin/applicant-presets/{{presetId}}"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('preset updated', () => pm.response.to.have.status(200));",
+                  "pm.test('label updated', () => pm.expect(pm.response.json().label).to.eql('Updated Postman FAF student'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Delete preset",
@@ -127,7 +166,18 @@
               }
             ],
             "url": "{{gateway_url}}/api/v1/admin/applicant-presets/{{presetId}}"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('preset deleted', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
@@ -140,6 +190,107 @@
             "method": "GET",
             "header": [],
             "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/applicants/{{case_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{moderator_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('applicant read', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('reads the requested case', () => { pm.expect(body.case_id).to.eql(pm.variables.get('case_id')); pm.expect(body.claims).to.be.an('object'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Denied requests",
+      "item": [
+        {
+          "name": "Reject applicant read without token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('uses UNAUTHORIZED', () => pm.expect(pm.response.json().code).to.eql('UNAUTHORIZED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/applicants/{{case_id}}",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Reject applicant read outside the session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('uses FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/applicants/{{case_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{outsider_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reject preset list for a non-administrator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('uses FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/applicant-presets",
             "auth": {
               "type": "bearer",
               "bearer": [

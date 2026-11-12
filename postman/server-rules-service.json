@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4789-abcd-ef0123456789",
     "name": "Server Rules service",
-    "description": "Public Gateway requests for the Server Rules service: draft, update, publish, and delete rule versions as an administrator, and read a version as a player. Set admin_token and player_token to Bearer access tokens. The collection can run repeatedly.",
+    "description": "Public Gateway requests for the Server Rules service. Draft rules creates, replaces, publishes, and deletes rule versions; it needs admin_token for a global administrator and player_token for any other player, and can run repeatedly. Publishing makes the new version current for sessions started afterwards. Player reads needs player_token and rule_version, a published version such as the one an active session pins.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -16,6 +16,10 @@
     },
     {
       "key": "player_token",
+      "value": ""
+    },
+    {
+      "key": "rule_version",
       "value": ""
     }
   ],
@@ -158,13 +162,18 @@
           "name": "Reject draft read as player",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{player_token}}"
-              }
-            ],
-            "url": "{{gateway_url}}/api/v1/rule-versions/{{draft_id}}"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/rule-versions/{{draft_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{player_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -183,7 +192,10 @@
           "request": {
             "method": "GET",
             "url": "{{gateway_url}}/api/v1/admin/rule-versions",
-            "header": []
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -482,13 +494,18 @@
           "name": "Read published version as player",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{player_token}}"
-              }
-            ],
-            "url": "{{gateway_url}}/api/v1/rule-versions/{{draft_id}}"
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/rule-versions/{{draft_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{player_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -594,6 +611,94 @@
         }
       ],
       "description": "Draft lifecycle: create, read, replace, publish, and their guards."
+    },
+    {
+      "name": "Player reads",
+      "item": [
+        {
+          "name": "Read a published version as player",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('published version read', () => pm.response.to.have.status(200));",
+                  "pm.test('version is published', () => { const body = pm.response.json(); pm.expect(body.rule_version).to.eql(pm.variables.get('rule_version')); pm.expect(body.status).to.eql('published'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/rule-versions/{{rule_version}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{player_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reject version read without token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('uses UNAUTHORIZED', () => pm.expect(pm.response.json().code).to.eql('UNAUTHORIZED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/rule-versions/{{rule_version}}",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Reject version list for a non-administrator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('uses FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('FORBIDDEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/rule-versions",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{player_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "auth": {
