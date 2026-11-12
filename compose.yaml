@@ -1,7 +1,7 @@
 name: student-id-please
 x-registration: &registration
   DISCOVERY_URL: ${DISCOVERY_URL:-http://discovery-slot-1:8081}
-  CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
+  CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
   CONTROL_MAX_CONCURRENT_CALLS: '8'
   DISCOVERY_REGISTER_INTERVAL_SECONDS: '5'
   OUTBOUND_TASK_TIMEOUT_SECONDS: '2'
@@ -174,7 +174,7 @@ services:
   player:
     image: ${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}
     pull_policy: always
-    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001', --log-config, /run/student-id/application-logging.json]
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001']
     env_file: .local/stack/player.env
     environment:
       <<: *registration
@@ -189,7 +189,6 @@ services:
     volumes:
       - ./.local/stack/player-private.pem:/keys/player-private.pem:ro,z
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
     depends_on:
       player-db:
         condition: service_healthy
@@ -202,7 +201,7 @@ services:
   session:
     image: ${SESSION_IMAGE:-tirppy/student-id-session-service:latest}
     pull_policy: always
-    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002', --log-config, /run/student-id/application-logging.json]
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002']
     env_file: .local/stack/session.env
     environment:
       <<: *registration
@@ -221,7 +220,6 @@ services:
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
       - ./.local/stack/player-public.pem:/keys/player-public.pem:ro,z
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
     depends_on:
       session-db:
         condition: service_healthy
@@ -238,7 +236,7 @@ services:
   moderation:
     image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
     pull_policy: always
-    command: [uvicorn, moderation.api:app, --host, 0.0.0.0, --port, '8000', --log-config, /run/student-id/application-logging.json]
+    command: [uvicorn, moderation.api:app, --host, 0.0.0.0, --port, '8000']
     env_file: .local/stack/moderation.env
     environment:
       <<: *registration
@@ -264,7 +262,7 @@ services:
       PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
+      - moderation-publisher-logs:/var/log/student-id-publisher:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -287,6 +285,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
+    volumes:
+      - moderation-publisher-logs:/var/log/student-id-publisher
     depends_on:
       moderation:
         condition: service_healthy
@@ -296,7 +296,7 @@ services:
   discord-dms:
     image: ${DISCORD_DMS_IMAGE:-sentientmoss/pad-discord-dms-service:latest}
     pull_policy: always
-    command: [uvicorn, discord_dms.api:app, --host, 0.0.0.0, --port, '8000', --no-access-log, --ws-ping-interval, '30', --ws-ping-timeout, '60', --log-config, /run/student-id/application-logging.json]
+    command: [uvicorn, discord_dms.api:app, --host, 0.0.0.0, --port, '8000', --ws-ping-interval, '30', --ws-ping-timeout, '60']
     env_file: .local/stack/discord-dms.env
     environment:
       <<: *registration
@@ -320,7 +320,6 @@ services:
       - '127.0.0.1:${DMS_PORT:-8009}:8000'
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
-      - ./config/python-application-logging.json:/run/student-id/application-logging.json:ro,z
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -502,6 +501,7 @@ services:
     restart: unless-stopped
 volumes:
   discovery-state:
+  moderation-publisher-logs:
   player-data:
   session-data:
   moderation-data:
