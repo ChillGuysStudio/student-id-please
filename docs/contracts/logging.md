@@ -26,6 +26,10 @@ Records add fields for their kind:
 - **Domain event:** `event` is `event_published` or `event_consumed`. The record adds `event_type` and `event_id`. `outcome` is `published`, `processed`, `duplicate`, `retry`, or `rejected`.
 - **Error:** the record adds `error_kind`, a short stable code. It never includes a stack trace at `INFO`.
 
+One user action keeps one `request_id` across every hop. A service sends its current `request_id` as `X-Request-ID` on each outbound call it makes while handling a request. The receiver, including the gateway's internal listener, keeps a valid UUID it receives instead of generating a new one. Work that no request triggered, such as an outbox relay or an event consumer, uses `event_id` for correlation.
+
+A request that fails with an unexpected exception produces one `ERROR` record with `event` `unhandled_exception`, the `request_id`, the route template, and `error_kind`, in addition to its `http_request` record.
+
 Field names never change meaning between services. A process can add other `snake_case` fields when they hold no sensitive data.
 
 ## Levels
