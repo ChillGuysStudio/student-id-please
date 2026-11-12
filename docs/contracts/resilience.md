@@ -19,8 +19,8 @@ The following names are the target settings. Services adapt their configuration 
 | Setting | Owner and value |
 | --- | --- |
 | `SERVICE_NAME` | Every process. One canonical name above, or `discovery`. |
-| `INSTANCE_ID` | Every process. Required canonical UUID, unique per deployment replica slot and stable across process restarts. |
-| `INSTANCE_HTTP_URL` | Every registered process. Required private root HTTP origin that reaches this replica, not a service-wide DNS load balancer. Gateway advertises its internal listener. |
+| `INSTANCE_ID` | Every process. Optional. By default each process generates a canonical UUID at startup, so one instance is one process lifetime. Set it only for tests. |
+| `INSTANCE_HTTP_URL` | Every registered process. Optional. By default the process advertises `http://<its container address>:<its listen port>`, detected at startup, which reaches this replica and not a service-wide DNS name. Gateway advertises its internal listener. |
 | `INSTANCE_WS_URL` | DMs only. Required client-reachable WebSocket origin for this replica. Other services advertise `null`. |
 | `DISCOVERY_URL` | All callers. Required private Discovery root origin, for example `http://discovery:8084`. |
 | `DISCOVERY_ADDR` | Discovery. Default `:8084`, never published as public ingress. |
@@ -36,9 +36,12 @@ The following names are the target settings. Services adapt their configuration 
 | `DISCOVERY_HEALTH_INTERVAL_SECONDS` | Discovery. Default `1`, positive. |
 | `DISCOVERY_CRITICAL_LOAD_RATIO` | Discovery and status producers. Default `0.90`, greater than zero and at most one. |
 | `DISCOVERY_STATE_FILE` | Discovery. Required writable path on a persistent volume for removal records, for example `/data/removals.json`. |
+| `DISCOVERY_REMOVAL_RETENTION_SECONDS` | Discovery. Default `300`, positive. How long a removal record is kept after its instance stops renewing. |
 | `DISCOVERY_ALERT_COOLDOWN_SECONDS` | Discovery. Default `60`, positive. |
 
-`boot_id` is a fresh UUID generated once per process start. It is not `INSTANCE_ID`. A restart must not evade a removal by choosing a new instance ID. Adding a replica requires a new deployment-owned instance ID and an independently reachable HTTP origin. Reusing an ID in two live replicas is a configuration error.
+`boot_id` is a fresh UUID generated once per process start. With a generated `INSTANCE_ID`, both change together. A restarted process or a replacement container is a new instance: it registers under its new ID and receives traffic only after a ready probe. Adding a replica needs no configuration, because each container generates its own ID and advertises its own address. Two live replicas never share an ID.
+
+On a graceful stop, such as `docker stop` or scaling down, a registered process removes its own instance with reason `shutdown` before its listener closes. Discovery stops routing it immediately. A shutdown removal never needs reactivation. A process that dies without stopping gracefully drops out when its lease expires.
 
 HTTP origins have scheme `http` or `https`, a concrete host and port, and no path except `/`. They contain no credentials, query, or fragment. They must resolve to the intended replica from Gateway and Discovery. Wildcard, loopback, multicast, and link-local destinations are invalid. Private container IPs and replica-specific DNS names are valid. Bind addresses such as `0.0.0.0` are not advertised addresses. Control-plane credentials and addresses come from trusted deployment configuration, never client input.
 
@@ -142,7 +145,7 @@ Each registrant binds its listeners and starts liveness before its registration 
 
 A PUT with the same service, boot ID, and addresses renews the lease to Discovery's current time plus 15 seconds. It creates no duplicate and does not reset health, counters, or removal state. Changed addresses within one boot return `409 REGISTRATION_CONFLICT`. A duplicate live HTTP origin under another ID also returns `409`. A different boot for the same instance ID returns `409` while the previous boot has an unexpired lease. After expiry, Discovery accepts the new boot as pending with a fresh generation. Removed IDs remain removed even after expiry or a new boot. Discovery can update their candidate boot and addresses only after the previous lease expires.
 
-A ready instance requires both an unexpired lease and a valid ready status probe. Lease expiry immediately excludes it, without waiting for three failures. Renewal after expiry requires a new successful probe before routing resumes. Startup registration and lease expiry do not clear removal records.
+A ready instance requires both an unexpired lease and a valid ready status probe. Lease expiry immediately excludes it, without waiting for three failures. Renewal after expiry requires a new successful probe before routing resumes. Startup registration and lease expiry do not clear removal records. Discovery deletes a removal record once its instance has not renewed for `DISCOVERY_REMOVAL_RETENTION_SECONDS`, which keeps the state file bounded as processes come and go.
 
 Discovery keeps active registrations in memory and removal records in `DISCOVERY_STATE_FILE`. Each durable removal contains the instance identity, registration generation, advertised addresses, removal reason, removal time, and operation ID. An atomic file replacement is sufficient for this single-process lab service. A failed state-file write returns `503` and does not acknowledge a removal or reactivation. A corrupt or unreadable file makes Discovery unready. It must not start with an empty removal list after a load error.
 
@@ -203,7 +206,7 @@ A domain caller records only connection errors and timeouts of its physical Gate
 | Session, Applicant, Credential, Rules, University Record, Moderation, and DMs | All business peer operations through internal Gateway, including permission and readiness callbacks | The service records its Gateway hop. Gateway records backend attempts. |
 | Player | Registration, renewal, lookup, removal reporting, and any future business HTTP | Player already needs a control-plane breaker even without a current business peer caller. |
 | All registrants, including Gateway | Direct registration, registry refresh, removal reports, and operator reactivation clients | The direct caller records Discovery failures across all these endpoints. |
-| Discovery | Direct status probes for every registered instance, including Gateway | Discovery records each probed generation and applies removal locally without calling itself over HTTP. |
+| Discovery | Direct status probes for every registered instance, including Gateway | A failed probe makes that instance unavailable and can raise an alert. Probes never remove an instance; removal comes only from caller breaker reports, shutdown, and the operator. |
 | Discovery notification adapter | Outbound Discord delivery | The adapter bounds calls and records failures for its configured external destination. It never evicts a domain instance for a Discord outage. |
 
 Discovery is a fixed bootstrap destination, not a member of its own registry. Its counter uses the configured normalized origin instead of a registry generation. Three control-plane failures exclude that address from normal control calls for `W` and log a trip. After `W`, one half-open `GET /internal/v1/status` is allowed. A successful live and ready response closes the local bootstrap breaker and clears its old failures. Failure opens it for another `W`. Other calls cannot become parallel probes. There is no recursive report of a Discovery failure to Discovery. Pending registrations and removals resume only after the bounded probe succeeds. Cached business routing still obeys its 5-second age limit.
