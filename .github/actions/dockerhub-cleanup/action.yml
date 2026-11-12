@@ -1,0 +1,31 @@
+name: Clean Docker Hub tags
+description: Preview or delete tags outside the release naming convention in one repository.
+inputs:
+  repository:
+    description: Exact Docker Hub namespace/repository.
+    required: true
+  delete:
+    description: Delete nonconforming tags instead of previewing them.
+    default: 'false'
+  confirm_repository:
+    description: Repeat the exact repository name to authorize deletion after publisher migration.
+    default: ''
+  username:
+    description: Docker Hub username. Required only for deletion.
+    default: ''
+  token:
+    description: Docker Hub personal access token with delete permission. Required only for deletion.
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Check tag convention
+      shell: bash
+      env:
+        CLEANUP_ACTION_PATH: ${{ github.action_path }}
+        DOCKERHUB_REPOSITORY: ${{ inputs.repository }}
+        DOCKERHUB_DELETE: ${{ inputs.delete }}
+        DOCKERHUB_CONFIRM_REPOSITORY: ${{ inputs.confirm_repository }}
+        DOCKERHUB_USERNAME: ${{ inputs.username }}
+        DOCKERHUB_TOKEN: ${{ inputs.token }}
+      run: python3 "$CLEANUP_ACTION_PATH/cleanup.py"
