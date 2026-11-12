@@ -4,7 +4,7 @@ Player owns accounts, authentication, friendships, teams, and persistent progres
 
 ## Public image
 
-The image is [`tirppy/student-id-player-service`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). Set `PLAYER_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The local API address is `http://localhost:8001`.
+The image is [`tirppy/student-id-player-service`](https://hub.docker.com/r/tirppy/student-id-player-service/tags). Set `PLAYER_IMAGE` in `.env` to pin a version. The default is `latest` in [Compose](../../compose.yaml). The standalone API address is `http://localhost:8001`, not client ingress. In Compose, clients use the gateway.
 
 Source code is in the [private repository](https://github.com/Tirppy/student-id-player-service). Public images run without private-source access.
 
