@@ -59,6 +59,10 @@ class ServiceReleases(unittest.TestCase):
             if not row["repository_source_labels_verified"]:
                 self.assertTrue(row["repository_source_evidence"])
 
+    def test_public_catalog_omits_private_review_references(self):
+        for row in self.rows:
+            self.assertNotIn("release_pull_request", row)
+
 
 if __name__ == "__main__":
     unittest.main()
