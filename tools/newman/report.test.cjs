@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { sanitize, render, verifyNoSecrets, parseArgs, executePhase } = require('./report.cjs');
+const { sanitize, render, verifyNoSecrets, parseArgs, executePhase, phases } = require('./report.cjs');
 
 function fixture({ failure = false, skipped = false } = {}) {
     const privateValue = 'PRIVATE_SENTINEL_credential_123456789';
@@ -141,4 +141,15 @@ test('HTTP check flags cannot trigger the stateful guided run or overload', () =
     assert.throws(() => parseArgs(['--http', '--with-overload']), /cannot run with overload/);
     assert.throws(() => parseArgs(['--http-private', '--http']), /Choose one/);
     assert.throws(() => parseArgs(['--http', '--from-json', 'private.json']), /cannot be combined/);
+});
+
+test('guided phases keep overload requests 28 and 29 separate from the later folders', () => {
+    const source = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../postman/guided-demo.postman_collection.json'), 'utf8'));
+    const plan = phases(source);
+    const names = collection => collection.item.flatMap(folder => folder.item).map(item => item.name.slice(0, 2));
+    assert.deepEqual(plan.overload.item.map(item => item.name.slice(0, 2)), ['28', '29']);
+    assert.equal(plan.labels.before, '01-27');
+    assert.ok(!names(plan.before).includes('28') && !names(plan.after).includes('29'));
+    assert.equal(plan.labels.after, `30-${names(plan.after).at(-1)}`);
+    assert.throws(() => phases({ item: [{ name: 'No overload', item: [] }] }), /no overload folder/);
 });
