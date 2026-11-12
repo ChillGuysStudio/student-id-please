@@ -24,18 +24,19 @@ Ticket requests and history recovery use public gateway REST. All Discord DMs se
 
 Current owned source supports `AUTH_MODE=gateway`. It verifies the gateway hop and request assertion, rejects original `Authorization`, and retains an encrypted chat capability for direct ticket consumption. Recurring Session and University Record reads send that capability and service credentials to internal gateway route prefixes. Roles, permissions, and lifecycle checks remain mandatory. The gateway caller name is `discord-dms`; legacy direct mode uses `dms`.
 
-The [owned gateway adapter reference](https://github.com/andyp1xe1/pad-discord-dms-service/blob/dev/docs/gateway-auth.md) describes its settings. CPR still pins an older service revision and configures direct peer URLs. Gateway-capable source does not prove Compose or real-peer integration.
+The [owned gateway adapter reference](https://github.com/andyp1xe1/pad-discord-dms-service/blob/dev/docs/gateway-auth.md) describes its settings. CPR Compose runs the gateway adapter with the settings that [`scripts/setup.py`](../../scripts/setup.py) generates.
 
 HTTP capacity exhaustion returns `503 TASK_LIMIT_EXCEEDED`. A task deadline returns `504 TASK_TIMEOUT`. Both include `Retry-After: 1`. Long-lived WebSockets retain separate authorization and transport limits.
 
 ## Configuration
 
-The shared deployment reads [`.env.example`](../../.env.example).
+The shared deployment reads [`.env.example`](../../.env.example). Compose runs two explicit services, `discord-dms-1` and `discord-dms-2`, instead of scaled replicas. Each one publishes its own host port and advertises it as `INSTANCE_WS_URL`, because clients connect to that address directly.
 
 - `DMS_DB_PASSWORD` supplies the database password.
-- Current legacy Compose uses `DISCORD_DMS_SERVICE_TOKEN` for caller `dms`. Gateway mode uses the adapter's `discord-dms` caller and internal-ingress credentials.
+- `DMS_PORT` and `DMS_PORT_2` set the WebSocket host ports, `8009` and `8010` by default.
+- `DISCORD_DMS_SERVICE_TOKEN` is the `discord-dms` caller credential for internal Gateway calls.
 - `CHAT_TICKET_SECRET` and `REDIS_PASSWORD` configure tickets and delivery.
-- Current Compose uses the legacy Player public-key volume and JWT settings. Gateway mode instead needs the adapter's gateway verification and receiver-hop settings.
+- Compose mounts the Gateway public key, and `.local/stack/discord-dms.env` holds the receiver-hop settings.
 
 ## Contracts and checks
 

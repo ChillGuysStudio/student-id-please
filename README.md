@@ -12,7 +12,7 @@ The diagram below shows the gateway, Service Discovery, the domain services, and
 
 <img src="docs/architecture.png" alt="Architecture diagram: Gateway, Service Discovery, the Java and Python services with their databases, and RabbitMQ" width="1080"/>
 
-[Architecture](docs/architecture.md) explains ownership and technology choices. The [demonstration guide](docs/demonstration.md) shows how to start the stack and run the verification suite. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
+[Architecture](docs/architecture.md) explains ownership and technology choices. The [demonstration guide](docs/demonstration.md) shows how to start, scale, and observe the stack. [Game flows](docs/flows.md) describe a shift. [Integration principles](docs/integration.md) explain mocked and integrated deployments.
 
 ## Gateway
 
@@ -42,6 +42,23 @@ Client authentication, direct Discord DMs WebSockets, event schemas, and domain 
 | Cebotari Alexandru | Player, Session | Python, FastAPI | `alexandru` |
 
 [Service references](docs/services/README.md) list public images and integration settings. The [submodule configuration](.gitmodules) lists private source repositories. The gateway is shared infrastructure, separate from each developer's two domain services.
+
+## Run the stack
+
+The stack runs with plain Docker Compose commands. Each domain service starts two replicas. Every replica generates its own instance ID and registers its own container address with Discovery, so scaling needs no per-replica configuration:
+
+```sh
+python3 scripts/setup.py
+docker compose up -d --wait
+python3 scripts/seed_university_catalog.py
+docker compose up -d --no-deps --scale applicant=4 applicant
+docker compose ps applicant
+docker compose logs -f --tail 50 --timestamps gateway discovery applicant
+docker stop <container-id>
+docker compose up -d --no-deps --scale applicant=2 applicant
+```
+
+A stopped replica deregisters itself before it exits. Discord DMs is the one exception to `--scale`. Clients connect to each DMs replica's WebSocket on its own host port, so Compose defines two services, `discord-dms-1` on port `8009` and `discord-dms-2` on port `8010`. The [demonstration guide](docs/demonstration.md) explains each command.
 
 ## Start work
 
