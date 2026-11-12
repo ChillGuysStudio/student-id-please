@@ -79,7 +79,7 @@ After a service release publishes, open one CPR PR that updates the service's ro
 - `publication_run` is the ID of the workflow run that published the images.
 - `repository_source_labels_verified` is `true` when the labels were checked against the public images. If it is `false`, add `repository_source_evidence` to explain why.
 
-Rows can also carry `configs`, the digest of each image config, and `release_pull_request`. Keep those fields on rows that already have them.
+Rows can also carry `configs`, the digest of each image config. Keep the public catalog focused on image sources and immutable digests. Private review references and diagnostics stay outside it.
 
 If the service is not checked out, [initialize your two services](development.md#check-out-your-two-services) first. Finish or save local service work before changing its checkout. Leave services you cannot access uninitialized.
 
