@@ -220,6 +220,28 @@
    },
    "publication_run": 43224705734,
    "repository_source_labels_verified": true
+  },
+  {
+   "service": "broker",
+   "submodule": "message-broker-service",
+   "repository": "ChillGuysStudio/message-broker-service",
+   "version": "4.0.0",
+   "source_sha": "c1497c4660e626d4e3bac1b876ad12a5662ab25f",
+   "image": "maxnoragami/message-broker-service@sha256:c1d924795cef9614963741c06f9b0eaee782cbe3af67bd7d08266e25f2c0e2a9",
+   "platforms": {
+    "amd64": "sha256:84d7d165b18fbc1fcdbcbda38cde5aea3b2529cfca3eb29d22ba72aff132f2a3",
+    "arm64": "sha256:ade96ddea3077c2c3fe5055ad75d1779b9d85833cee8b7eb43fbebfd6c75c8bc"
+   },
+   "configs": {
+    "amd64": "sha256:c11783410cf37d3ebe60a73a0328e42b82f6cfe3525fd65d69baf1057de83652",
+    "arm64": "sha256:5a8d04c04e8deed6eea581470979564bd72102c3567df456a9c14259c56eb5bd"
+   },
+   "revision_labels": {
+    "amd64": "c1497c4660e626d4e3bac1b876ad12a5662ab25f",
+    "arm64": "c1497c4660e626d4e3bac1b876ad12a5662ab25f"
+   },
+   "publication_run": 43268741005,
+   "repository_source_labels_verified": true
   }
  ]
 }

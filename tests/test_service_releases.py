@@ -11,7 +11,10 @@ SHA = r"[0-9a-f]{40}"
 DIGEST = r"sha256:[0-9a-f]{64}"
 IMAGE_KEYS = {"gateway": "GATEWAY", "discovery": "DISCOVERY", "player": "PLAYER", "session": "SESSION",
               "moderation": "MODERATION", "discord-dms": "DISCORD_DMS", "applicant": "APPLICANT",
-              "credential": "CREDENTIAL", "rules": "SERVER_RULES", "university_record": "UNIVERSITY_RECORD"}
+              "credential": "CREDENTIAL", "rules": "SERVER_RULES", "university_record": "UNIVERSITY_RECORD",
+              "broker": "BROKER"}
+# Released services that Compose does not run yet. The Broker joins the stack when it owns routing.
+NOT_DEPLOYED = {"broker"}
 
 
 class ServiceReleases(unittest.TestCase):
@@ -19,10 +22,9 @@ class ServiceReleases(unittest.TestCase):
     def setUpClass(cls):
         cls.rows = json.loads((ROOT / "docs/releases/services.json").read_text())["services"]
 
-    def test_ten_unique_services_and_native_images(self):
-        self.assertEqual(len(self.rows), 10)
-        self.assertEqual(len({row["service"] for row in self.rows}), 10)
-        self.assertEqual(len({row["submodule"] for row in self.rows}), 10)
+    def test_unique_services_and_native_images(self):
+        self.assertEqual(len(self.rows), len(IMAGE_KEYS))
+        self.assertEqual(len({row["submodule"] for row in self.rows}), len(IMAGE_KEYS))
         self.assertEqual({row["service"] for row in self.rows}, set(IMAGE_KEYS))
         for row in self.rows:
             self.assertRegex(row["source_sha"], "^" + SHA + "$")
@@ -51,8 +53,12 @@ class ServiceReleases(unittest.TestCase):
         for key, repo in re.findall(r"image: \$\{([A-Z_]+_IMAGE):-([^:}]+):latest\}", compose):
             fallbacks.setdefault(key, set()).add(repo)
         for row in self.rows:
+            key = IMAGE_KEYS[row["service"]] + "_IMAGE"
+            if row["service"] in NOT_DEPLOYED:
+                self.assertNotIn(key, fallbacks)
+                continue
             repo = row["image"].split("@", 1)[0]
-            self.assertEqual(fallbacks[IMAGE_KEYS[row["service"]] + "_IMAGE"], {repo})
+            self.assertEqual(fallbacks[key], {repo})
 
     def test_unverified_source_labels_carry_evidence(self):
         for row in self.rows:
