@@ -42,6 +42,8 @@ flowchart TB
 	subgraph Monitoring["Monitoring (localhost only)"]
 		PrometheusNode["Prometheus :9090\nScrapes /metrics on :9464"]
 		GrafanaNode["Grafana :3000\nProvisioned dashboards"]
+		PromtailNode["Promtail\nReads Docker log files, read-only"]
+		LokiNode[("Loki\n72 h of service logs")]
 	end
 
 	BrokerDB[("broker-db PostgreSQL\nevents, deliveries, subscriptions")]
@@ -82,6 +84,8 @@ flowchart TB
 	BrokerNode --- BrokerDB
 	Client -->|"Operator opens dashboards"| GrafanaNode
 	GrafanaNode -->|"PromQL queries"| PrometheusNode
+	GrafanaNode -->|"LogQL queries"| LokiNode
+	PromtailNode -->|"Push service records, labels service and level"| LokiNode
 	PrometheusNode -.->|"Target list, prometheus credential"| DiscoveryNode
 	PrometheusNode -->|"Scrape /metrics, private port"| DomainReplicas
 	PrometheusNode -->|"Scrape /metrics"| GatewaySvc

@@ -224,6 +224,33 @@ class SetupTests(unittest.TestCase):
                 self.assertEqual(panel["datasource"]["uid"], "prometheus")
                 self.assertTrue(all(target["expr"] for target in panel["targets"]))
 
+    def test_log_collection_is_read_only_bounded_and_unpublished(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        self.assertRegex(compose, r"\n  loki:\n(    .*\n|      .*\n)*    image: grafana/loki:3\.3\.2\n")
+        self.assertRegex(compose, r"\n  promtail:\n(    .*\n|      .*\n)*    image: grafana/promtail:3\.3\.2\n")
+        loki = compose.split("\n  loki:\n", 1)[1].split("\n  promtail:\n", 1)[0]
+        promtail = compose.split("\n  promtail:\n", 1)[1].split("\n  grafana:\n", 1)[0]
+        self.assertNotIn("ports:", loki)
+        self.assertNotIn("ports:", promtail)
+        self.assertIn(":/var/lib/docker/containers:ro\n", promtail)
+        self.assertNotIn("docker.sock", compose)
+        self.assertIn("  loki-data:\n", compose)
+        self.assertIn("retention_period: 72h", (ROOT / "config/loki/loki.yml").read_text())
+        promtail_config = (ROOT / "config/promtail/promtail.yml").read_text()
+        self.assertIn("/var/lib/docker/containers/*/*-json.log", promtail_config)
+        self.assertIn("url: http://loki:3100/loki/api/v1/push", promtail_config)
+        self.assertEqual(re.findall(r"labels:\n((?:          \w+:\n)+)", promtail_config)[0].split(), ["service:", "level:"])
+        datasource = (ROOT / "config/grafana/provisioning/datasources/loki.yaml").read_text()
+        self.assertIn("uid: loki", datasource)
+        self.assertIn("url: http://loki:3100", datasource)
+        dashboard = json.loads((ROOT / "config/grafana/dashboards/logs.json").read_text())
+        self.assertEqual(dashboard["uid"], "student-id-logs")
+        self.assertEqual([variable["name"] for variable in dashboard["templating"]["list"]], ["service", "level", "search"])
+        self.assertEqual([panel["type"] for panel in dashboard["panels"]], ["timeseries", "logs"])
+        for panel in dashboard["panels"]:
+            self.assertEqual(panel["datasource"]["uid"], "loki")
+            self.assertTrue(all(target["expr"] for target in panel["targets"]))
+
     def test_monitoring_secrets_are_generated_and_the_token_file_is_readable(self):
         setup.prepare(self.root)
         config = read_env(self.root / ".env")

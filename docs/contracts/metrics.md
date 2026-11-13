@@ -1,6 +1,6 @@
 # Service metrics and monitoring contract
 
-This contract defines the metrics that every process exposes, how Prometheus finds the replicas, and the Grafana dashboards that the stack provisions. Prometheus and Grafana are the only monitoring components. The stack adds no ELK, Loki, or tracing platform. Logs stay as the [logging contract](logging.md) defines them.
+This contract defines the metrics that every process exposes, how Prometheus finds the replicas, and the Grafana dashboards that the stack provisions. Prometheus and Grafana show the metrics. Loki and Promtail collect the logs for Grafana, as the [Logs](#logs) section defines. The stack adds no ELK or tracing platform. Records stay as the [logging contract](logging.md) defines them.
 
 ## Endpoint
 
@@ -161,16 +161,18 @@ The scrape uses `http` and the default path `/metrics`. The job applies no relab
 
 ## Grafana
 
-Grafana provisions one data source and two dashboards from files at startup. Nobody builds a dashboard by hand.
+Grafana provisions two data sources and three dashboards from files at startup. Nobody builds a dashboard by hand.
 
 | File | Content |
 | --- | --- |
 | `config/grafana/provisioning/datasources/prometheus.yaml` | Data source `Prometheus`, UID `prometheus`, URL `http://prometheus:9090`, default |
+| `config/grafana/provisioning/datasources/loki.yaml` | Data source `Loki`, UID `loki`, URL `http://loki:3100` |
 | `config/grafana/provisioning/dashboards/student-id.yaml` | One file provider for `/var/lib/grafana/dashboards`, with `allowUiUpdates: false` |
 | `config/grafana/dashboards/services.json` | Dashboard `Student ID services`, UID `student-id-services` |
 | `config/grafana/dashboards/broker.json` | Dashboard `Student ID broker`, UID `student-id-broker` |
+| `config/grafana/dashboards/logs.json` | Dashboard `Student ID logs`, UID `student-id-logs`, described under [Logs](#logs) |
 
-Both dashboards have the variable `service`, from `label_values(student_id_requests_total, service)`. It allows several values and `All`. Panels use `$__rate_interval`.
+The services and broker dashboards have the variable `service`, from `label_values(student_id_requests_total, service)`. It allows several values and `All`. Panels use `$__rate_interval`.
 
 ### Services dashboard
 
@@ -209,14 +211,39 @@ Both dashboards have the variable `service`, from `label_values(student_id_reque
 
 The `service` variable of this dashboard filters `target_service`. The panels show the Broker's view of each destination.
 
+## Logs
+
+Every process already writes its records to stdout as the [logging contract](logging.md) defines. Docker keeps them in its `json-file` log of each container. The collection path adds no code to any service:
+
+```text
+container stdout -> Docker json-file log -> Promtail -> Loki -> Grafana
+```
+
+- Promtail tails `/var/lib/docker/containers/*/*-json.log` through a read-only mount of that directory. It never mounts the Docker socket, and no component in the stack does. `DOCKER_CONTAINERS_DIR` in `.env` changes the host directory when Docker's data root is elsewhere.
+- Promtail unwraps Docker's envelope, parses each line as JSON, and keeps only lines with a `service` field. PostgreSQL, Redis, Caddy, and the monitoring components write other formats and are dropped.
+- Labels are only `service` and `level`, both bounded. `event`, `instance_id`, `request_id`, and every other field stay in the line, where `| json` reads them. A record's `ts` is its timestamp in Loki. Promtail drops the `filename` and `stream` labels, because the file name carries the container ID.
+- Loki runs as one process with filesystem storage in the volume `loki-data`, with no authentication. Retention is 72 hours, enforced by its compactor. It publishes no host port. Only Grafana and Promtail reach it, on the Compose network.
+- Records hold no tokens, assertions, tickets, query strings, or payloads, so Loki holds none. Promtail adds no fields. Logs still download through Gateway as the [logging contract](logging.md#administrator-download) defines.
+
+### Logs dashboard
+
+`Student ID logs` has these variables and panels. The variables `service` and `level` come from the Loki label values, allow several values, and have `All`. `search` is free text that filters with a literal match.
+
+| Panel | Query |
+| --- | --- |
+| Log rate | `sum by (service, level) (count_over_time({service=~"$service", level=~"$level"} \|= "$search" [$__auto]))` |
+| Logs | `{service=~"$service", level=~"$level"} \|= "$search"` |
+
 ## Compose
 
-CPR adds two services. Neither joins Discovery, and neither has a metrics listener of its own.
+CPR adds four services for monitoring. None joins Discovery, and none has a metrics listener of its own.
 
 | Service | Image | Host port | Storage and settings |
 | --- | --- | --- | --- |
 | `prometheus` | `prom/prometheus:v3.1.0` | `127.0.0.1:${PROMETHEUS_PORT:-9090}:9090` | Mounts `config/prometheus/prometheus.yml` and `.local/stack/prometheus-control-token` read-only. Volume `prometheus-data` at `/prometheus`. Flags `--config.file=/etc/prometheus/prometheus.yml`, `--storage.tsdb.path=/prometheus`, and `--storage.tsdb.retention.time=2d`. Depends on `discovery`. |
-| `grafana` | `grafana/grafana:11.4.0` | `127.0.0.1:${GRAFANA_PORT:-3000}:3000` | Mounts `config/grafana/provisioning` and `config/grafana/dashboards` read-only. No volume, so every start provisions the same state. `GF_SECURITY_ADMIN_USER=admin`, `GF_SECURITY_ADMIN_PASSWORD` from `GRAFANA_ADMIN_PASSWORD`, `GF_AUTH_ANONYMOUS_ENABLED=false`, `GF_USERS_ALLOW_SIGN_UP=false`. Depends on `prometheus`. |
+| `loki` | `grafana/loki:3.3.2` | None | Mounts `config/loki/loki.yml` read-only. Volume `loki-data` at `/loki`. Retention `72h`, no authentication. |
+| `promtail` | `grafana/promtail:3.3.2` | None | Mounts `config/promtail/promtail.yml` read-only, `/var/lib/docker/containers` read-only, and the volume `promtail-positions`. Depends on `loki`. |
+| `grafana` | `grafana/grafana:11.4.0` | `127.0.0.1:${GRAFANA_PORT:-3000}:3000` | Mounts `config/grafana/provisioning` and `config/grafana/dashboards` read-only. No volume, so every start provisions the same state. `GF_SECURITY_ADMIN_USER=admin`, `GF_SECURITY_ADMIN_PASSWORD` from `GRAFANA_ADMIN_PASSWORD`, `GF_AUTH_ANONYMOUS_ENABLED=false`, `GF_USERS_ALLOW_SIGN_UP=false`. Depends on `prometheus` and `loki`. |
 
 `scripts/setup.py` generates `GRAFANA_ADMIN_PASSWORD` with the other passwords. It never prints it. The Prometheus UI has no login, so its port binds only to `127.0.0.1`. Every process sets `METRICS_ADDRESS: ':9464'` through the shared `x-registration` block, and Discovery sets it directly.
 
@@ -232,7 +259,7 @@ Prometheus runs as user `nobody`. The token file is mode `0444` for that reason,
 | Player, Session | The metrics listener and the common metrics with `prometheus_client` |
 | Moderation, Discord DMs | The same. The Moderation publisher process adds nothing. |
 | Applicant, Credential, University Record, Server Rules | The metrics listener and the common metrics with Micrometer, on a management port at `:9464` that serves only `/metrics` |
-| CPR | This contract, the Prometheus and Grafana services and configuration files, `PROMETHEUS_CONTROL_TOKEN`, `GRAFANA_ADMIN_PASSWORD`, the `prometheus` entry in Discovery's `CONTROL_PLANE_TOKENS`, `METRICS_ADDRESS`, the architecture page, and the demonstration guide |
+| CPR | This contract, the Prometheus, Loki, Promtail, and Grafana services and configuration files, `PROMETHEUS_CONTROL_TOKEN`, `GRAFANA_ADMIN_PASSWORD`, the `prometheus` entry in Discovery's `CONTROL_PLANE_TOKENS`, `METRICS_ADDRESS`, the architecture page, and the demonstration guide |
 
 Each repository tests its own side: the exposition of every catalogue metric it owns, the label sets, the `404` for other paths, and the route template on an unmatched path. Discovery tests the target list for each state, a scaled replica, an expired record, and the credential rules.
 
@@ -248,3 +275,4 @@ The released stack passes these checks with real services:
 - The routing checks with unequal load show diverging dispatch rates and converging `student_id_broker_backend_load`.
 - `count by (__name__) ({__name__=~"student_id_.+"})` and `count({__name__=~"student_id_.+"})` show bounded series. No series has a label value that is a player, session, case, request, or event ID.
 - Logs still download through Gateway as the [logging contract](logging.md#administrator-download) defines.
+- `docker compose up -d --wait` starts Loki and Promtail. In Grafana, `Student ID logs` shows records of every service after a request through Gateway, and no PostgreSQL, Redis, or Caddy lines. `docker compose config` shows no mount of `docker.sock`. The Loki label list is exactly `service` and `level`: `docker compose exec loki wget -qO- http://127.0.0.1:3100/loki/api/v1/labels`.

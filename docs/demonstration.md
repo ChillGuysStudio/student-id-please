@@ -245,6 +245,22 @@ Prometheus and Grafana start with the stack and publish only to `127.0.0.1`. Eve
 
 The metrics port is not published, and Gateway and the DMs proxy return no exposition. Discovery's target list needs the `prometheus` credential, so a request without the headers fails with `401`.
 
+### Follow a request in the logs
+
+Promtail ships the structured records of every service to Loki, and Grafana shows them next to the metrics. Open the `Student ID logs` dashboard to filter by `service`, `level`, and free text. It shows the log rate for each service and level above the matching lines.
+
+To follow one request across services, send a request with a known ID and search for it in Grafana Explore with the `Loki` data source:
+
+```sh
+curl -s -o /dev/null -H 'X-Request-ID: 7d6f1c52-3a0e-4c0b-9f43-0b6e5f1d2a10' http://127.0.0.1:8080/api/v1/players/me
+```
+
+```text
+{service=~".+"} |= "7d6f1c52-3a0e-4c0b-9f43-0b6e5f1d2a10" | json
+```
+
+This request has no token, so only Gateway records it. With a valid bearer token, the result also lists the Broker and domain service records with the same `request_id`, ordered by time. Each line carries `event`, `instance_id`, `outcome`, and `duration_ms`. Add `| level="WARN"` or `| event="dispatch"` to narrow the result. Only `service` and `level` are labels, so filter other fields after `| json`.
+
 ## Watch load routing and rerouting
 
 The Broker sends each request to the replica with the lowest load and reroutes an eligible request after a failed attempt. The [load routing contract](contracts/routing.md) defines the rules. These steps use native Docker commands on a running stack.

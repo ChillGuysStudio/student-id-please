@@ -24,7 +24,7 @@ Service-owned storage connections do not pass through the gateway or the Broker.
 
 ## Monitoring
 
-Prometheus and Grafana start with the stack and publish only to `127.0.0.1`, on ports `9090` and `3000`. Prometheus scrapes the private `/metrics` port of every replica that Discovery lists, so scaled replicas appear without configuration. Grafana provisions the `Student ID services` and `Student ID broker` dashboards. Sign in as `admin` with `GRAFANA_ADMIN_PASSWORD` from `.env`. The [demonstration guide](docs/demonstration.md#monitor-the-stack) shows the dashboards and how to query Prometheus, and the [metrics contract](docs/contracts/metrics.md) defines the metrics.
+Prometheus and Grafana start with the stack and publish only to `127.0.0.1`, on ports `9090` and `3000`. Prometheus scrapes the private `/metrics` port of every replica that Discovery lists, so scaled replicas appear without configuration. Grafana provisions the `Student ID services` and `Student ID broker` dashboards. Promtail and Loki collect the service logs from Docker's log files, with 72 hours of retention, and the `Student ID logs` dashboard shows them next to the metrics. Sign in as `admin` with `GRAFANA_ADMIN_PASSWORD` from `.env`. The [demonstration guide](docs/demonstration.md#monitor-the-stack) shows the dashboards, how to query Prometheus, and how to follow one request ID through the logs, and the [metrics contract](docs/contracts/metrics.md) defines the metrics.
 
 ## Message Broker
 

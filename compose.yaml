@@ -506,6 +506,32 @@ services:
       discovery:
         condition: service_healthy
     restart: unless-stopped
+  loki:
+    # Stores service log records for 72 hours. It publishes no host port, because only Grafana and Promtail use it.
+    image: grafana/loki:3.3.2
+    command: [-config.file=/etc/loki/loki.yml]
+    volumes:
+      - ./config/loki/loki.yml:/etc/loki/loki.yml:ro,z
+      - loki-data:/loki
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:3100/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+  promtail:
+    # Reads the Docker json-file logs of the stack, read-only. It never mounts the Docker socket.
+    image: grafana/promtail:3.3.2
+    command: [-config.file=/etc/promtail/promtail.yml]
+    volumes:
+      - ./config/promtail/promtail.yml:/etc/promtail/promtail.yml:ro,z
+      - ${DOCKER_CONTAINERS_DIR:-/var/lib/docker/containers}:/var/lib/docker/containers:ro
+      - promtail-positions:/positions
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
   grafana:
     # Dashboards and the data source come from files, so every start provisions the same state.
     image: grafana/grafana:11.4.0
@@ -528,6 +554,8 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+      loki:
+        condition: service_healthy
     restart: unless-stopped
 volumes:
   discovery-state:
@@ -541,3 +569,5 @@ volumes:
   university-mongo-data:
   rules-data:
   prometheus-data:
+  loki-data:
+  promtail-positions:

@@ -49,6 +49,8 @@ flowchart TB
 	subgraph Monitoring["Monitoring (localhost only)"]
 		PrometheusNode["Prometheus :9090\nScrapes /metrics on :9464"]
 		GrafanaNode["Grafana :3000\nProvisioned dashboards"]
+		PromtailNode["Promtail\nReads Docker log files, read-only"]
+		LokiNode[("Loki\n72 h of service logs")]
 	end
 
 	BrokerDB[("broker-db PostgreSQL\nevents, deliveries, subscriptions")]
@@ -89,6 +91,8 @@ flowchart TB
 	BrokerNode --- BrokerDB
 	Client -->|"Operator opens dashboards"| GrafanaNode
 	GrafanaNode -->|"PromQL queries"| PrometheusNode
+	GrafanaNode -->|"LogQL queries"| LokiNode
+	PromtailNode -->|"Push service records, labels service and level"| LokiNode
 	PrometheusNode -.->|"Target list, prometheus credential"| DiscoveryNode
 	PrometheusNode -->|"Scrape /metrics, private port"| DomainReplicas
 	PrometheusNode -->|"Scrape /metrics"| GatewaySvc
@@ -151,7 +155,7 @@ Internal requests authenticate the calling service and retain the initiating pla
 
 ## Monitoring
 
-Prometheus and Grafana are the only monitoring components. Every process with a listener serves `GET /metrics` on its own private port, `:9464`, which Compose never publishes. Prometheus finds the replicas through Discovery's `GET /sd/v1/targets`, which it calls with the `prometheus` control principal. That principal can read the target list and nothing else, so a scraper cannot read or change the registry. A scaled replica appears after it registers, and a replica that leaves disappears at the next refresh. Grafana provisions its Prometheus data source and two dashboards, `Student ID services` and `Student ID broker`, from files in `config/grafana`. Both services bind only to `127.0.0.1`, and Grafana requires the generated admin password. Logs stay in the container output as the [logging contract](contracts/logging.md) defines. The [metrics contract](contracts/metrics.md) defines the catalogue, the target list, and the dashboards.
+Prometheus and Grafana show the metrics, and Loki with Promtail collect the logs for Grafana. Every process with a listener serves `GET /metrics` on its own private port, `:9464`, which Compose never publishes. Prometheus finds the replicas through Discovery's `GET /sd/v1/targets`, which it calls with the `prometheus` control principal. That principal can read the target list and nothing else, so a scraper cannot read or change the registry. A scaled replica appears after it registers, and a replica that leaves disappears at the next refresh. Grafana provisions its Prometheus and Loki data sources and three dashboards, `Student ID services`, `Student ID broker`, and `Student ID logs`, from files in `config/grafana`. Both services bind only to `127.0.0.1`, and Grafana requires the generated admin password. Logs stay in the container output as the [logging contract](contracts/logging.md) defines. Promtail reads Docker's log files through a read-only mount, never the Docker socket, keeps the records that carry a `service` field, and pushes them to Loki with the labels `service` and `level`. Loki keeps them for 72 hours and publishes no host port. The [metrics contract](contracts/metrics.md) defines the catalogue, the target list, and the dashboards.
 
 ## Storage
 
