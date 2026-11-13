@@ -1,6 +1,6 @@
-# Demonstrate and verify the stack
+# Demonstrate the stack
 
-This guide starts the two-replica stack on a laptop and runs the verification suite against it. Each suite maps to one or more course grades from 3 to 10.
+This guide starts the stack on a laptop, scales a domain service with Compose, and follows the logs while replicas join and leave. Every step uses plain `docker` and `docker compose` commands.
 
 The diagram in [architecture](architecture.md) shows the replicated topology.
 
@@ -19,7 +19,7 @@ The diagram in [architecture](architecture.md) shows the replicated topology.
 	docker compose up -d --wait
 	```
 
-	The command returns when every container is running, and those with a health check report healthy.
+	The command returns when every container is running and every container with a health check reports healthy. Each domain service starts two replicas.
 
 4. Seed the University Record catalog once. Without it, starting a session returns `409 DEPENDENCY_REJECTED`:
 
@@ -31,75 +31,69 @@ The diagram in [architecture](architecture.md) shows the replicated topology.
 
 To stop the stack and keep its data, run `docker compose down`. Never add `--volumes` to a stack you want to keep.
 
-## Run the verification suite
+## Scale a service
 
-Install [uv](https://docs.astral.sh/uv/). The script lists its own dependencies, so `uv run` fetches `rich` and `websockets` for the run and installs nothing globally.
+The domain services are `player`, `session`, `applicant`, `credential`, `university-record`, `server-rules`, and `moderation`. Each one scales with `--scale`. A new container generates its own instance ID, registers its own container address with Discovery, and receives traffic after its first ready probe. The [resilience contract](contracts/resilience.md) defines this identity.
+
+1. Raise Applicant to four replicas. `--no-deps` leaves the other services untouched:
+
+	```sh
+	docker compose up -d --no-deps --scale applicant=4 applicant
+	```
+
+2. List the Applicant containers and their health:
+
+	```sh
+	docker compose ps applicant
+	```
+
+3. In a second terminal, follow Gateway, Discovery, and Applicant:
+
+	```sh
+	docker compose logs -f --tail 50 --timestamps gateway discovery applicant
+	```
+
+	Discovery logs each new registration. Gateway's `dispatch` records name the `target_instance_id`, so you can see requests spread across the four replicas. To follow one replica, pass its index, for example `docker compose logs -f --index 2 applicant`.
+
+4. Stop one replica. Copy a container ID from the `docker compose ps applicant` output, then run:
+
+	```sh
+	docker stop <container-id>
+	```
+
+	The replica removes its own instance with reason `shutdown` before its listener closes. Discovery stops routing to it at once, and the instance never needs reactivation. A container that dies without a graceful stop leaves routing when its lease expires.
+
+5. Return Applicant to two replicas:
+
+	```sh
+	docker compose up -d --no-deps --scale applicant=2 applicant
+	```
+
+	Compose removes the extra containers. Each one deregisters on its way out.
+
+The same commands work for every domain service listed above. Gateway, Discovery, and the Moderation outbox publisher run as one instance each.
+
+## Use the two Discord DMs services
+
+Clients open the chat WebSocket directly on a host port that the DMs replica advertises. Scaled replicas cannot share one host port, so DMs runs as two explicit services instead of a scaled one:
+
+| Service | Host port | Advertised WebSocket |
+| --- | --- | --- |
+| `discord-dms-1` | `DMS_PORT`, default `8009` | `ws://localhost:8009` |
+| `discord-dms-2` | `DMS_PORT_2`, default `8010` | `ws://localhost:8010` |
+
+Gateway picks a ready DMs instance for each negotiation and returns that instance's WebSocket URL. Both services share the ticket secret, PostgreSQL history, and Redis delivery, so players connected to different replicas exchange messages. To take one out of new negotiations, run `docker compose stop discord-dms-2`. Start it again with `docker compose start discord-dms-2`.
+
+## Run the HTTP checks
+
+The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the log download, in Postman or with Newman:
 
 ```sh
-uv run scripts/verify.py
+./scripts/run_newman.sh
+./scripts/run_newman.sh --with-overload
 ```
 
-With no arguments, the script prints a menu of suites with their grade, description, and expected duration. Choose a suite, then one case or all of its cases. The same runs work without the menu:
-
-```sh
-uv run scripts/verify.py list
-uv run scripts/verify.py status
-uv run scripts/verify.py scaling up-down
-uv run scripts/verify.py all --yes
-```
-
-A passing `all` run ends with a summary table in which every suite shows `pass`. The `breaker` suite takes about two minutes for each caller, so `all` takes about 15 minutes.
-
-| Option | Effect |
-| --- | --- |
-| `--yes` | Run cases that change the stack without asking. |
-| `--verbose` | Print every captured log line. Without it, each step shows at most four lines, and lines that differ only in numbers or IDs merge into one line with a `×N` count. The JSON and Markdown reports keep every line. |
-| `--quiet` | Print failures and the summary table only. |
-| `--root DIR` | Read `.env`, `.local/stack/`, and `.local/postman/` from `DIR`. The default is this repository. |
-
-Before it runs anything, the script prints the Compose project, the Gateway URL, how many instances are ready, and a run ID. If the stack is down, it prints the command that starts it instead.
-
-Each step prints a check mark or a cross with its duration. Below the step, the script prints the container log lines from the step's time window. Each line names the service and the replica, so you can see which replica served each request.
-
-A case that changes the stack prints one line that says what it changes and how it restores the stack, then asks `Run? [Y/n]`. The restore runs when the case ends, including after Ctrl-C.
-
-A run writes `report.json` and `report.md` to `.local/verify/<run-id>/`. The run ID labels all test data and derives every idempotency key. The suite never deletes test data and never prints a secret.
-
-### Demo players
-
-The suites sign in as the three demo players from the newest `.local/postman/run-*/private-environment.json`. If none exists, the script runs `./scripts/run_newman.sh` first, which registers three players. The `gameplay guided` case registers a new set on every run.
-
-### Watch the logs
-
-Follow the stack logs, filtered to requests, breaker events, removals, alerts, and Discord receipts, with the Compose colors:
-
-```sh
-scripts/watch-logs.sh
-```
-
-To see the suite and the logs side by side, install `tmux` first, for example with `sudo apt install tmux`. The script opens tmux with the suite on the left and the logs on the right. Pass the same arguments you would give `verify.py`:
-
-```sh
-scripts/verify-demo.sh scaling --yes
-```
-
-## What each suite shows
-
-| Suite | Grade | What it shows | Changes the stack |
-| --- | --- | --- | --- |
-| `http` | 3 | Four anonymous requests through Newman. Gateway is live, the private routes are hidden, and a protected Player read needs a token. | No |
-| `status` | 3 | Every instance returns 200 for its authenticated status and 401 for a wrong token. Logs exist, none floods, and none holds a secret. | No |
-| `registry` | 4 | Every instance is registered and ready, leases and health checks keep advancing, and the running images match `docker compose config --images`. | No |
-| `scaling` | 5 | Raising `SESSION_REPLICAS` to 3 starts a third replica that registers and serves. Returning to 2 removes it from routing. | Yes. It edits `.env` and restores it. |
-| `gameplay` | 6 | The guided Newman requests 01 to 27, a whole shift served by both Session and Moderation replicas, and chat between two Discord DMs replicas. | No fault. It creates labelled test data. |
-| `round-robin` | 6 | Twelve reads alternate between the two replicas, six each, read from the access logs. | No |
-| `race` | 6 | The same first write sent to both replicas at once leaves one durable record and one idempotency record. | The Applicant and Credential cases grant admin to a demo player and revoke it. |
-| `breaker` | 7 and 10 | A caller opens its breaker after three failed Gateway hops inside the window. Discovery removes the Gateway, and recovery reactivates it. | Yes. It blocks one caller from the Gateway and restores it. |
-| `alerts` | 8 and 9 | Real load makes the Gateway critical and refuse the next request with `503 TASK_LIMIT_EXCEEDED`. Discovery logs `critical_load` and `load_recovered`, and Discord receives both. | Yes. It holds connections open and closes them. |
-
-The grades come from the course requirements. Grades 1 and 2 cover the architecture, contracts, and flows in [architecture](architecture.md), [flows](flows.md), and the [contracts](contracts/api.md).
-
-To see what the suite cannot prove, read [verification limits](architecture.md#verification-limits).
+[HTTP checks](../postman/HTTP-CHECKS.md) describes the read-only public and operator folders.
 
 ## Check the repository
 

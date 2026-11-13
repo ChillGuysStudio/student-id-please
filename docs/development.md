@@ -2,7 +2,7 @@
 
 CPR checks require Git, Python 3, and a shell. Docker is needed only to run service images. Private source checkout is optional.
 
-The [discovery and resilience contract](contracts/resilience.md) defines configuration names and service acceptance cases for replicas and Discovery. The [demonstration guide](demonstration.md) shows how to start the stack and run the verification suite on a prepared laptop.
+The [discovery and resilience contract](contracts/resilience.md) defines configuration names and service acceptance cases for replicas and Discovery. The [demonstration guide](demonstration.md) shows how to start, scale, and observe the stack on a prepared laptop.
 
 ## Clone CPR
 
@@ -13,9 +13,9 @@ cd student-id-please
 
 ## Run public images
 
-Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. DMs exposes `127.0.0.1:8009` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
+Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. The two DMs services expose `127.0.0.1:8009` and `127.0.0.1:8010` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
 
-The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each domain service. Every service image defaults to `latest` in `compose.yaml`, for example `${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}`. To pin a version, set the matching `*_IMAGE` key in `.env` to `owner/repo:version`, for example `PLAYER_IMAGE=tirppy/student-id-player-service:3.0.0`. An unset or empty key means `latest`. [`releases/services.json`](releases/services.json) lists the released versions. `scripts/replicas.py` turns `REPLICAS` into the ignored `compose.replicas.yaml`, and `.env` loads it through `COMPOSE_FILE`. The Compose project is `student-id-please`.
+The stack runs one Discovery, one Gateway, and two replicas of each domain service. Domain services scale with `docker compose up -d --no-deps --scale <service>=<count> <service>`, and each replica generates its own instance ID. Discord DMs is the exception. It runs as two explicit services, `discord-dms-1` and `discord-dms-2`, because each replica advertises its own host port. Every service image defaults to `latest` in `compose.yaml`, for example `${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}`. To pin a version, set the matching `*_IMAGE` key in `.env` to `owner/repo:version`, for example `PLAYER_IMAGE=tirppy/student-id-player-service:3.0.0`. An unset or empty key means `latest`. [`releases/services.json`](releases/services.json) lists the released versions. The Compose project is `student-id-please`.
 
 1. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
 
@@ -25,14 +25,14 @@ The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each d
 
 	The command creates ignored `.env` and `.local/stack/` files without printing credentials. It refuses existing configuration. The generated Player key matches the gateway's pinned public key. Receiver-hop credentials differ from caller credentials. Keys are for local development only.
 
-2. Review the generated `.env`. To pin an image version, add the matching `*_IMAGE` key. To change replica counts, set `REPLICAS` or `<SERVICE>_REPLICAS`, then run `python3 scripts/replicas.py`. The generator also pins the gateway public key and configures receiver-hop credentials through `SERVICE_TOKENS.gateway`. Copy your Discord webhook into `DISCOVERY_DISCORD_WEBHOOK_URL` if you want real alerts. Keep `.env` and `.local/` out of commits.
-3. Validate Compose without printing resolved values. `scripts/setup.py` also generates the instance IDs and control tokens that `.env.example` lists:
+2. Review the generated `.env`. To pin an image version, add the matching `*_IMAGE` key. The generator also pins the gateway public key and configures receiver-hop credentials through `SERVICE_TOKENS.gateway`. Copy your Discord webhook into `DISCOVERY_DISCORD_WEBHOOK_URL` if you want real alerts. Keep `.env` and `.local/` out of commits.
+3. Validate Compose without printing resolved values. `scripts/setup.py` also generates the control tokens that `.env.example` lists:
 
 	```sh
 	docker compose config --quiet
 	```
 
-4. Pull the public images:
+4. Pull the public images. `docker compose up` uses the local copies, so run this again to update them:
 
 	```sh
 	docker compose pull
@@ -58,8 +58,7 @@ The stack runs Discovery, Gateway, and `REPLICAS` replicas (default 2) of each d
 	docker compose ps
 	```
 
-Service and helper containers use `pull_policy: always`. Docker selects the host's native platform
-from each published manifest; no AMD64 platform is forced. If the image lacks a
+Docker selects the host's native platform from each published manifest. No AMD64 platform is forced. If the image lacks a
 matching platform, its owner must publish that platform rather than rely on
 runtime emulation.
 
@@ -67,19 +66,13 @@ Each bind mount ends in `:ro,z`. On an SELinux host such as Fedora, `z` makes Do
 
 Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's existing peer settings select HTTP, not mocks. `scripts/start_broker.sh` creates the two broker users required by the Applicant and Credential constructors. It does not create exchanges or queues. The default `studentid` account and existing broker volume remain.
 
-Inspect Java startup and make protected public gateway calls after `--wait`. A running container without a health check can still restart before its API binds. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
+Every domain service and Gateway has a health check, so `--wait` returns after their APIs answer. The Moderation outbox publisher has none and counts as ready once it runs. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
 
 Run `docker compose down` to stop the stack and keep its data. Add `--volumes` only for a disposable project whose stored data you intend to delete.
 
-## Verify the stack
+## Scale and observe the stack
 
-With the stack running, open the menu of checks for the course grades. It needs [uv](https://docs.astral.sh/uv/), which loads `rich` and `websockets` for the run without installing anything globally:
-
-```sh
-uv run scripts/verify.py
-```
-
-To run every suite without prompts, use `uv run scripts/verify.py all --yes`. Cases that change the stack warn you first and always restore it. Reports go to `.local/verify/<run-id>/`. The [demonstration guide](demonstration.md) explains each suite.
+The [demonstration guide](demonstration.md#scale-a-service) shows how to scale a service, follow its logs, stop one replica, and scale it back. The [guided demo](../postman/GUIDED-DEMO.md) runs the public HTTP flows through Postman or Newman.
 
 ## Install CPR hooks
 

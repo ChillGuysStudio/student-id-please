@@ -16,7 +16,7 @@ flowchart TB
 
 	BrokerNode["Message Broker (shared Go)\nToday: GET /health only, not in Compose\nPlanned: dispatch, queues, breakers"]
 
-	subgraph DomainReplicas["Domain services, two replicas each (slot 1 and slot 2)"]
+	subgraph DomainReplicas["Domain services, two replicas each by default"]
 		PlayerReplicas["Player"]
 		SessionReplicas["Session"]
 		ApplicantReplicas["Applicant"]
@@ -24,7 +24,7 @@ flowchart TB
 		RulesReplicas["Server Rules"]
 		UnivReplicas["University Record"]
 		ModReplicas["Moderation"]
-		DMReplicas["Discord DMs\nslot 1 :8009, slot 2 :18009"]
+		DMReplicas["Discord DMs\ndiscord-dms-1 :8009, discord-dms-2 :8010"]
 	end
 
 	ModPublisher["Moderation outbox publisher"]
