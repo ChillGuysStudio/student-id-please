@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+// Operations the Message Broker serves itself. Every other RPC that reaches
+// the Broker is forwarded by its route and policy table.
+package student_id.broker.v1;
+
+import "google/protobuf/timestamp.proto";
+import "student_id/events/v1/events.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/broker/v1;brokerv1";
+option java_multiple_files = true;
+option java_outer_classname = "BrokerProto";
+option java_package = "com.chillguysstudio.studentid.broker.v1";
+
+service BrokerService {
+  // Commit one event and its deliveries. Replaces
+  // POST /internal/v1/topics/{topic}/events. Callers: topic producers with
+  // x-service-name and x-service-token.
+  rpc PublishEvent(PublishEventRequest) returns (PublishEventResponse);
+  // Current topic and queue state. Replaces GET /internal/v1/topics.
+  // Callers: gateway, operator, with control credentials.
+  rpc ListTopics(ListTopicsRequest) returns (TopicListing);
+}
+
+message PublishEventRequest {
+  // Must equal event.event_type.
+  string topic = 1;
+  student_id.events.v1.EventEnvelope event = 2;
+}
+
+message PublishEventResponse {
+  string event_id = 1;
+  string topic = 2;
+  int32 deliveries = 3;
+  // True where REST returned 200: the event was already committed with an
+  // equal envelope. False where REST returned 201.
+  bool duplicate = 4;
+}
+
+message ListTopicsRequest {}
+
+message TopicListing {
+  google.protobuf.Timestamp generated_at = 1;
+  bool store_available = 2;
+  bool registry_available = 3;
+  Threads threads = 4;
+  repeated Topic topics = 5;
+  repeated TargetedQueue targeted_queues = 6;
+}
+
+message Threads {
+  int32 active = 1;
+  int32 max = 2;
+}
+
+message Topic {
+  string topic = 1;
+  int32 schema_version = 2;
+  repeated string producers = 3;
+  repeated Subscriber subscribers = 4;
+}
+
+message Subscriber {
+  string service = 1;
+  // Unset means null: broker-db did not answer.
+  optional bool subscribed = 2;
+  // Unset means null: the registry snapshot is unusable.
+  optional int32 ready_instances = 3;
+  // Unset means null: broker-db did not answer.
+  DeliveryCounts deliveries = 4;
+}
+
+message DeliveryCounts {
+  int32 pending = 1;
+  int32 in_flight = 2;
+  int32 done = 3;
+  int32 rejected = 4;
+}
+
+message TargetedQueue {
+  string service = 1;
+  int32 depth = 2;
+  int32 capacity = 3;
+}

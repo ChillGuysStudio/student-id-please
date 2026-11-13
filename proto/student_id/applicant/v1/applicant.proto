@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+// Peer operations owned by Applicant.
+package student_id.applicant.v1;
+
+import "student_id/domain/v1/domain.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/applicant/v1;applicantv1";
+option java_multiple_files = true;
+option java_outer_classname = "ApplicantProto";
+option java_package = "com.chillguysstudio.studentid.applicant.v1";
+
+service ApplicantService {
+  // Delegated. Caller: moderation. Replaces
+  // GET /internal/v1/applicants/{case_id}?session_id=.
+  rpc GetApplicant(GetApplicantRequest) returns (student_id.domain.v1.Applicant);
+}
+
+message GetApplicantRequest {
+  string case_id = 1;
+  string session_id = 2;
+}

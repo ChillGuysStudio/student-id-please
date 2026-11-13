@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+// Peer operations owned by University Record.
+package student_id.university_record.v1;
+
+import "google/protobuf/timestamp.proto";
+import "student_id/domain/v1/domain.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/university_record/v1;universityrecordv1";
+option java_multiple_files = true;
+option java_outer_classname = "UniversityRecordProto";
+option java_package = "com.chillguysstudio.studentid.universityrecord.v1";
+
+service UniversityRecordService {
+  // Delegated. Caller: session. idempotency-key is Session's snapshot_start
+  // attempt ID. Replaces POST /internal/v1/university-snapshots.
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (UniversitySnapshot);
+  // Delegated, actor-bound. Callers: applicant, credential,
+  // university_record, session. Replaces the empty-query
+  // GET /internal/v1/university-snapshots/{snapshot_id}.
+  rpc GetSnapshot(GetSnapshotRequest) returns (UniversitySnapshot);
+  // Workload, retained. Callers: applicant, credential, university_record.
+  // Replaces GET /internal/v1/university-snapshots/{snapshot_id}
+  // ?session_id=&attempt_id=.
+  rpc GetRetainedSnapshot(GetRetainedSnapshotRequest) returns (UniversitySnapshot);
+  // Workload. Callers: applicant, credential, university_record.
+  // idempotency-key must equal case_id. Replaces
+  // POST /internal/v1/university-identities/reservations.
+  rpc ReserveIdentity(ReserveIdentityRequest) returns (UniversityIdentity);
+  // Workload. Callers: applicant, credential, university_record. Replaces
+  // GET /internal/v1/university-identities/{subject_id}?case_id=&session_id=&attempt_id=.
+  rpc GetIdentity(GetIdentityRequest) returns (UniversityIdentity);
+  // Delegated. Callers: discord-dms, session. Replaces
+  // GET /internal/v1/sessions/{session_id}/record-permissions/{player_id}.
+  rpc GetRecordPermission(GetRecordPermissionRequest) returns (student_id.domain.v1.Permission);
+  // Delegated. Caller: moderation. Replaces
+  // GET /internal/v1/cases/{case_id}/university-records?session_id=.
+  rpc GetCaseRecords(GetCaseRecordsRequest) returns (CaseRecords);
+}
+
+message CreateSnapshotRequest {
+  string session_id = 1;
+  google.protobuf.Timestamp reference_at = 2;
+}
+
+message GetSnapshotRequest {
+  string snapshot_id = 1;
+}
+
+message GetRetainedSnapshotRequest {
+  string snapshot_id = 1;
+  string session_id = 2;
+  string attempt_id = 3;
+}
+
+message UniversitySnapshot {
+  string snapshot_id = 1;
+  string session_id = 2;
+  google.protobuf.Timestamp reference_at = 3;
+  repeated SnapshotEntry entries = 4;
+}
+
+message SnapshotEntry {
+  string reference_id = 1;
+  // UniversityDataKind. Selects the data variant.
+  string kind = 2;
+  // Set for enrollment, registration, outlook_group, and fcim_message.
+  optional string subject_id = 3;
+  // The case must match kind.
+  oneof data {
+    Program program = 4;
+    Registration registration = 5;
+    // status can also be none.
+    student_id.domain.v1.Enrollment enrollment = 6;
+    student_id.domain.v1.OutlookGroup outlook_group = 7;
+    CatalogCourse course = 8;
+    student_id.domain.v1.AcademicYear academic_year = 9;
+    student_id.domain.v1.Schedule schedule = 10;
+    student_id.domain.v1.FcimMessage fcim_message = 11;
+  }
+}
+
+message Program {
+  string code = 1;
+  string name = 2;
+  int32 study_years = 3;
+}
+
+message Registration {
+  string course_id = 1;
+}
+
+// A course in reference data, unlike the case record domain.v1.Course.
+message CatalogCourse {
+  string course_id = 1;
+  string title = 2;
+  string major = 3;
+  int32 year = 4;
+  // autumn or spring.
+  string semester = 5;
+}
+
+// IdentityReservationInput in docs/contracts/api.md.
+message ReserveIdentityRequest {
+  string session_id = 1;
+  string attempt_id = 2;
+  string case_id = 3;
+  string subject_id = 4;
+  string first_name = 5;
+  string last_name = 6;
+  // ApplicantRole.
+  string role = 7;
+  // UniversityStatus.
+  string university_status = 8;
+  optional string major = 9;
+  optional int32 admission_year = 10;
+}
+
+message GetIdentityRequest {
+  string subject_id = 1;
+  string case_id = 2;
+  string session_id = 3;
+  string attempt_id = 4;
+}
+
+message UniversityIdentity {
+  string subject_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  optional string student_id = 4;
+  string email = 5;
+  InitializationBinding initialization_binding = 6;
+}
+
+message InitializationBinding {
+  string session_id = 1;
+  string attempt_id = 2;
+  string case_id = 3;
+  string subject_id = 4;
+  // applicant, credential, or university_record.
+  string entry_service = 5;
+  string actor_id = 6;
+  string snapshot_id = 7;
+  google.protobuf.Timestamp reference_at = 8;
+  string idempotency_key = 9;
+  string normalized_body_sha256 = 10;
+  // Always subject_reserve.
+  string effect = 11;
+}
+
+message GetRecordPermissionRequest {
+  string session_id = 1;
+  string player_id = 2;
+}
+
+message GetCaseRecordsRequest {
+  string case_id = 1;
+  string session_id = 2;
+}
+
+message CaseRecords {
+  string case_id = 1;
+  optional string subject_id = 2;
+  repeated student_id.domain.v1.UniversityRecord records = 3;
+}

@@ -6,7 +6,7 @@ This reference defines the implementation target for [CPR #125](https://github.c
 
 Business REST retains the [HTTP contract](http.md) and [Gateway authorization](../architecture.md#gateway-authorization). Clients use the public Gateway. Domain services use the [Message Broker](broker.md), including authorization callbacks, case readiness reads, and chat permission reads. Discovery changes destinations, not route ownership, caller allowlists, receiver audiences, signed assertions, delegation, or business authorization. Disabled routes remain disabled. Discovery never supplies credentials or identity policy.
 
-Registration, registry lookup, removal, reactivation, and status probes use direct private HTTP. This is a control-plane exception to the business REST rule. Requiring the Broker to discover Discovery through the Broker would create a startup cycle. `DISCOVERY_URL` is a fixed deployment address, not a discovered business route. Discovery probes the advertised instance directly, without the Broker, so it measures that instance. Neither Gateway nor the Broker exposes registry operations to public clients.
+Registration, registry lookup, removal, reactivation, and status probes use direct private HTTP. This is a control-plane exception to the business REST rule. Requiring the Broker to discover Discovery through the Broker would create a startup cycle. `DISCOVERY_URL` is a fixed deployment address, not a discovered business route. Discovery probes the advertised instance directly, without the Broker, so it measures that instance. Neither Gateway nor the Broker exposes registry operations to public clients. The [gRPC contract](grpc.md#discovery) moves these calls and the status endpoint to direct gRPC with the same semantics.
 
 Control-plane requests use `X-Control-Name` and `X-Control-Token`, separate from business service credentials and Broker receiver-hop tokens. Receivers authenticate these headers against `CONTROL_PLANE_TOKENS`. Names are the registry service names below, plus the separate control-plane principals `discovery` and `operator`. A service can register or renew only its own service name. Authenticated callers can look up instances. Registered callers can report their own breaker trips. Only `discovery` and `operator` can probe a registered service's private status endpoint. Discovery sends probes with `CONTROL_PLANE_NAME=discovery` and its outgoing `CONTROL_PLANE_TOKEN`. Every monitored receiver must have a `discovery` entry in `CONTROL_PLANE_TOKENS` whose value matches that token. Discovery's own status endpoint also accepts authenticated control callers for bootstrap recovery. `operator` can remove and reactivate instances. A service can remove its own instance for shutdown. No Player bearer, Gateway assertion, or player authority enters this API.
 
@@ -92,6 +92,7 @@ Registration = {
 	boot_id: Id,
 	http_url: string,
 	ws_url: string | null,
+	grpc_url: string | null,
 	topics: string[]?
 }
 Instance = {
@@ -101,6 +102,7 @@ Instance = {
 	registration_id: Id,
 	http_url: string,
 	ws_url: string | null,
+	grpc_url: string | null,
 	topics: string[],
 	state: "pending" | "ready" | "unhealthy" | "expired" | "removed",
 	lease_expires_at: Time,
@@ -128,6 +130,8 @@ Removal = {
 }
 Reactivation = {registration_id: Id, operation_id: Id}
 ```
+
+`grpc_url` is the replica's gRPC origin, which the [gRPC contract](grpc.md#address-discovery) defines. A REST registration may omit it or send `null` only during the gRPC rollout.
 
 `registration_id` is a Discovery-assigned UUID for one admitted generation of an instance. It changes after an accepted new boot, reactivation, or reconstruction of a non-removed registration after Discovery restarts. A removed record keeps its generation across Discovery restarts. Late reports for another generation return `409 STALE_REGISTRATION` without changing the current record. Status observations and breaker counters never cross generations.
 
