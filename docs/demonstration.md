@@ -71,7 +71,7 @@ The domain services are `player`, `session`, `applicant`, `credential`, `univers
 
 	Compose removes the extra containers. Each one deregisters on its way out.
 
-The same commands work for every domain service listed above. Gateway, the Message Broker, Discovery, and the Moderation outbox publisher run as one instance each.
+The same commands work for every domain service listed above. Gateway, the Message Broker, `broker-db`, Discovery, and the Moderation outbox publisher run as one instance each.
 
 ## Watch Broker dispatch
 
@@ -84,6 +84,32 @@ docker compose logs --no-log-prefix message-broker | grep '"event":"dispatch"'
 Each record names the `caller`, the `target_service`, the selected `target_instance_id` and `registration_id`, the `route`, the `status`, and the `outcome`. `caller` is `gateway` for public traffic and the service name, such as `session` or `moderation`, for a peer call. A peer call keeps the `request_id` of the public request that caused it.
 
 Gateway's control listener on `:8083` answers only health, status, and log export. It returns `404 NOT_FOUND` for every business path.
+
+## Watch topic delivery
+
+Producers publish each domain event to the Broker by topic. The Broker stores the event in `broker-db` with one delivery per subscribing service and pushes each delivery to one ready replica of that service. Each replica declares its topics when it registers, and the Broker derives the subscriptions from them. After the stack is healthy, list the subscriptions:
+
+```sh
+docker compose exec broker-db psql -U broker -c 'select * from subscriptions'
+```
+
+A healthy stack lists every allowed pair from the [topics table](contracts/queues.md#topics). `CaseInitialized` has three rows: `applicant`, `credential`, and `university_record`.
+
+After a shift has started and one decision is made, list the delivery attempts:
+
+```sh
+docker compose logs --no-log-prefix message-broker | grep '"event":"delivery"'
+```
+
+Each record names the `event_type`, `event_id`, `target_service`, the selected `target_instance_id`, the `attempt`, the `status`, and the `outcome`: `delivered`, `retry`, or `rejected`. One `CaseInitialized` shows one delivered record for each of its three subscribers, each on one replica.
+
+Count the deliveries per topic, subscriber, and state:
+
+```sh
+docker compose exec broker-db psql -U broker -c 'select e.topic, d.subscriber, d.state, count(*) from deliveries d join events e using (event_id) group by 1, 2, 3 order by 1, 2, 3'
+```
+
+`done` counts the deliveries the subscriber accepted. `pending` and `in_flight` rows wait for a ready replica, and `rejected` rows were refused and are not retried.
 
 ## Use the two Discord DMs services
 

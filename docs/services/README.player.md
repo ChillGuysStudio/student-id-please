@@ -16,7 +16,7 @@ Player issues the access tokens that peer services verify. The public key endpoi
 
 A signing-key volume preserves token verification across container recreation. Token issuer and audience must match the peer configuration.
 
-When event fixtures replace RabbitMQ, they use the same typed progression handler and authenticated producer identity. Integrated checks verify actual broker delivery and one progression update.
+When event fixtures replace Broker deliveries, they use the same typed progression handler and authenticated producer identity. Integrated checks verify actual broker delivery and one progression update.
 
 ## Configuration
 
@@ -26,7 +26,6 @@ The shared deployment reads [`.env.example`](../../.env.example).
 
 - `PLAYER_DB_PASSWORD` supplies the database password.
 - `SESSION_SERVICE_TOKEN` and `MODERATION_SERVICE_TOKEN` identify the accepted internal callers.
-- `RABBITMQ_PASSWORD` configures the shared event broker.
 
 ## Contracts and checks
 

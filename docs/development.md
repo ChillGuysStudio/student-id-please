@@ -64,7 +64,7 @@ runtime emulation.
 
 Each bind mount ends in `:ro,z`. On an SELinux host such as Fedora, `z` makes Docker relabel the file so containers can read it. Hosts without SELinux ignore the option. Use lowercase `z`, because several services mount the same key files.
 
-Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's existing peer settings select HTTP, not mocks. `scripts/start_broker.sh` creates the two broker users required by the Applicant and Credential constructors. It does not create exchanges or queues. The default `studentid` account and existing broker volume remain.
+Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's existing peer settings select HTTP, not mocks. The Message Broker keeps topic events, deliveries, and subscriptions in `broker-db`. It applies its schema at startup.
 
 Every domain service and Gateway has a health check, so `--wait` returns after their APIs answer. The Moderation outbox publisher has none and counts as ready once it runs. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
 

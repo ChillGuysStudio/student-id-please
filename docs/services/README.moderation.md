@@ -10,9 +10,9 @@ Source code is in the [private repository](https://github.com/andyp1xe1/pad-mode
 
 ## Dependencies
 
-The service needs PostgreSQL, the evidence and policy services, verified player identity, and RabbitMQ.
+The service needs PostgreSQL, the evidence and policy services, verified player identity, and the Message Broker.
 
-The API and `moderation-publisher` share the same database. The publisher runs `python -m moderation.publisher` from the same image.
+The API and `moderation-publisher` share the same database. The publisher runs `python -m moderation.publisher` from the same image and publishes outbox events to the Broker as `moderation`.
 
 A decision, its optional ban, and its event outbox record commit in one local transaction.
 
@@ -31,7 +31,7 @@ The shared deployment reads [`.env.example`](../../.env.example).
 - `MODERATION_DB_PASSWORD` supplies the database password.
 - `MODERATION_SERVICE_TOKEN` identifies the caller to peers.
 - Compose mounts the Gateway public key, and `.local/stack/moderation.env` holds the receiver-hop settings.
-- `RABBITMQ_PASSWORD` configures event publication.
+- Compose gives `moderation-publisher` `BROKER_URL` and the same `MODERATION_SERVICE_TOKEN` for event publication.
 
 ## Contracts and checks
 

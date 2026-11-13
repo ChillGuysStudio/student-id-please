@@ -6,9 +6,9 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 ## Architecture
 
-Eight domain services own separate data. They communicate through REST, RabbitMQ events, and WebSocket chat. Clients reach them through the gateway, and service-to-service REST goes through the Message Broker.
+Eight domain services own separate data. They communicate through REST, topic events, and WebSocket chat. Clients reach them through the gateway. Service-to-service REST and topic events go through the Message Broker.
 
-The diagram below shows the gateway, Service Discovery, the domain services, and their storage. Its editable source is [`docs/architecture.drawio`](docs/architecture.drawio). Green dashed arrows are the Discovery calls: registration, lease renewal, health probes, and Gateway removal reports. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them. This drawing predates the Message Broker and still shows service REST through the gateway. The [architecture diagram](docs/architecture.md) shows the current Broker connections.
+The diagram below shows the gateway, Service Discovery, the domain services, and their storage. Its editable source is [`docs/architecture.drawio`](docs/architecture.drawio). Green dashed arrows are the Discovery calls: registration, lease renewal, health probes, and Gateway removal reports. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them. This drawing predates the Message Broker and still shows service REST through the gateway and events through RabbitMQ. The [architecture diagram](docs/architecture.md) shows the current Broker connections.
 
 <img src="docs/architecture.png" alt="Architecture diagram: Gateway, Service Discovery, the Java and Python services with their databases, and RabbitMQ" width="1080"/>
 
@@ -20,15 +20,15 @@ The selected gateway is shared Go infrastructure, separate from the eight domain
 
 Realtime negotiation uses REST through the gateway, which pins ticket issuance to one DMs replica, and returns that replica's direct WebSocket URL. Clients connect to Discord DMs for the upgrade and chat frames. The gateway does not relay frames. Chat tickets, permissions, Redis delivery, and stored history belong to Discord DMs.
 
-RabbitMQ events and service-owned storage connections are not REST routing paths and do not pass through the gateway or the Broker.
+Service-owned storage connections do not pass through the gateway or the Broker.
 
 ## Message Broker
 
 The Message Broker is shared Go infrastructure in the private `ChillGuysStudio/message-broker-service` repository, with the public image `maxnoragami/message-broker-service`. Compose runs one instance as `message-broker` on port 8080 of the container network, with no host port.
 
-The Broker owns service-to-service dispatch, service-call authorization, replica load balancing, and backend breakers. A targeted request names its destination service. Gateway sends public requests there with an explicit target, and domain services send every peer call there. The Broker authenticates the caller, signs the receiver assertion, selects one ready replica with round-robin, and writes a `dispatch` log record for each attempt. It reports breaker trips to Discovery.
+The Broker owns service-to-service dispatch, service-call authorization, replica load balancing, backend breakers, and topic event delivery. A targeted request names its destination service. Gateway sends public requests there with an explicit target, and domain services send every peer call there. The Broker authenticates the caller, signs the receiver assertion, selects one ready replica with round-robin, and writes a `dispatch` log record for each attempt. It reports breaker trips to Discovery.
 
-Topic events and durable queues are planned. RabbitMQ still carries the domain events. Client authentication, direct Discord DMs WebSockets, event schemas, and domain ownership stay unchanged. The [Message Broker dispatch contract](docs/contracts/broker.md) defines the credentials, assertions, attribution, and logging.
+Producers publish domain events to the Broker by topic. The Broker stores each event and one delivery per subscribing service in its own PostgreSQL, `broker-db`, and retries each delivery until the subscriber accepts or rejects it. The [queues and topics contract](docs/contracts/queues.md) defines targeted queues and topic delivery. Client authentication, direct Discord DMs WebSockets, event schemas, and domain ownership stay unchanged. The [Message Broker dispatch contract](docs/contracts/broker.md) defines the credentials, assertions, attribution, and logging.
 
 [`docs/releases/services.json`](docs/releases/services.json) records the released version, source commit, and image digest of each service. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions; the [guided Postman demo](postman/GUIDED-DEMO.md) covers real Gateway HTTP flows and bounded concurrent tasks.
 
