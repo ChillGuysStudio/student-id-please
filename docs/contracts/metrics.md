@@ -227,12 +227,14 @@ container stdout -> Docker json-file log -> Promtail -> Loki -> Grafana
 
 ### Logs dashboard
 
-`Student ID logs` has these variables and panels. The variables `service` and `level` come from the Loki label values, allow several values, and have `All`. `search` is free text that filters with a literal match.
+`Student ID logs` has these variables and panels. The variables `service` and `level` come from the Loki label values, allow several values, and have `All`. `search` is free text that filters with a literal match. `request_id`, labelled "request or event ID", is free text for one `X-Request-ID` or `event_id`; while it is empty, the two trail panels match every line.
 
 | Panel | Query |
 | --- | --- |
 | Log rate | `sum by (service, level) (count_over_time({service=~"$service", level=~"$level"} \|= "$search" [$__auto]))` |
 | Logs | `{service=~"$service", level=~"$level"} \|= "$search"` |
+| Request trail: every service | `{service=~".+"} \|= "$request_id" \| json \| line_format "{{.service}} {{.level}} {{.event}} {{.caller}}{{if .target_service}} -> {{.target_service}}{{end}} {{.rpc}}{{.route}} {{.outcome}}{{if .status}} status={{.status}}{{end}}{{if .duration_ms}} {{.duration_ms}}ms{{end}}"` |
+| Broker hops for this ID | `{service="message-broker"} \|= "$request_id" \|= "\"event\":\"dispatch\"" \| json \| line_format "{{.caller}} -> {{.target_service}} [{{.target_instance_id}}] {{.rpc}}{{.route}} outcome={{.outcome}} attempt={{.attempt}} {{.duration_ms}}ms"` |
 
 ## Compose
 
