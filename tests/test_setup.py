@@ -138,7 +138,7 @@ class SetupTests(unittest.TestCase):
 
     def test_compose_exposes_only_public_gateway_and_chat_proxy(self):
         compose = (ROOT / "compose.yaml").read_text()
-        self.assertEqual(compose.count("    ports:\n"), 2)
+        self.assertEqual(compose.count("    ports:\n"), 4)
         self.assertIn("      - '127.0.0.1:${GATEWAY_PORT:-8080}:8080'\n", compose)
         self.assertIn("      - '127.0.0.1:${DMS_PORT:-8009}:8009'\n", compose)
         self.assertNotIn("http://session:8002", compose)
@@ -184,6 +184,56 @@ class SetupTests(unittest.TestCase):
             self.assertRegex(compose, rf"\n  {service}:\n    deploy:\n      replicas: 2\n", service)
         self.assertEqual(compose.count("replicas: 2"), 8)
         self.assertIn("GATEWAY_CHAT_WS_URL: ws://localhost:${DMS_PORT:-8009}", compose)
+
+    def test_monitoring_services_bind_to_localhost_and_publish_no_metrics_port(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        self.assertRegex(compose, r"\n  prometheus:\n(    .*\n|      .*\n)*    image: prom/prometheus:v3\.1\.0\n")
+        self.assertRegex(compose, r"\n  grafana:\n(    .*\n|      .*\n)*    image: grafana/grafana:11\.4\.0\n")
+        self.assertIn("      - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'\n", compose)
+        self.assertIn("      - '127.0.0.1:${GRAFANA_PORT:-3000}:3000'\n", compose)
+        self.assertNotIn("9464:", compose.replace("':9464'", ""))
+        self.assertEqual(compose.count("METRICS_ADDRESS: ':9464'"), 2)
+        self.assertIn("      GF_AUTH_ANONYMOUS_ENABLED: 'false'\n", compose)
+        self.assertIn("      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?", compose)
+        self.assertIn("--storage.tsdb.retention.time=2d", compose)
+        self.assertIn("  prometheus-data:\n", compose)
+        self.assertNotIn("grafana-data", compose)
+        self.assertEqual(compose.count('"prometheus":"${PROMETHEUS_CONTROL_TOKEN:?'), 1)
+        discovery = compose.split("\n  discovery:\n", 1)[1].split("\n  player-db:", 1)[0]
+        self.assertIn('"prometheus":"${PROMETHEUS_CONTROL_TOKEN:?', discovery)
+        registration = compose.split("\nservices:", 1)[0]
+        self.assertNotIn("PROMETHEUS_CONTROL_TOKEN", registration)
+
+    def test_prometheus_and_grafana_configuration_follow_the_contract(self):
+        prometheus = (ROOT / "config/prometheus/prometheus.yml").read_text()
+        self.assertIn("url: http://discovery:8081/sd/v1/targets", prometheus)
+        self.assertIn("files: [/etc/prometheus/control-token]", prometheus)
+        self.assertIn("scrape_interval: 5s", prometheus)
+        self.assertNotIn("relabel", prometheus)
+        datasource = (ROOT / "config/grafana/provisioning/datasources/prometheus.yaml").read_text()
+        self.assertIn("uid: prometheus", datasource)
+        self.assertIn("url: http://prometheus:9090", datasource)
+        self.assertIn("allowUiUpdates: false", (ROOT / "config/grafana/provisioning/dashboards/student-id.yaml").read_text())
+        for name, uid, panels in (("services", "student-id-services", 10), ("broker", "student-id-broker", 15)):
+            dashboard = json.loads((ROOT / f"config/grafana/dashboards/{name}.json").read_text())
+            self.assertEqual(dashboard["uid"], uid)
+            self.assertEqual(len(dashboard["panels"]), panels)
+            self.assertEqual(dashboard["templating"]["list"][0]["definition"],
+                             "label_values(student_id_requests_total, service)")
+            for panel in dashboard["panels"]:
+                self.assertEqual(panel["datasource"]["uid"], "prometheus")
+                self.assertTrue(all(target["expr"] for target in panel["targets"]))
+
+    def test_monitoring_secrets_are_generated_and_the_token_file_is_readable(self):
+        setup.prepare(self.root)
+        config = read_env(self.root / ".env")
+        self.assertGreaterEqual(len(config["GRAFANA_ADMIN_PASSWORD"]), 43)
+        token_file = self.root / ".local/stack/prometheus-control-token"
+        self.assertEqual(token_file.read_text(), config["PROMETHEUS_CONTROL_TOKEN"])
+        self.assertEqual(token_file.stat().st_mode & 0o777, 0o444)
+        others = [value for name, value in config.items() if name.endswith("_CONTROL_TOKEN")
+                  and name != "PROMETHEUS_CONTROL_TOKEN"]
+        self.assertNotIn(config["PROMETHEUS_CONTROL_TOKEN"], others)
 
     def test_chat_proxy_balances_dms_replicas(self):
         compose = (ROOT / "compose.yaml").read_text()

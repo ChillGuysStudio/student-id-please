@@ -2,7 +2,7 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The diagram below shows the services, replicas, request paths, storage, and event connections. The Message Broker carries both targeted requests and topic events, and keeps topic state in `broker-db`. Its source is [`docs/diagrams/architecture.mmd`](diagrams/architecture.mmd), and a test keeps this copy identical to it. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The diagram below shows the services, replicas, request paths, storage, event connections, and monitoring. The Message Broker carries both targeted requests and topic events, and keeps topic state in `broker-db`. Its source is [`docs/diagrams/architecture.mmd`](diagrams/architecture.mmd), and a test keeps this copy identical to it. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
 
 ```mermaid
 flowchart TB
@@ -46,6 +46,11 @@ flowchart TB
 		RedisStore[("Redis\nSession views, DMs relay and tickets")]
 	end
 
+	subgraph Monitoring["Monitoring (localhost only)"]
+		PrometheusNode["Prometheus :9090\nScrapes /metrics on :9464"]
+		GrafanaNode["Grafana :3000\nProvisioned dashboards"]
+	end
+
 	BrokerDB[("broker-db PostgreSQL\nevents, deliveries, subscriptions")]
 
 	Client -->|"REST and negotiation"| GWPub
@@ -82,6 +87,13 @@ flowchart TB
 	DomainReplicas -->|"PublishEvent gRPC,\nsubscribers unknown"| BrokerNode
 	BrokerNode -->|"DeliverEvent gRPC, one per\nsubscribing service"| DomainReplicas
 	BrokerNode --- BrokerDB
+	Client -->|"Operator opens dashboards"| GrafanaNode
+	GrafanaNode -->|"PromQL queries"| PrometheusNode
+	PrometheusNode -.->|"Target list, prometheus credential"| DiscoveryNode
+	PrometheusNode -->|"Scrape /metrics, private port"| DomainReplicas
+	PrometheusNode -->|"Scrape /metrics"| GatewaySvc
+	PrometheusNode -->|"Scrape /metrics"| BrokerNode
+	PrometheusNode -->|"Scrape /metrics"| DiscoverySvc
 ```
 
 ## Request paths
@@ -136,6 +148,10 @@ The Broker also carries the [domain events](contracts/events.md) as topics. A to
 The gateway validates client bearer tokens and removes the original `Authorization` header before forwarding a request. A receiving service uses verified identity to check access to its own resources. Player owns accounts and token issuance; the gateway verifies those tokens at the request boundary.
 
 Internal requests authenticate the calling service and retain the initiating player's identity when the operation requires it. Services check participation, roles, and resource permissions. Gateway routing does not grant access to another player's records or administrator operations.
+
+## Monitoring
+
+Prometheus and Grafana are the only monitoring components. Every process with a listener serves `GET /metrics` on its own private port, `:9464`, which Compose never publishes. Prometheus finds the replicas through Discovery's `GET /sd/v1/targets`, which it calls with the `prometheus` control principal. That principal can read the target list and nothing else, so a scraper cannot read or change the registry. A scaled replica appears after it registers, and a replica that leaves disappears at the next refresh. Grafana provisions its Prometheus data source and two dashboards, `Student ID services` and `Student ID broker`, from files in `config/grafana`. Both services bind only to `127.0.0.1`, and Grafana requires the generated admin password. Logs stay in the container output as the [logging contract](contracts/logging.md) defines. The [metrics contract](contracts/metrics.md) defines the catalogue, the target list, and the dashboards.
 
 ## Storage
 

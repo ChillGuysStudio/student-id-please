@@ -39,6 +39,11 @@ flowchart TB
 		RedisStore[("Redis\nSession views, DMs relay and tickets")]
 	end
 
+	subgraph Monitoring["Monitoring (localhost only)"]
+		PrometheusNode["Prometheus :9090\nScrapes /metrics on :9464"]
+		GrafanaNode["Grafana :3000\nProvisioned dashboards"]
+	end
+
 	BrokerDB[("broker-db PostgreSQL\nevents, deliveries, subscriptions")]
 
 	Client -->|"REST and negotiation"| GWPub
@@ -75,3 +80,10 @@ flowchart TB
 	DomainReplicas -->|"PublishEvent gRPC,\nsubscribers unknown"| BrokerNode
 	BrokerNode -->|"DeliverEvent gRPC, one per\nsubscribing service"| DomainReplicas
 	BrokerNode --- BrokerDB
+	Client -->|"Operator opens dashboards"| GrafanaNode
+	GrafanaNode -->|"PromQL queries"| PrometheusNode
+	PrometheusNode -.->|"Target list, prometheus credential"| DiscoveryNode
+	PrometheusNode -->|"Scrape /metrics, private port"| DomainReplicas
+	PrometheusNode -->|"Scrape /metrics"| GatewaySvc
+	PrometheusNode -->|"Scrape /metrics"| BrokerNode
+	PrometheusNode -->|"Scrape /metrics"| DiscoverySvc
