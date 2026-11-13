@@ -225,22 +225,22 @@
    "service": "broker",
    "submodule": "message-broker-service",
    "repository": "ChillGuysStudio/message-broker-service",
-   "version": "4.0.9",
-   "source_sha": "664a1b658a93a381b94abf22a7a5b93b311b7f67",
-   "image": "maxnoragami/message-broker-service@sha256:3a8557e37cfd7738a9744bba26ff13abd20dd8e728e94a29d16193eed1a019da",
+   "version": "4.0.10",
+   "source_sha": "f2705cb7684cde7aa67c55eb75eef68875d65a78",
+   "image": "maxnoragami/message-broker-service@sha256:9898d163a28bb14ee34df9988cab82da823155cc87bf34da35b3b588f87e9c17",
    "platforms": {
-    "amd64": "sha256:d9d7ec0670e0f7cf32ed46ef0455f99c1be67af65bfbea811aee383fa4bd80f2",
-    "arm64": "sha256:1339b170f033793712c23ef683c8122b08990c4f46f7eabf9deb4f7d42d5d04b"
+    "amd64": "sha256:3cf58974763c045eff6594e92c5f626d756f34da63cc4c7aa0f20b3eaa19d16c",
+    "arm64": "sha256:59b3543244898ba99cd5c012a6420df534426049f299db19edf4a5a902d929ca"
    },
    "configs": {
-    "amd64": "sha256:81d6de3d54edb321cf7297cff897e95f0a0d092edc677d410dee92b96dc45e4d",
-    "arm64": "sha256:2a5cde8f65d0554c66667ff1e8c9c684b0bfb6060a706b6e40884b56fecface4"
+    "amd64": "sha256:388662105aa945c2cdeaf420e6382e313b91ea41a9321072d107b7fc606cfa34",
+    "arm64": "sha256:a8d82c631d022d9953ab067a662b205729e8b976d5ce5284813160ca415c3737"
    },
    "revision_labels": {
-    "amd64": "664a1b658a93a381b94abf22a7a5b93b311b7f67",
-    "arm64": "664a1b658a93a381b94abf22a7a5b93b311b7f67"
+    "amd64": "f2705cb7684cde7aa67c55eb75eef68875d65a78",
+    "arm64": "f2705cb7684cde7aa67c55eb75eef68875d65a78"
    },
-   "publication_run": 43432230431,
+   "publication_run": 43435788399,
    "repository_source_labels_verified": true
   }
  ]
