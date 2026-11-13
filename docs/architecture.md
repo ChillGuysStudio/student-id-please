@@ -136,7 +136,7 @@ These boundaries apply:
 
 Direct Discord DMs WebSockets stay outside the Broker. Public routes and their responses do not change.
 
-Topic events and durable queues are planned. A topic event will name a topic, not its recipients, and every subscribing service will receive one copy. The topics are the four existing events, `CaseInitialized`, `DecisionScored`, `ShiftEnded`, and `DisciplinaryActionApplied`. Until then RabbitMQ carries them as the [RabbitMQ events](contracts/events.md) contract defines.
+Topic events and durable queues are planned. A topic event names a topic, not its recipients, and every subscribing service receives one copy. The topics are the four existing events, `CaseInitialized`, `DecisionScored`, `ShiftEnded`, and `DisciplinaryActionApplied`. The [queues and topics contract](contracts/queues.md) defines the targeted queues, topic delivery, subscriptions, and the move off RabbitMQ. Until that move ships, RabbitMQ carries the [domain events](contracts/events.md).
 
 ## Gateway authorization
 
@@ -183,7 +183,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 | Session                               | Player                                   | Apply `ShiftEnded` once                                                            |
 | Moderation                            | Player                                   | Apply `DisciplinaryActionApplied` once                                             |
 
-[HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details. The [logging contract](contracts/logging.md) defines log records, retention, instance exports, and the administrator log download.
+[HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [domain events](contracts/events.md) define the request and payload details. The [logging contract](contracts/logging.md) defines log records, retention, instance exports, and the administrator log download.
 
 All client-to-service REST uses the public gateway, and all service-to-service REST uses the [Message Broker](#message-broker). The final four rows describe RabbitMQ event delivery. RabbitMQ events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway or the Broker.
 

@@ -78,7 +78,8 @@ Rules introduced by updates to this README or the other project documentation ap
 - [Service APIs](docs/contracts/api.md)
 - [Case initialization](docs/contracts/cases.md)
 - [Simulation data](docs/contracts/simulation.md)
-- [RabbitMQ events](docs/contracts/events.md)
+- [Domain events](docs/contracts/events.md)
+- [Message Broker queues and topics](docs/contracts/queues.md)
 - [Release procedure](docs/releases.md)
 - [GitHub checks and permissions](docs/github.md)
 

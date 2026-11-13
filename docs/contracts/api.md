@@ -31,12 +31,12 @@ Friendship = {friendship_id: Id, requester_id: Id, recipient_id: Id,
 | `DELETE /api/v1/teams/{team_id}` | Owner | None | `204`, no body<br>Historical shift rosters remain snapshots. |
 | `GET /internal/v1/players/{player_id}` | Session or Moderation | None | `200 Player` |
 | `GET /internal/v1/teams/{team_id}` | Session | None | `200 Team` |
-| `POST /internal/v1/events` | Authenticated Session or Moderation producer | `ShiftEnded` or `DisciplinaryActionApplied` event | `200 {event_id: Id, applied: Bool}` |
+| `POST /internal/v1/events/{topic}` | Message Broker delivery of `ShiftEnded` or `DisciplinaryActionApplied` | Event | `200 {event_id: Id, applied: Bool}` |
 | `GET /.well-known/jwks.json` | Anyone | None | `200` public verification keys |
 | `GET /health` | Anyone | None | `200` process health |
 | `GET /ready` | Anyone | None | `200` when configured dependencies are ready |
 
-The internal event adapter supports authenticated fixtures when broker delivery is unavailable. It uses the same progression handler and deduplication rules as RabbitMQ. The authenticated producer must match the event type.
+The event endpoint receives [push delivery](queues.md#push-delivery) from the Message Broker. The authenticated producer must match the event type. A duplicate returns `200` with `applied: false`.
 
 The Player Service consumes progression events. It does not accept client commands that change XP. Each participant receives `max(0, score)` XP when a shift ends. The service stores shift awards and separate disciplinary `xp_penalty` deductions in a progression ledger. Total XP is `max(0, sum(awards) - sum(deductions))`.
 
@@ -69,11 +69,11 @@ SessionContext = {session: Session, player: Participant}
 | `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. An unfinished case returns `409`. |
 | `DELETE /api/v1/sessions/{session_id}` | Session owner, lobby only | None | `204`, no body |
 | `GET /internal/v1/sessions/{session_id}/context` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
-| `POST /internal/v1/events` | Authenticated Moderation producer | `DecisionScored` event | `200 {event_id: Id, applied: Bool}` |
+| `POST /internal/v1/events/{topic}` | Message Broker delivery of `DecisionScored` | Event | `200 {event_id: Id, applied: Bool}` |
 | `GET /health` | Anyone | None | `200` process health |
 | `GET /ready` | Anyone | None | `200` when configured dependencies are ready |
 
-The internal event adapter supports scoring fixtures and uses the same inbox and business-ID checks as RabbitMQ delivery.
+The event endpoint receives [push delivery](queues.md#push-delivery) from the Message Broker and applies the inbox and business-ID checks.
 
 A shift starts with one Moderator and at least two Junior Moderators. The Server Moderation Session Service serializes commands that start a case or end the shift. For each case, it calls one of the three internal initializer endpoints with a stored idempotency key and verified Moderator context. If the response is lost, it retries the same service with the same key. It does not send the retry to another initializer.
 

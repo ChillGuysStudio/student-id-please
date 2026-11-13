@@ -1,6 +1,6 @@
 # Message Broker dispatch contract
 
-This contract moves service-to-service REST, service-call authorization, replica selection, and backend breakers from Gateway to the Message Broker. Gateway keeps client-facing work only. The Broker dispatches over REST in this version. Durable queues and topics come later and use the Broker's own PostgreSQL.
+This contract moves service-to-service REST, service-call authorization, replica selection, and backend breakers from Gateway to the Message Broker. Gateway keeps client-facing work only. The Broker dispatches over REST. The [queues and topics contract](queues.md) adds the per-service targeted queue that every dispatch passes through, and the topic queues that carry domain events in the Broker's own PostgreSQL.
 
 The [discovery and resilience contract](resilience.md) still defines registration, status, the bounded-call rules, and failure accounting for every caller. The [HTTP contract](http.md) defines error bodies and idempotency. The [gateway identity module](https://github.com/ChillGuysStudio/gateway-service/blob/dev/docs/contracts/gateway-identity.md) defines the token profiles. This contract changes who issues and verifies those tokens, not their format.
 
@@ -9,7 +9,8 @@ The [discovery and resilience contract](resilience.md) still defines registratio
 - Clients call Gateway's public listener on `:8080`. Gateway authenticates the client, applies ingress limits, signs the receiver assertion, and sends the request to the Broker with an explicit target owner.
 - Domain services send every peer call to the Broker. The Broker authenticates the caller, applies the internal route table and policy, signs the receiver assertion, selects one instance, and owns that instance's breaker.
 - The Broker reads the registry from Discovery and reports breaker trips to Discovery. Registration, lookup, removal, and status probes stay direct control-plane HTTP.
-- Direct Discord DMs WebSockets, database connections, and RabbitMQ events do not pass through the Broker.
+- Producers publish domain events to the Broker, and the Broker pushes them to subscribers as the [queues and topics contract](queues.md) defines.
+- Direct Discord DMs WebSockets and database connections do not pass through the Broker.
 
 The Broker registers as `message-broker`. Compose runs one Broker replica as service `message-broker`, listening on `:8080` with no host port. It advertises `INSTANCE_HTTP_URL=http://message-broker:8080`, Domain callers set `BROKER_URL` and Gateway sets `GATEWAY_BROKER_URL` to that same origin. Discovery rejects two live instances with one `http_url`, so this version does not scale the Broker.
 
@@ -19,6 +20,7 @@ The Broker serves one listener. It keeps the request path byte for byte. The sig
 
 | Request | Caller | Behavior |
 | --- | --- | --- |
+| `POST /internal/v1/topics/{topic}/events` | A producer with `X-Service-Name` and `X-Service-Token` | [Publish](queues.md#publish). The Broker serves it before the route table. |
 | Any path matching an internal route | A domain service with `X-Service-Name` and `X-Service-Token` | Service ingress. The Broker matches the route table, authenticates and authorizes the caller, signs a receiver assertion, and dispatches. |
 | Any path | Gateway with `X-Service-Name: gateway`, `X-Service-Token`, and `X-Broker-Target` | Gateway dispatch. Gateway already authorized the request. The Broker verifies Gateway's assertion and dispatches. |
 | `GET /internal/v1/status` | `discovery` or `operator` control credentials | The [status snapshot](resilience.md#status-and-load). |
@@ -126,6 +128,8 @@ When no eligible instance exists, the Broker returns `503 NO_HEALTHY_INSTANCES` 
 | `401 UNAUTHORIZED` | The caller or Gateway assertion failed verification | No |
 | `503 NO_HEALTHY_INSTANCES` | The owner has no eligible instance | No |
 | `503 PINNED_INSTANCE_UNAVAILABLE` | The pinned generation is unknown, not ready, removed, or excluded by the breaker | No |
+| `503 QUEUE_FULL` | The owner's [targeted queue](queues.md#targeted-queues) is full | No |
+| `503 QUEUE_TIMEOUT` | The budget ran out while the request waited in the queue | No |
 
 All `503` responses carry `Retry-After: 1`.
 
@@ -142,17 +146,17 @@ On every response to an authenticated caller, including Gateway, the Broker remo
 | `X-Broker-Backend-Registration-Id` | Only for `backend`, that attempt's generation. |
 | `X-Broker-Backend-Attempt-Id` | Only for `backend`, the attempt ID that the Broker recorded. |
 
-`backend` means that a qualifying backend failure caused this response, including a failed policy read. `broker` means that the Broker failed itself, through admission rejection, task expiry without a recorded backend failure, or an internal error. `none` covers success, `4xx`, policy rejection, `NO_HEALTHY_INSTANCES`, and `PINNED_INSTANCE_UNAVAILABLE`. These headers replace the `X-Gateway-*` attribution headers. They grant no authority, reach only authenticated callers, and never appear on public responses. Public error bodies keep their safe shape and contain no internal addresses.
+`backend` means that a qualifying backend failure caused this response, including a failed policy read. `broker` means that the Broker failed itself, through admission rejection, task expiry after dispatch without a recorded backend failure, or an internal error. `none` covers success, `4xx`, policy rejection, `NO_HEALTHY_INSTANCES`, `PINNED_INSTANCE_UNAVAILABLE`, `QUEUE_FULL`, and `QUEUE_TIMEOUT`. These headers replace the `X-Gateway-*` attribution headers. They grant no authority, reach only authenticated callers, and never appear on public responses. Public error bodies keep their safe shape and contain no internal addresses.
 
 Each caller, including Gateway, keeps one hop counter for the Broker generation. The caller finds that generation in the registry under `message-broker` with an `http_url` equal to its configured Broker URL. An unknown, removed, stale, or ambiguous generation blocks new dispatch with `503 DEPENDENCY_UNAVAILABLE`. The caller counts only a connection error or timeout of its Broker hop, or a qualifying status with `X-Broker-Failure-Origin: broker`. It does not count `backend` or `none`. Missing or inconsistent attribution fails the call closed, logs a diagnostic, and adds no failure. A Broker hop with no response counts against the Broker even if the Broker also recorded a backend timeout. Those are two physical attempts, not one attempt reported twice.
 
 ## Admission and time budget
 
-The Broker authenticates the caller from headers before admission. An unauthenticated request receives `401` without a slot. Service ingress and Gateway dispatch then use separate gates. Each gate rejects immediately with `503 TASK_LIMIT_EXCEEDED` and `Retry-After: 1` when it is full. Neither gate queues.
+The Broker authenticates the caller from headers before admission. An unauthenticated request receives `401` without a slot. Service ingress and Gateway dispatch then use separate gates. Each gate rejects immediately with `503 TASK_LIMIT_EXCEEDED` and `Retry-After: 1` when it is full. Neither gate queues. An admitted request then waits in its destination's [targeted queue](queues.md#targeted-queues).
 
 The two gates prevent self-deadlock. A public request holds Gateway capacity while its Broker dispatch reaches a receiver. That receiver's own peer calls enter service ingress, so saturated public traffic cannot reject them. Gateway's policy reads are separate, sequential Gateway dispatches. The Broker's own policy reads run inside the admitted task. They never call the Broker's HTTP listener and take no slot.
 
-The Broker finishes each task within `T - 250 ms` of receipt, 1.75 seconds by default. This budget covers policy reads and the one dispatch attempt. Each attempt's deadline is the minimum of the remaining budget and the signed authority expiry. The margin lets an attributed response reach a caller whose hop deadline is `T` before that caller times out. A Broker-side attempt timeout is a backend `timeout`. The configured counter window stays `3.5 * T`.
+The Broker finishes each task within `T - 250 ms` of receipt, 1.75 seconds by default. This budget covers policy reads, queue wait, and the one dispatch attempt. Each attempt's deadline is the minimum of the remaining budget and the signed authority expiry. The margin lets an attributed response reach a caller whose hop deadline is `T` before that caller times out. A Broker-side attempt timeout is a backend `timeout`. The configured counter window stays `3.5 * T`.
 
 Status reports `active_tasks` and `max_concurrent_tasks` as the sums over both gates. No layer replays a write.
 
