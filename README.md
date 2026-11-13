@@ -80,6 +80,7 @@ Rules introduced by updates to this README or the other project documentation ap
 - [Simulation data](docs/contracts/simulation.md)
 - [Domain events](docs/contracts/events.md)
 - [Message Broker queues and topics](docs/contracts/queues.md)
+- [Durable delivery and dead letters](docs/contracts/dead-letters.md)
 - [Service-to-service gRPC](docs/contracts/grpc.md)
 - [Release procedure](docs/releases.md)
 - [GitHub checks and permissions](docs/github.md)

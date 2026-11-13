@@ -343,8 +343,8 @@ A consumer accepts the delivery when the hop and assertion verify, `azp` maps to
 | Consumer response | Broker action |
 | --- | --- |
 | `OK` | The delivery is done. `applied` is false for a duplicate. |
-| A status whose detail has `http_status` 409 or 422 | The delivery is rejected and not retried. |
-| Any other status, a connection error, or a timeout | The delivery is retried on the existing schedule. |
+| A status whose detail has `http_status` 409 or 422 | The delivery is dead-lettered and not retried. |
+| Any other status, a connection error, or a timeout | The delivery is retried on the existing schedule, up to the [attempt limit](dead-letters.md#retry-policy). |
 
 Each attempt keeps its deadline `T`, its breaker accounting, and its delivery slot. Storage, claims, subscriptions, and ordering stay as the [queues and topics contract](queues.md#push-delivery) defines.
 
