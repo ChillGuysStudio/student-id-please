@@ -4,7 +4,7 @@ These conventions apply to service calls in mocked and integrated deployments. [
 
 ## Paths and data types
 
-Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. All client-to-service REST uses the public gateway listener, and all service-to-service REST uses the [Message Broker](broker.md). Each endpoint belongs to the service named in its section.
+Public gateway paths start with `/api/v1`. Internal paths start with `/internal/v1`, and the public gateway listener does not expose them. All client-to-service REST uses the public gateway listener, and all service-to-service REST uses the [Message Broker](broker.md). The [gRPC contract](grpc.md) moves service-to-service calls to gRPC. Its status mapping keeps the error codes and HTTP statuses below. Each endpoint belongs to the service named in its section.
 
 Realtime negotiation uses public gateway REST and returns a direct Discord DMs WebSocket URL. The upgrade and frames bypass the gateway, even though the path starts with `/api/v1`. Database connections also bypass the gateway. See the [request paths and interaction map](../architecture.md).
 

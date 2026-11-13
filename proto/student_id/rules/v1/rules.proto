@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+// Peer operations owned by Server Rules.
+package student_id.rules.v1;
+
+import "google/protobuf/timestamp.proto";
+import "student_id/domain/v1/domain.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/rules/v1;rulesv1";
+option java_multiple_files = true;
+option java_outer_classname = "RulesProto";
+option java_package = "com.chillguysstudio.studentid.rules.v1";
+
+service RulesService {
+  // Delegated. Caller: session. ABORTED NO_PUBLISHED_RULES when no version
+  // is published. Replaces GET /internal/v1/rule-versions/current.
+  rpc GetCurrentRuleSet(GetCurrentRuleSetRequest) returns (RuleSet);
+  // Delegated. Caller: moderation. No idempotency-key. Replaces
+  // POST /internal/v1/policy/evaluations.
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (student_id.domain.v1.PolicyResult);
+}
+
+message GetCurrentRuleSetRequest {}
+
+message RuleSet {
+  string rule_version = 1;
+  // draft or published.
+  string status = 2;
+  repeated Rule rules = 3;
+  // Action.
+  string default_action = 4;
+  repeated string default_channels = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message Rule {
+  string rule_id = 1;
+  int32 priority = 2;
+  // RuleKind. Selects the condition variant.
+  string kind = 3;
+  // Action.
+  string on_match = 4;
+  repeated string allowed_channels = 5;
+  // ApplicantRole values. Empty means all roles.
+  repeated string applies_to_roles = 6;
+  // The case must match kind.
+  oneof condition {
+    MajorCondition major = 7;
+    YearCondition year = 8;
+    DurationCondition enrollment_duration = 9;
+    RoleCondition role = 10;
+    BanCondition ban = 11;
+    CredentialCondition credential = 12;
+  }
+}
+
+message MajorCondition {
+  repeated string allowed_majors = 1;
+}
+
+message YearCondition {
+  int32 min_year = 1;
+  int32 max_year = 2;
+}
+
+message DurationCondition {
+  int32 min_months = 1;
+}
+
+message RoleCondition {
+  // ApplicantRole values.
+  repeated string roles = 1;
+}
+
+message BanCondition {
+  bool active = 1;
+}
+
+message CredentialCondition {
+  // CredentialKind values.
+  repeated string required_kinds = 1;
+  bool require_authentic = 2;
+  bool require_unexpired = 3;
+  bool require_structurally_valid = 4;
+}
+
+// PolicyInput in docs/contracts/api.md.
+message EvaluatePolicyRequest {
+  string session_id = 1;
+  string case_id = 2;
+  string rule_version = 3;
+  student_id.domain.v1.Claims claims = 4;
+  optional string subject_id = 5;
+  google.protobuf.Timestamp reference_at = 6;
+  repeated student_id.domain.v1.Credential credentials = 7;
+  repeated student_id.domain.v1.Validation validations = 8;
+  repeated student_id.domain.v1.UniversityRecord university_records = 9;
+  repeated student_id.domain.v1.Ban active_bans = 10;
+  repeated student_id.domain.v1.PriorDecision prior_decisions = 11;
+}

@@ -4,6 +4,8 @@ This contract moves service-to-service REST, service-call authorization, replica
 
 The [discovery and resilience contract](resilience.md) still defines registration, status, the bounded-call rules, and failure accounting for every caller. The [HTTP contract](http.md) defines error bodies and idempotency. The [gateway identity module](https://github.com/ChillGuysStudio/gateway-service/blob/dev/docs/contracts/gateway-identity.md) defines the token profiles. This contract changes who issues and verifies those tokens, not their format.
 
+The [service-to-service gRPC contract](grpc.md) moves service ingress, publish, push delivery, the Broker's policy reads, status, log export, and the topic listing to gRPC. Its policy table replaces the internal route table, assertions bind the full method name and the request message bytes, and attribution moves to trailers. Gateway dispatch of client requests stays REST as this contract defines it.
+
 ## Topology
 
 - Clients call Gateway's public listener on `:8080`. Gateway authenticates the client, applies ingress limits, signs the receiver assertion, and sends the request to the Broker with an explicit target owner.
@@ -185,7 +187,7 @@ Gateway keeps one data table from the internal routes: the method, path pattern,
 
 Gateway deletes the rest of the internal route table, service caller authentication, the delegated and workload policy, exchange and narrowing, per-backend round-robin and breakers for domain owners, and the backend response checks that the Broker now runs. It also deletes the `GATEWAY_<SERVICE>_URL` targets, `GATEWAY_SERVICE_TOKENS`, and the hop tokens in `GATEWAY_RECEIVERS`. `GATEWAY_RECEIVERS` keeps each owner's `Target` and `Audience`. Gateway needs them to bind public assertions.
 
-The `:8083` listener serves only `/healthz`, `/internal/v1/status`, and `/internal/v1/logs`. Every other request returns `404 NOT_FOUND` before admission, with no attribution headers and no forwarding. A caller still configured for Gateway receives that `404`, so its call fails without a breaker failure. The public listener still rejects service credentials with `401 UNAUTHORIZED` and `/internal/v1/*` with `404 NOT_FOUND`.
+The `:8083` listener serves only `/healthz`, `/internal/v1/status`, and `/internal/v1/logs`. After the [gRPC rollout](grpc.md#gateway-routes), it serves only `/healthz`. Every other request returns `404 NOT_FOUND` before admission, with no attribution headers and no forwarding. A caller still configured for Gateway receives that `404`, so its call fails without a breaker failure. The public listener still rejects service credentials with `401 UNAUTHORIZED` and `/internal/v1/*` with `404 NOT_FOUND`.
 
 ## Repository changes
 

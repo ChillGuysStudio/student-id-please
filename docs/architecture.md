@@ -84,7 +84,7 @@ flowchart TB
 
 The client sends REST to the API gateway. The gateway authenticates it and sends it to the Message Broker with its target service, and the Broker delivers it to one replica. Ticket negotiation uses the same REST path. The client then opens a direct WebSocket to the Discord DMs service for live chat. The gateway does not relay chat frames.
 
-All service-to-service REST passes through the Broker. Domain events are Broker topics: a producer publishes to the Broker, and the Broker delivers one copy to each subscribing service. Each service connects only to its own storage, and only the Broker connects to `broker-db`.
+All service-to-service REST passes through the Broker. The [gRPC contract](contracts/grpc.md) moves service-to-service calls, Discovery control, status probes, and log export to gRPC, while client requests stay REST. Domain events are Broker topics: a producer publishes to the Broker, and the Broker delivers one copy to each subscribing service. Each service connects only to its own storage, and only the Broker connects to `broker-db`.
 
 The [discovery and resilience contract](contracts/resilience.md) defines registration, routing, health, and failure accounting. The [demonstration guide](demonstration.md) shows how to scale replicas and watch Discovery and the Broker with Compose commands. Private registration, registry lookup, removal, and status probes use direct control-plane HTTP to avoid a bootstrap cycle. Discovery supplies replica addresses, and the Broker selects them with round-robin routing. The dashed Discovery links in the diagram show this control plane.
 

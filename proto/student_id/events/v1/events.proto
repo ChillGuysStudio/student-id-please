@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+// Domain event envelope and push delivery to subscribers.
+package student_id.events.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/events/v1;eventsv1";
+option java_multiple_files = true;
+option java_outer_classname = "EventsProto";
+option java_package = "com.chillguysstudio.studentid.events.v1";
+
+// EventEnvelope mirrors Event<T> in docs/contracts/events.md.
+message EventEnvelope {
+  string event_id = 1;
+  // Equals the topic name, for example DecisionScored.
+  string event_type = 2;
+  int32 schema_version = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  // Producer registry name.
+  string producer = 5;
+  string correlation_id = 6;
+  // UTF-8 JSON object of the payload schema that events.md defines for
+  // event_type and schema_version. Consumers validate it.
+  string payload_json = 7;
+}
+
+// EventConsumerService is served by every subscriber: applicant, credential,
+// university_record, session, and player. The Broker is the only caller.
+service EventConsumerService {
+  // Replaces POST /internal/v1/events/{topic}.
+  rpc DeliverEvent(DeliverEventRequest) returns (DeliverEventResponse);
+}
+
+message DeliverEventRequest {
+  EventEnvelope event = 1;
+  // 1 for the first attempt. Replaces X-Delivery-Attempt.
+  int32 attempt = 2;
+}
+
+message DeliverEventResponse {
+  string event_id = 1;
+  // False when the consumer had already applied this event.
+  bool applied = 2;
+}

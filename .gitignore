@@ -21,3 +21,5 @@ postman/results/
 **/**/workspace.local/**
 # Local-only digest overlay
 /compose.published.yaml
+# Local proto generation output
+/proto/gen/

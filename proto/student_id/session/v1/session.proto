@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+// Peer operations owned by Session.
+package student_id.session.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/session/v1;sessionv1";
+option java_multiple_files = true;
+option java_outer_classname = "SessionProto";
+option java_package = "com.chillguysstudio.studentid.session.v1";
+
+service SessionService {
+  // Delegated. Callers: applicant, credential, rules, university_record,
+  // moderation, discord-dms, and gateway. The Broker also reads it for its
+  // own policy. player_id must equal the verified actor.
+  rpc GetSessionContext(GetSessionContextRequest) returns (SessionContext);
+  // Workload. Callers: applicant, credential, university_record, each only
+  // when listed in the attempt's allowed_callers.
+  rpc GetAcceptedAttempt(GetAcceptedAttemptRequest) returns (AcceptedAttempt);
+  // Delegated decision readiness. Callers: moderation, rules. Participants
+  // keep the public REST route.
+  rpc GetCaseStatus(GetCaseStatusRequest) returns (CaseStatus);
+}
+
+message GetSessionContextRequest {
+  string session_id = 1;
+  string player_id = 2;
+}
+
+message Participant {
+  string player_id = 1;
+  // moderator or junior_moderator.
+  string role = 2;
+}
+
+message Session {
+  string session_id = 1;
+  string team_id = 2;
+  string owner_id = 3;
+  // lobby, active, ending, or ended.
+  string status = 4;
+  repeated Participant participants = 5;
+  optional string rule_version = 6;
+  // Unset means null.
+  google.protobuf.Timestamp started_at = 7;
+  optional string university_snapshot_id = 8;
+  optional string current_case_id = 9;
+  int32 processed_count = 10;
+  int32 score = 11;
+  int32 penalties = 12;
+}
+
+message SessionContext {
+  Session session = 1;
+  Participant player = 2;
+}
+
+message GetAcceptedAttemptRequest {
+  string session_id = 1;
+  string attempt_id = 2;
+}
+
+message AcceptedAttempt {
+  Acceptance acceptance = 1;
+  Lifecycle lifecycle = 2;
+}
+
+// Acceptance is immutable once Session stores it.
+message Acceptance {
+  // Always 1.
+  int32 version = 1;
+  string attempt_id = 2;
+  // snapshot_start or case_initialize.
+  string operation = 3;
+  string session_id = 4;
+  string team_id = 5;
+  string actor_id = 6;
+  string actor_role = 7;
+  string actor_token_id = 8;
+  // Epoch seconds.
+  int64 actor_expires_at = 9;
+  google.protobuf.Timestamp accepted_at = 10;
+  // The original player Idempotency-Key.
+  string idempotency_key = 11;
+  string normalized_body_sha256 = 12;
+  // applicant, credential, or university_record. Unset for snapshot_start.
+  optional string entry_service = 13;
+  optional string case_id = 14;
+  optional string rule_version = 15;
+  google.protobuf.Timestamp reference_at = 16;
+  optional string snapshot_id = 17;
+  repeated string allowed_callers = 18;
+  repeated string allowed_effects = 19;
+}
+
+message Lifecycle {
+  // lobby, active, or ended.
+  string session_status = 1;
+  // accepted, pending, ready, completed, failed, or superseded.
+  string attempt_status = 2;
+  google.protobuf.Timestamp checked_at = 3;
+  bool effects_allowed = 4;
+  // Unset means null.
+  Reservation reservation = 5;
+}
+
+message Reservation {
+  string subject_id = 1;
+  google.protobuf.Timestamp bound_at = 2;
+}
+
+message GetCaseStatusRequest {
+  string session_id = 1;
+  string case_id = 2;
+}
+
+message CaseStatus {
+  string case_id = 1;
+  string session_id = 2;
+  // pending or ready.
+  string state = 3;
+  // Subset of applicant, credential, university_record, in that order.
+  repeated string ready_services = 4;
+}
