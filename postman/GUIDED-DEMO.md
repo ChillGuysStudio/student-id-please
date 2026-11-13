@@ -49,14 +49,15 @@ To follow one request:
    ```
 
    Each `dispatch` record names the `caller`, the `target_service` and `target_instance_id`, the `method` and `route` (or `rpc` for a gRPC call), the `status`, the `outcome`, and the `attempt`. A request that Gateway refuses itself, such as a 401 or 403, leaves no Broker record.
-3. The receiving service logs the work it does for the call under its own `request_id`. To follow its peer calls, find its `http_request` record for the same route on the `target_instance_id`, then grep the Broker log for that ID:
+3. Every service keeps that `request_id` and passes it on its own calls through the Broker, so the same search finds every synchronous hop, nested calls included. To see every service's records at once, search all logs:
 
    ```sh
-   docker compose logs --no-log-prefix session | grep <target_instance_id> | grep '"http_request"' | grep '/cases"' | tail -1
-   docker compose logs --no-log-prefix message-broker | grep <that-request-id>
+   docker compose logs --no-log-prefix | grep <request-id>
    ```
 
-4. Events appear as an `event_published` record followed by one `delivery` record per subscriber, with the `event_type` and `target_service`. Each event has its own `request_id`, so match it by time and event type.
+   In Grafana, paste the ID into **request or event ID** on the `student-id-logs` dashboard. Or run `{service=~".+"} |= "<request-id>" | json` in Explore with the Loki data source.
+
+4. Events appear as an `event_published` record followed by one `delivery` record per subscriber, with the `event_type` and `target_service`. A delivery runs after the response, under the event's `event_id`, so search that ID to follow its fan-out and retries.
 
 The table lists what each request triggers. Peer calls read `caller` to `target_service` and the RPC name. Each row was checked by sending the request once and reading the Broker's `dispatch` records. Requests that share a route with a listed one trigger the same path.
 
@@ -78,7 +79,7 @@ The table lists what each request triggers. Peer calls read `caller` to `target_
 | 39 | Session (`POST .../end`) | `ShiftEnded` is published and delivered to Player |
 | 67, 69 as a non-administrator | None: Gateway answers 403 before the Broker | None |
 
-Case creation shows the pattern. Request 33 produces one `dispatch` from `gateway` to `session`. Session's own record for that call has a different `request_id`, and the `StartCase` dispatch to `applicant` is under that ID. A retry shows as a higher `attempt` on the same call.
+Case creation shows the pattern. Request 33 produces a `dispatch` from `gateway` to `session`, then the `StartCase` dispatch from `session` to `applicant` and the nested `GetAcceptedAttempt` calls back to Session, all under the request's `X-Request-ID`. A retry shows as a higher `attempt` on the same call.
 
 ## Newman and native HTML reports
 
