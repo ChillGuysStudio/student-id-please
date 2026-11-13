@@ -218,6 +218,94 @@ docker compose ps discord-dms
 
 The replicas share the ticket secret, PostgreSQL history, and Redis delivery, so players connected to different replicas exchange messages. A new replica receives new connections after the next DNS refresh. Stopping a replica closes its connections. A client reconnects by negotiating a new ticket through Gateway, and the proxy sends the new connection to a remaining replica. Return to two replicas with `docker compose up -d --no-deps --scale discord-dms=2 discord-dms`.
 
+## Monitor the stack
+
+Prometheus and Grafana start with the stack and publish only to `127.0.0.1`. Every process serves `/metrics` on the private port `9464` of the container network. Prometheus reads its targets from Discovery every 5 seconds, so a scaled replica appears after it registers. The [metrics contract](contracts/metrics.md) defines the catalogue.
+
+1. Open Grafana at `http://127.0.0.1:3000` and sign in as `admin`. The password is `GRAFANA_ADMIN_PASSWORD` in `.env`. Read it without printing the other secrets:
+
+	```sh
+	grep '^GRAFANA_ADMIN_PASSWORD=' .env
+	```
+
+2. Open the `Student ID services` dashboard. It shows request rate, 5xx ratio, 4xx rate, p50 and p95 latency, load by replica, ready and unavailable instances, dependency failures, scrape health, and the version of each replica. Open `Student ID broker` for the Broker's view: dispatch rate and load per replica, in-flight attempts, failures, reroutes, breaker trips, targeted queue depth, delivery outcomes, pending deliveries, and dead letters. The `service` variable filters both dashboards.
+
+3. Check that Prometheus scrapes every replica. Every series has the `up` value 1:
+
+	```sh
+	curl -s 'http://127.0.0.1:9090/api/v1/query?query=up'
+	```
+
+4. Query a metric directly, for example the Broker's dispatch rate for each replica of Player:
+
+	```sh
+	curl -s --get 'http://127.0.0.1:9090/api/v1/query' \
+		--data-urlencode 'query=sum by (target_instance) (rate(student_id_broker_dispatch_total{target_service="player"}[1m]))'
+	```
+
+The metrics port is not published, and Gateway and the DMs proxy return no exposition. Discovery's target list needs the `prometheus` credential, so a request without the headers fails with `401`.
+
+### Follow a request in the logs
+
+Promtail ships the structured records of every service to Loki, and Grafana shows them next to the metrics. Open the `Student ID logs` dashboard to filter by `service`, `level`, and free text. It shows the log rate for each service and level above the matching lines.
+
+To follow one request across services, send a request with a known ID and search for it in Grafana Explore with the `Loki` data source:
+
+```sh
+curl -s -o /dev/null -H 'X-Request-ID: 7d6f1c52-3a0e-4c0b-9f43-0b6e5f1d2a10' http://127.0.0.1:8080/api/v1/players/me
+```
+
+```text
+{service=~".+"} |= "7d6f1c52-3a0e-4c0b-9f43-0b6e5f1d2a10" | json
+```
+
+This request has no token, so only Gateway records it. With a valid bearer token, the result also lists the Broker and domain service records with the same `request_id`, ordered by time. Each line carries `event`, `instance_id`, `outcome`, and `duration_ms`. Add `| level="WARN"` or `| event="dispatch"` to narrow the result. Only `service` and `level` are labels, so filter other fields after `| json`.
+
+## Watch load routing and rerouting
+
+The Broker sends each request to the replica with the lowest load and reroutes an eligible request after a failed attempt. The [load routing contract](contracts/routing.md) defines the rules. These steps use native Docker commands on a running stack.
+
+1. Make sure Player has two replicas, then send sequential requests as a player. `TOKEN` holds a player access token:
+
+	```sh
+	docker compose up -d --no-deps --scale player=2 player
+	for i in $(seq 20); do curl -s -o /dev/null -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/api/v1/players/me; done
+	docker compose logs --no-log-prefix message-broker | grep '"event":"dispatch"' | grep -o '"target_instance_id":"[^"]*"' | sort | uniq -c
+	```
+
+	Equal loads alternate, so each replica receives about half of the dispatches.
+
+2. Load one replica unevenly. Start a third Player replica with a smaller admission limit, send 64 concurrent requests, and compare the shares:
+
+	```sh
+	docker compose run -d --no-deps -e MAX_CONCURRENT_TASKS=4 player
+	seq 64 | xargs -P 64 -I{} curl -s -o /dev/null -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/api/v1/players/me
+	```
+
+	The small replica receives fewer dispatches. In Grafana, `Student ID broker` shows the dispatch rates diverge while the load of each replica converges. Stop the extra container with `docker stop` and `docker rm` when you finish.
+
+3. Pause one replica. Copy a Player container ID from `docker compose ps player`:
+
+	```sh
+	docker pause <container-id>
+	seq 10 | xargs -P 10 -I{} curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/api/v1/players/me
+	```
+
+	Every request returns `200`. Each request that chose the paused replica logged a `timeout` dispatch, then a `reroute` with `decision` `sent`, then a second dispatch on the other replica with the same `request_id`:
+
+	```sh
+	docker compose logs --no-log-prefix message-broker | grep -E '"event":"(dispatch|reroute)"' | tail -40
+	docker compose logs --no-log-prefix message-broker | grep '"event":"reroute"' | grep -o '"decision":"[a-z_]*"' | sort | uniq -c
+	```
+
+4. Unpause the replica. Three timeouts within the breaker window trip its breaker, and Discovery records the removal. Reactivate the replica by the [re-entry rules](contracts/resilience.md#removal-re-entry-and-writes):
+
+	```sh
+	docker unpause <container-id>
+	```
+
+	The broker dashboard shows the reroutes by decision, the breaker trip, and the extra `removed` instance.
+
 ## Run the HTTP checks
 
 The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the log download, in Postman or with Newman:
@@ -228,6 +316,14 @@ The Postman collections run through the public Gateway. The [guided demo](../pos
 ```
 
 [HTTP checks](../postman/HTTP-CHECKS.md) describes the read-only public folder and the private Discovery health folder.
+
+Each service has its own collection in `postman/`: `applicant`, `credential`, `discord-dms`, `moderation`, `server-rules`, and `university-record`. The runner creates what a collection needs through the public Gateway, then runs it with the same redaction and report:
+
+```sh
+./scripts/run_newman.sh --service applicant
+```
+
+The runner registers disposable players, builds a team and a Session with an assigned Moderator, starts the shift and opens a case where the collection needs one, and grants a disposable player administrator access for the run. It revokes that access when the run ends, as the [catalog seed](../scripts/seed_university_catalog.py) does. The grant runs `docker compose exec player` in the repository root. Pass `--compose-dir DIR` when the stack runs from another directory. `server-rules` needs a published rule version, and `moderation` opens a second case for its ban folder. The report goes to `.local/postman/<service>/newman-htmlextra.html`. To see which services handle a request, follow its `X-Request-ID` in the Broker log as [the guided demo](../postman/GUIDED-DEMO.md#follow-a-request-through-the-services) describes.
 
 ## Check the repository
 

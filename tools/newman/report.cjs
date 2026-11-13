@@ -8,6 +8,7 @@ const { STATUS_CODES } = require('node:http');
 const ROOT = path.resolve(__dirname, '../..');
 const COLLECTION = path.join(ROOT, 'postman/guided-demo.postman_collection.json');
 const HTTP_COLLECTION = path.join(ROOT, 'postman/http-checks.postman_collection.json');
+const SERVICES = require('./services.cjs');
 const DEFAULT_OUTPUT = path.join(ROOT, '.local/postman/newman-htmlextra.html');
 
 function definitions(collection = COLLECTION) {
@@ -95,14 +96,17 @@ function sanitize(inputs, collection = COLLECTION) {
     const recovery = executions.some(e => e.item.name.startsWith('29 '));
     const scope = overload && recovery ? 'Includes the recorded overload and recovery requests (28–29).' : 'Does not include a complete overload/recovery demonstration (28–29).';
     const httpChecks = collection === HTTP_COLLECTION;
-    const description = httpChecks
+    const service = path.basename(collection).endsWith('-service.json') ? path.basename(collection, '-service.json') : null;
+    const description = service
+        ? `Saved run started ${date}. The ${service} service collection, run with disposable players, a session and a case created through the public Gateway. URL placeholders are privacy redactions. This report does not prove replica routing or direct WebSocket delivery.`
+        : httpChecks
         ? `Saved run started ${date}. Read-only HTTP checks only. URL placeholders are privacy redactions. This report does not prove round-robin, breaker timing, health polling, critical load, direct WebSockets or notification receipt.`
         : `Saved run started ${date}. ${inputs.length} recorded phase(s), combined without replaying requests. URL placeholders are intentional privacy redactions, not actual targets. ${scope} No task-timeout test or direct WebSocket frames are demonstrated by this collection. Report timestamp is the rendering time.`;
     return {
-        collection: { info: { name: httpChecks ? 'Read-only HTTP checks' : 'Guided Gateway HTTP demo', description }, item: [...folders].map(([name, item]) => ({ name, item })) },
+        collection: { info: { name: service ? `${service} service collection` : httpChecks ? 'Read-only HTTP checks' : 'Guided Gateway HTTP demo', description }, item: [...folders].map(([name, item]) => ({ name, item })) },
         run: { stats, timings: { started, completed, responseAverage: responseCount ? timeTotal / responseCount : 0 }, transfers: { responseTotal }, executions, failures,
             ...(runError ? { error: { message: 'Run error; private details omitted.' } } : {}) },
-        reportMetadata: { started: date, phases, scope: httpChecks ? 'Read-only HTTP checks; no registry mutations or scaling proof.' : scope,
+        reportMetadata: { started: date, phases, scope: service ? `The ${service} service collection through the public Gateway.` : httpChecks ? 'Read-only HTTP checks; no registry mutations or scaling proof.' : scope,
             failed: runError || failures.length > 0 || Object.values(stats).some(s => s.failed > 0) }
     };
 }
@@ -161,7 +165,7 @@ function verifyNoSecrets(inputs, html) {
 }
 
 function parseArgs(args) {
-    const options = { inputs: [], output: DEFAULT_OUTPUT, gateway: 'http://127.0.0.1:8080', environment: path.join(ROOT, 'postman/guided-demo.postman_environment.json'), overload: false, http: null };
+    const options = { inputs: [], output: DEFAULT_OUTPUT, gateway: 'http://127.0.0.1:8080', environment: path.join(ROOT, 'postman/guided-demo.postman_environment.json'), overload: false, http: null, service: null, composeDir: ROOT };
     for (let i = 0; i < args.length; i++) {
         const flag = args[i];
         if (flag === '--help' || flag === '-h') { options.help = true; continue; }
@@ -174,21 +178,28 @@ function parseArgs(args) {
             if (options.http === 'Safe public smoke') options.gateway = 'http://127.0.0.1:8080';
             continue;
         }
-        if (!['--from-json', '--output', '--gateway-url', '--environment'].includes(flag)) throw new Error(`Unknown option: ${flag}`);
+        if (!['--from-json', '--output', '--gateway-url', '--environment', '--service', '--compose-dir'].includes(flag)) throw new Error(`Unknown option: ${flag}`);
         const value = args[++i];
         if (!value || value.startsWith('--')) throw new Error(`Missing value for ${flag}`);
         if (flag === '--from-json') options.inputs.push(path.resolve(value));
+        else if (flag === '--service') {
+            if (!SERVICES.SERVICES.includes(value)) throw new Error(`Unknown service: ${value}. Choose one of ${SERVICES.SERVICES.join(', ')}.`);
+            options.service = value;
+            options.output = path.join(ROOT, `.local/postman/${value}/newman-htmlextra.html`);
+        }
+        else if (flag === '--compose-dir') options.composeDir = path.resolve(value);
         else options[{ '--output': 'output', '--gateway-url': 'gateway', '--environment': 'environment' }[flag]] = flag === '--gateway-url' ? value : path.resolve(value);
     }
     if (!options.output.endsWith('.html')) throw new Error('--output must end in .html');
     if (options.inputs.length && options.overload) throw new Error('--with-overload cannot be combined with --from-json');
+    if (options.service && (options.http || options.overload)) throw new Error('--service cannot be combined with --http or --with-overload.');
     if (options.http && options.overload) throw new Error('HTTP checks cannot run with overload.');
     if (options.http && options.inputs.length) throw new Error('HTTP checks folders cannot be combined with --from-json.');
     return options;
 }
 
 function help() {
-    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27, then 30–72; these create disposable service data.\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery liveness on a private network URL\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery and 30–70\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
+    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27, then 30–72; these create disposable service data.\n  --service NAME       Run one service collection (applicant, credential, discord-dms, moderation, server-rules, university-record)\n                       after creating its players, session and case; grants and revokes an administrator\n  --compose-dir DIR    Compose project directory used to grant the administrator (default: the CPR root)\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery liveness on a private network URL\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery and 30–70\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
 }
 
 async function executePhase(collection, environment) {
@@ -215,14 +226,14 @@ function phases(source) {
 async function runLive(options) {
     const { spawn } = require('node:child_process');
     const { once } = require('node:events');
-    const { source } = definitions(options.http ? HTTP_COLLECTION : COLLECTION);
+    const { source } = definitions(options.service ? SERVICES.collectionFile(options.service) : options.http ? HTTP_COLLECTION : COLLECTION);
     const gateway = new URL(options.gateway);
     if (!['http:', 'https:'].includes(gateway.protocol) || gateway.username || gateway.password || gateway.search || gateway.hash) throw new Error('Use an HTTP(S) public Gateway URL without credentials, query or fragment.');
     if (options.overload && !['127.0.0.1', 'localhost'].includes(gateway.hostname)) throw new Error('--with-overload requires a Gateway URL on 127.0.0.1 or localhost; the helper targets local ports only.');
-    const privateRoot = path.join(ROOT, options.http ? '.local/postman/http-checks' : '.local/postman');
+    const privateRoot = path.join(ROOT, options.http ? '.local/postman/http-checks' : options.service ? `.local/postman/${options.service}` : '.local/postman');
     fs.mkdirSync(privateRoot, { recursive: true, mode: 0o700 });
     const directory = fs.mkdtempSync(path.join(privateRoot, 'run-'));
-    let environment = JSON.parse(fs.readFileSync(options.environment, 'utf8'));
+    let environment = options.service ? { name: 'Service run', values: [] } : JSON.parse(fs.readFileSync(options.environment, 'utf8'));
     environment.values = (environment.values || []).filter(value => value.key !== 'gateway_url');
     environment.values.push({ key: 'gateway_url', value: gateway.href.replace(/\/$/, ''), enabled: true });
     const results = [];
@@ -236,6 +247,24 @@ async function runLive(options) {
         const stat = raw.run.stats;
         console.log(`${label}: ${stat.requests.total} requests, ${stat.assertions.total - stat.assertions.failed}/${stat.assertions.total} assertions passed`);
         return !raw.run.error && !raw.run.failures.length && !Object.values(stat).some(value => value.failed > 0);
+    }
+    if (options.service) {
+        const fixture = await SERVICES.prepare(options.service, { gateway: environment.values.find(v => v.key === 'gateway_url').value, composeDir: options.composeDir });
+        try {
+            for (const [key, value] of Object.entries(fixture.values)) environment.values.push({ key, value, enabled: true });
+            // Moderation's last folder decides a case, so it needs a fresh case with a University identity.
+            const last = source.item.find(folder => folder.name === 'Alternative ban flow');
+            if (options.service === 'moderation' && last) {
+                const ok = await execute({ ...source, item: source.item.filter(folder => folder !== last) }, 'moderation-decisions');
+                if (ok) {
+                    const caseId = await fixture.freshCase();
+                    environment.values = environment.values.filter(entry => entry.key !== 'case_id');
+                    environment.values.push({ key: 'case_id', value: caseId, enabled: true });
+                    await execute({ ...source, item: [last] }, 'moderation-ban');
+                }
+            } else await execute(source, options.service);
+        } finally { await fixture.cleanup(); }
+        return results;
     }
     const plan = options.http ? null : phases(source);
     const first = options.http ? { ...source, item: source.item.filter(folder => folder.name === options.http) } : plan.before;
@@ -283,7 +312,7 @@ async function main() {
     let inputs;
     if (options.inputs.length) inputs = options.inputs.map(file => JSON.parse(fs.readFileSync(file, 'utf8')));
     else inputs = await runLive(options);
-    const safe = sanitize(inputs, options.http ? HTTP_COLLECTION : COLLECTION);
+    const safe = sanitize(inputs, options.service ? SERVICES.collectionFile(options.service) : options.http ? HTTP_COLLECTION : COLLECTION);
     let html;
     try { html = render(safe, options.output); verifyNoSecrets(inputs, html); }
     catch (error) { fs.rmSync(options.output, { force: true }); throw error; }
@@ -293,4 +322,8 @@ async function main() {
 }
 
 module.exports = { sanitize, render, verifyNoSecrets, parseArgs, executePhase, phases };
-if (require.main === module) main().catch(() => { console.error('Newman/report generation failed. Private diagnostics are withheld; check inputs, dependencies and Gateway availability.'); process.exitCode = 1; });
+if (require.main === module) main().catch(error => {
+    console.error('Newman/report generation failed. Private diagnostics are withheld; check inputs, dependencies and Gateway availability.');
+    if (error.safe) console.error(error.message);
+    process.exitCode = 1;
+});

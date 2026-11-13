@@ -151,5 +151,29 @@ class ServiceCollectionTests(unittest.TestCase):
                 self.assertGreater(denials, 0)
 
 
+class ServiceRunnerTests(unittest.TestCase):
+    def test_runner_covers_exactly_the_service_collections(self):
+        source = (ROOT / "tools/newman/services.cjs").read_text()
+        listed = re.search(r"const SERVICES = \[([^\]]+)\]", source).group(1)
+        names = re.findall(r"'([a-z-]+)'", listed)
+        self.assertEqual(names, [path.name.removesuffix("-service.json") for path in SERVICE_COLLECTIONS])
+
+    def test_runner_option_and_request_paths_are_documented(self):
+        demonstration = (ROOT / "docs/demonstration.md").read_text()
+        self.assertIn("./scripts/run_newman.sh --service applicant", demonstration)
+        guide = (ROOT / "postman/GUIDED-DEMO.md").read_text()
+        self.assertIn("## Follow a request through the services", guide)
+        self.assertIn("docker compose logs --no-log-prefix message-broker | grep <request-id>", guide)
+        # Every mapped request number exists in the guided collection.
+        collection = json.loads(GUIDED.read_text())
+        numbers = {item["name"][:2] for folder in collection["item"] for item in folder["item"]}
+        table = guide.split("## Follow a request through the services")[1].split("## Newman")[0]
+        for line in table.splitlines():
+            if line.startswith("| ") and line[2].isdigit():
+                for first, last in re.findall(r"(\d\d)(?:\u2013(\d\d))?", line.split("|")[1]):
+                    for number in range(int(first), int(last or first) + 1):
+                        self.assertIn(f"{number:02d}", numbers)
+
+
 if __name__ == "__main__":
     unittest.main()

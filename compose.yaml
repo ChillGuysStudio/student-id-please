@@ -1,14 +1,25 @@
 name: student-id-please
+# Application logs use the json-file driver whatever the daemon default is, so
+# Promtail can read them. The files rotate at 10 MB, keeping three.
+x-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 x-registration: &registration
   DISCOVERY_GRPC_URL: http://discovery:50051
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
   CONTROL_MAX_CONCURRENT_CALLS: '8'
   DISCOVERY_REGISTER_INTERVAL_SECONDS: '5'
   OUTBOUND_TASK_TIMEOUT_SECONDS: '2'
+  # Private metrics listener. Compose publishes no metrics port.
+  METRICS_ADDRESS: ':9464'
 
 services:
   gateway:
     image: ${GATEWAY_IMAGE:-maxnoragami/gateway-service:latest}
+    logging: *json-logging
     env_file: .local/stack/gateway.env
     environment:
       <<: *registration
@@ -33,6 +44,7 @@ services:
     restart: unless-stopped
   message-broker:
     image: ${BROKER_IMAGE:-maxnoragami/message-broker-service:latest}
+    logging: *json-logging
     env_file: .local/stack/broker.env
     environment:
       <<: *registration
@@ -80,15 +92,19 @@ services:
       discovery-state-init:
         condition: service_completed_successfully
     image: ${DISCOVERY_IMAGE:-maxnoragami/discovery-service:latest}
+    logging: *json-logging
     environment:
       SERVICE_NAME: discovery
       DISCOVERY_ADDR: ':8081'
+      METRICS_ADDRESS: ':9464'
+      DISCOVERY_METRICS_PORT: '9464'
+      DISCOVERY_METRICS_TARGET: discovery:9464
       DISCOVERY_HEALTH_INTERVAL_SECONDS: '1'
       DISCOVERY_LEASE_SECONDS: '15'
       DISCOVERY_STATE_FILE: /state/removed.json
       CONTROL_PLANE_NAME: discovery
       CONTROL_PLANE_TOKEN: ${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}
-      CONTROL_PLANE_TOKENS: '{"gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","player":"${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}","session":"${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}","moderation":"${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}","discord-dms":"${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}","applicant":"${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}","credential":"${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}","rules":"${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}","university_record":"${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}","discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","message-broker":"${MESSAGE_BROKER_CONTROL_TOKEN:?Set MESSAGE_BROKER_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
+      CONTROL_PLANE_TOKENS: '{"gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","player":"${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}","session":"${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}","moderation":"${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}","discord-dms":"${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}","applicant":"${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}","credential":"${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}","rules":"${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}","university_record":"${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}","discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","message-broker":"${MESSAGE_BROKER_CONTROL_TOKEN:?Set MESSAGE_BROKER_CONTROL_TOKEN in .env}","prometheus":"${PROMETHEUS_CONTROL_TOKEN:?Set PROMETHEUS_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
       CONTROL_MAX_CONCURRENT_CALLS: '8'
       OUTBOUND_TASK_TIMEOUT_SECONDS: '2'
       GATEWAY_ALLOW_INSECURE_WS: 'true'
@@ -187,6 +203,7 @@ services:
     deploy:
       replicas: 2
     image: ${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}
+    logging: *json-logging
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001']
     env_file: .local/stack/player.env
     environment:
@@ -208,6 +225,7 @@ services:
     deploy:
       replicas: 2
     image: ${SESSION_IMAGE:-tirppy/student-id-session-service:latest}
+    logging: *json-logging
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002']
     env_file: .local/stack/session.env
     environment:
@@ -235,6 +253,7 @@ services:
     deploy:
       replicas: 2
     image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
+    logging: *json-logging
     env_file: .local/stack/moderation.env
     environment:
       <<: *registration
@@ -262,6 +281,7 @@ services:
     restart: unless-stopped
   moderation-publisher:
     image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
+    logging: *json-logging
     command: [python, -m, moderation.publisher]
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
@@ -280,6 +300,7 @@ services:
     deploy:
       replicas: 2
     image: ${DISCORD_DMS_IMAGE:-sentientmoss/pad-discord-dms-service:latest}
+    logging: *json-logging
     env_file: .local/stack/discord-dms.env
     environment:
       <<: *registration
@@ -330,6 +351,7 @@ services:
     deploy:
       replicas: 2
     image: ${APPLICANT_IMAGE:-mcittkmims/applicant-service:latest}
+    logging: *json-logging
     env_file: .local/stack/applicant.env
     environment:
       <<: *registration
@@ -352,6 +374,7 @@ services:
     deploy:
       replicas: 2
     image: ${CREDENTIAL_IMAGE:-mcittkmims/credential-service:latest}
+    logging: *json-logging
     env_file: .local/stack/credential.env
     environment:
       <<: *registration
@@ -406,6 +429,7 @@ services:
     deploy:
       replicas: 2
     image: ${UNIVERSITY_RECORD_IMAGE:-maxnoragami/university-record-service:latest}
+    logging: *json-logging
     env_file: .local/stack/university_record.env
     environment:
       <<: *registration
@@ -451,6 +475,7 @@ services:
     deploy:
       replicas: 2
     image: ${SERVER_RULES_IMAGE:-maxnoragami/server-rules-service:latest}
+    logging: *json-logging
     env_file: .local/stack/rules.env
     environment:
       <<: *registration
@@ -478,6 +503,80 @@ services:
       rules-db:
         condition: service_healthy
     restart: unless-stopped
+  prometheus:
+    # Scrapes every replica that Discovery lists. It joins no registry and publishes only to localhost.
+    image: prom/prometheus:v3.1.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=2d
+    ports:
+      - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
+      - ./.local/stack/prometheus-control-token:/etc/prometheus/control-token:ro,z
+      - prometheus-data:/prometheus
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:9090/-/healthy']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      discovery:
+        condition: service_healthy
+    restart: unless-stopped
+  loki:
+    # Stores service log records for 72 hours. It publishes no host port, because only Grafana and Promtail use it.
+    image: grafana/loki:3.3.2
+    command: [-config.file=/etc/loki/loki.yml]
+    volumes:
+      - ./config/loki/loki.yml:/etc/loki/loki.yml:ro,z
+      - loki-data:/loki
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:3100/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+  promtail:
+    # Reads the Docker json-file logs of the stack, read-only. It never mounts the Docker socket.
+    image: grafana/promtail:3.3.2
+    command: [-config.file=/etc/promtail/promtail.yml]
+    volumes:
+      - ./config/promtail/promtail.yml:/etc/promtail/promtail.yml:ro,z
+      - ${DOCKER_CONTAINERS_DIR:-/var/lib/docker/containers}:/var/lib/docker/containers:ro
+      - promtail-positions:/positions
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+  grafana:
+    # Dashboards and the data source come from files, so every start provisions the same state.
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    ports:
+      - '127.0.0.1:${GRAFANA_PORT:-3000}:3000'
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro,z
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro,z
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:3000/api/health']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
 volumes:
   discovery-state:
   moderation-publisher-logs:
@@ -489,3 +588,6 @@ volumes:
   mongo-data:
   university-mongo-data:
   rules-data:
+  prometheus-data:
+  loki-data:
+  promtail-positions:

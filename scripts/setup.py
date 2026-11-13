@@ -26,10 +26,10 @@ BROKER_GRPC_URL = "http://message-broker:50051"
 PASSWORDS = (
     "PLAYER_DB_PASSWORD", "SESSION_DB_PASSWORD", "MODERATION_DB_PASSWORD", "DMS_DB_PASSWORD",
     "BROKER_DB_PASSWORD", "REDIS_PASSWORD", "CHAT_TICKET_SECRET", "UNIVERSITY_MONGO_PASSWORD",
-    "RULES_DB_PASSWORD", "RULES_CURSOR_SECRET",
+    "RULES_DB_PASSWORD", "RULES_CURSOR_SECRET", "GRAFANA_ADMIN_PASSWORD",
 )
 CONTROL_NAMES = ("GATEWAY", "DISCOVERY", "OPERATOR", "APPLICANT", "CREDENTIAL", "UNIVERSITY_RECORD",
-                 "SERVER_RULES", "MODERATION", "PLAYER", "SESSION", "DISCORD_DMS", "MESSAGE_BROKER")
+                 "SERVER_RULES", "MODERATION", "PLAYER", "SESSION", "DISCORD_DMS", "MESSAGE_BROKER", "PROMETHEUS")
 CALLER_VARIABLES = {
     "SESSION_SERVICE_TOKEN": "session", "MODERATION_SERVICE_TOKEN": "moderation",
     "DISCORD_DMS_SERVICE_TOKEN": "discord-dms",
@@ -92,6 +92,8 @@ def prepare(root, gateway_port=8080, dms_port=8009):
     config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
+    # Prometheus runs as an unprivileged user, so it reads the token file like the mounted public keys.
+    save(directory / "prometheus-control-token", config["PROMETHEUS_CONTROL_TOKEN"], 0o444)
     caller_names, credentials = {}, {}
     runtime = {
         "GATEWAY_PUBLIC_ADDR": ":8080", "GATEWAY_INTERNAL_ADDR": ":8083",
