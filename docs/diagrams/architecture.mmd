@@ -3,7 +3,7 @@ flowchart TB
 
 	subgraph GatewaySvc["Gateway (shared Go, one instance)"]
 		GWPub["Public listener :8080\nClient REST and negotiation"]
-		GWInt["Internal listener :8083\nService-to-service REST"]
+		GWInt["Control listener :8083\nHealth, status, log export"]
 	end
 
 	subgraph DiscoverySvc["Discovery (shared Go, :8081)"]
@@ -14,7 +14,7 @@ flowchart TB
 
 	DiscordHook["Discord webhook\nalerts"]
 
-	BrokerNode["Message Broker (shared Go)\nToday: GET /health only, not in Compose\nPlanned: dispatch, queues, breakers"]
+	BrokerNode["Message Broker (shared Go, one instance, :8080)\nService-call authorization, round-robin, breakers"]
 
 	subgraph DomainReplicas["Domain services, two replicas each by default"]
 		PlayerReplicas["Player"]
@@ -37,20 +37,23 @@ flowchart TB
 		RabbitMQBroker[("RabbitMQ\ndomain events")]
 	end
 
+	BrokerDB[("broker-db PostgreSQL\nqueues and topics")]
+
 	Client -->|"REST and negotiation"| GWPub
 	Client <-->|"Direct WebSocket chat"| DMReplicas
 
-	GWPub -->|"Round-robin over ready replicas"| DomainReplicas
-	DomainReplicas -->|"Service-to-service REST"| GWInt
-	GWInt -->|"Round-robin over ready replicas"| DomainReplicas
+	GWPub -->|"Targeted request,\ndestination known"| BrokerNode
+	DomainReplicas -->|"Service-to-service REST"| BrokerNode
+	BrokerNode -->|"Round-robin over ready replicas"| DomainReplicas
 
 	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
 	GWInt -.->|"Register and renew lease"| DiscoveryNode
+	BrokerNode -.->|"Register, snapshot refresh,\nbreaker removals"| DiscoveryNode
 	GWPub -.->|"Background snapshot refresh"| DiscoveryNode
-	GWInt -.->|"Background snapshot refresh"| DiscoveryNode
 	DiscoveryNode -.->|"Status probes"| DomainReplicas
 	DiscoveryNode -.->|"Status probes"| GatewaySvc
-	DomainReplicas -.->|"Report breaker removals"| DiscoveryNode
+	DiscoveryNode -.->|"Status probes"| BrokerNode
+	DomainReplicas -.->|"Report Broker hop failures"| DiscoveryNode
 	DiscoveryNode -->|"Alerts"| DiscordHook
 
 	PlayerReplicas --- PGStores
@@ -72,12 +75,10 @@ flowchart TB
 	CredentialReplicas --- RabbitMQBroker
 	UnivReplicas --- RabbitMQBroker
 
-	GWPub -.->|"Planned: targeted request,\ndestination known"| BrokerNode
-	DomainReplicas -.->|"Planned: service requests and\ntopic events, subscribers unknown"| BrokerNode
-	BrokerNode -.->|"Planned: one ready replica,\none copy per subscriber"| DomainReplicas
-	BrokerNode -.->|"Planned: instances and\ntopic subscriptions"| DiscoveryNode
-	BrokerNode -.->|"Planned: queue storage"| RabbitMQBroker
+	DomainReplicas -.->|"Planned: topic events,\nsubscribers unknown"| BrokerNode
+	BrokerNode -.->|"Planned: one copy per subscriber"| DomainReplicas
+	BrokerNode -.->|"Planned: queue storage"| BrokerDB
 
 	classDef planned stroke:#d9822b,stroke-width:2px,stroke-dasharray:6 4
-	class BrokerNode planned
-	linkStyle 31,32,33,34,35 stroke:#d9822b,stroke-width:2px
+	class BrokerDB planned
+	linkStyle 32,33,34 stroke:#d9822b,stroke-width:2px

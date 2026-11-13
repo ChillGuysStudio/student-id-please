@@ -10,16 +10,18 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+# Owner registry name: (receiver target, caller name).
 OWNERS = {
-    "player": ("player", "player", "PLAYER", "http://player:8001"),
-    "session": ("session", "session", "SESSION", "http://session:8002"),
-    "applicant": ("applicant", "applicant", "APPLICANT", "http://applicant:8081"),
-    "credential": ("credential", "credential", "CREDENTIAL", "http://credential:8082"),
-    "rules": ("rules", "rules", "RULES", "http://server-rules:8005"),
-    "university_record": ("university-record", "university_record", "UNIVERSITY", "http://university-record:8006"),
-    "moderation": ("moderation", "moderation", "MODERATION", "http://moderation:8000"),
-    "discord-dms": ("discord-dms", "discord-dms", "DMS", "http://discord-dms:8000"),
+    "player": ("player", "player"),
+    "session": ("session", "session"),
+    "applicant": ("applicant", "applicant"),
+    "credential": ("credential", "credential"),
+    "rules": ("rules", "rules"),
+    "university_record": ("university-record", "university_record"),
+    "moderation": ("moderation", "moderation"),
+    "discord-dms": ("discord-dms", "discord-dms"),
 }
+BROKER_URL = "http://message-broker:8080"
 PASSWORDS = (
     "PLAYER_DB_PASSWORD", "SESSION_DB_PASSWORD", "MODERATION_DB_PASSWORD", "DMS_DB_PASSWORD",
     "RABBITMQ_PASSWORD", "REDIS_PASSWORD", "CHAT_TICKET_SECRET", "UNIVERSITY_MONGO_PASSWORD",
@@ -27,7 +29,7 @@ PASSWORDS = (
     "UNIVERSITY_BROKER_PASSWORD",
 )
 CONTROL_NAMES = ("GATEWAY", "DISCOVERY", "OPERATOR", "APPLICANT", "CREDENTIAL", "UNIVERSITY_RECORD",
-                 "SERVER_RULES", "MODERATION", "PLAYER", "SESSION", "DISCORD_DMS")
+                 "SERVER_RULES", "MODERATION", "PLAYER", "SESSION", "DISCORD_DMS", "MESSAGE_BROKER")
 CALLER_VARIABLES = {
     "SESSION_SERVICE_TOKEN": "session", "MODERATION_SERVICE_TOKEN": "moderation",
     "DISCORD_DMS_SERVICE_TOKEN": "discord-dms",
@@ -79,8 +81,10 @@ def prepare(root, gateway_port=8080, dms_port=8009, dms_port_2=8010):
     directory.mkdir(parents=True, mode=0o700)
     gateway_jwks = json.dumps(rsa_pair(directory, "gateway"), separators=(",", ":"))
     rsa_pair(directory, "player")
+    broker_jwks = json.dumps(rsa_pair(directory, "broker"), separators=(",", ":"))
     callers = {owner: secrets.token_urlsafe(32) for owner in OWNERS}
     hops = {owner: secrets.token_urlsafe(32) for owner in OWNERS}
+    broker_gateway_token = secrets.token_urlsafe(32)
     config = {name: secrets.token_urlsafe(32) for name in PASSWORDS}
     config.update({name: callers[owner] for name, owner in CALLER_VARIABLES.items()})
     config.update({f"{name}_CONTROL_TOKEN": secrets.token_urlsafe(32) for name in CONTROL_NAMES})
@@ -88,46 +92,56 @@ def prepare(root, gateway_port=8080, dms_port=8009, dms_port_2=8010):
     config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port, DMS_PORT_2=dms_port_2,
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
-    receiver_config, caller_names, credentials = {}, {}, {}
+    caller_names, credentials = {}, {}
     runtime = {
         "GATEWAY_PUBLIC_ADDR": ":8080", "GATEWAY_INTERNAL_ADDR": ":8083",
         "GATEWAY_SIGNING_KEY_FILE": "/keys/gateway-private.pem", "GATEWAY_KEY_ID": "gateway-v1",
         "GATEWAY_PLAYER_PUBLIC_KEY_FILE": "/keys/player-public.pem", "GATEWAY_PLAYER_KEY_ID": "player-v1",
-        "GATEWAY_EXTERNAL_WS_URL": f"ws://localhost:{dms_port}",
         "GATEWAY_ALLOW_INSECURE_WS": "true", "GATEWAY_ALLOW_LOCAL_WS": "true",
         "HTTP_TASK_TIMEOUT_SECONDS": "30", "HTTP_MAX_CONCURRENT_TASKS": "100",
         "GATEWAY_PEER_TIMEOUT": "2s",
+        "GATEWAY_BROKER_URL": BROKER_URL, "GATEWAY_BROKER_TOKEN": broker_gateway_token,
     }
-    for owner, (target, caller, setting, url) in OWNERS.items():
+    broker = {
+        "BROKER_SIGNING_KEY_FILE": "/keys/broker-private.pem", "BROKER_KEY_ID": "broker-v1",
+        "BROKER_GATEWAY_PUBLIC_KEY_FILE": "/keys/gateway-public.pem", "BROKER_GATEWAY_KEY_ID": "gateway-v1",
+        "BROKER_GATEWAY_TOKEN": broker_gateway_token,
+    }
+    broker_receivers, gateway_receivers = {}, {}
+    for owner, (target, caller) in OWNERS.items():
         audience = f"student-id-{target}-service"
-        receiver_config[owner] = {"Target": target, "Audience": audience, "HopToken": hops[owner]}
+        gateway_receivers[owner] = {"Target": target, "Audience": audience}
+        broker_receivers[owner] = {"Target": target, "Audience": audience, "HopToken": hops[owner]}
         caller_names[owner], credentials[caller] = caller, callers[owner]
-        runtime[f"GATEWAY_{setting}_URL"] = url
         settings = {"HTTP_TASK_TIMEOUT_SECONDS": "30", "HTTP_MAX_CONCURRENT_TASKS": "100"}
         if owner in ("player", "session"):
             settings = {"AUTH_MODE": "gateway", "GATEWAY_PUBLIC_KEY_FILE": "/keys/gateway-public.pem",
                         "GATEWAY_KEY_ID": "gateway-v1", "GATEWAY_ASSERTION_ISSUER": "student-id-gateway",
                         "GATEWAY_ASSERTION_AUDIENCE": audience, "GATEWAY_ASSERTION_SECRET": "",
-                        "SERVICE_TOKENS": json.dumps({"gateway": hops[owner]}, separators=(",", ":")),
                         "MAX_CONCURRENT_TASKS": "100", "TASK_TIMEOUT_SECONDS": "30",
                         "JWT_ISSUER": "student-id-please", "JWT_AUDIENCE": "student-id-players"}
             if owner == "session":
-                settings.update(GATEWAY_URL="http://gateway:8083", GATEWAY_SERVICE_TOKEN=callers[owner],
+                settings.update(BROKER_URL=BROKER_URL, BROKER_SERVICE_TOKEN=callers[owner],
                                 JWT_PUBLIC_KEY_PATH="/keys/player-public.pem")
         else:
             settings.update(AUTH_MODE="gateway", GATEWAY_KEY_ID="gateway-v1", GATEWAY_AUDIENCE=audience,
-                            GATEWAY_PUBLIC_KEY_FILE="/keys/gateway-public.pem", GATEWAY_HOP_TOKEN=hops[owner],
-                            GATEWAY_INTERNAL_URL="http://gateway:8083", GATEWAY_CALLER_TOKEN=callers[owner])
+                            GATEWAY_PUBLIC_KEY_FILE="/keys/gateway-public.pem")
+            if owner not in CALLER_VARIABLES.values():
+                settings.update(BROKER_URL=BROKER_URL, BROKER_SERVICE_TOKEN=callers[owner])
+        settings.update(BROKER_HOP_TOKEN=hops[owner], BROKER_KEY_ID="broker-v1",
+                        BROKER_ASSERTION_ISSUER="student-id-broker")
         if owner in ("applicant", "credential"):
-            settings["GATEWAY_JWKS_JSON"] = gateway_jwks
-        if owner == "rules":
-            settings.update(GATEWAY_RULES_RECEIVER_TOKEN=hops[owner], INTERNAL_GATEWAY_URL="http://gateway:8083",
-                            RULES_SERVICE_TOKEN=callers[owner])
+            settings.update(GATEWAY_JWKS_JSON=gateway_jwks, BROKER_JWKS_JSON=broker_jwks)
+        else:
+            settings["BROKER_PUBLIC_KEY_FILE"] = "/keys/broker-public.pem"
         save(directory / f"{owner}.env", env_text(settings))
-    for name, values in (("GATEWAY_RECEIVERS", receiver_config), ("GATEWAY_CALLER_NAMES", caller_names),
-                         ("GATEWAY_SERVICE_TOKENS", credentials)):
-        runtime[name] = json.dumps(values, separators=(",", ":"))
+    runtime["GATEWAY_RECEIVERS"] = json.dumps(gateway_receivers, separators=(",", ":"))
+    runtime["GATEWAY_CALLER_NAMES"] = json.dumps(caller_names, separators=(",", ":"))
+    for name, values in (("BROKER_RECEIVERS", broker_receivers), ("BROKER_CALLER_NAMES", caller_names),
+                         ("BROKER_SERVICE_TOKENS", credentials)):
+        broker[name] = json.dumps(values, separators=(",", ":"))
     save(directory / "gateway.env", env_text(runtime))
+    save(directory / "broker.env", env_text(broker))
 
 
 def main():
