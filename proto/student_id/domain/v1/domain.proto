@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+// Shared case evidence types from docs/contracts/domain.md. Enumerated values
+// are strings with the wire values that domain.md lists. Receivers reject
+// unknown values. "Unset means null" marks a JSON field that is required but
+// can be null.
+package student_id.domain.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/domain/v1;domainv1";
+option java_multiple_files = true;
+option java_outer_classname = "DomainProto";
+option java_package = "com.chillguysstudio.studentid.domain.v1";
+
+message Claims {
+  string first_name = 1;
+  string last_name = 2;
+  optional string student_id = 3;
+  optional string major = 4;
+  optional int32 year = 5;
+  // UniversityStatus.
+  string university_status = 6;
+  repeated string courses = 7;
+  // ApplicantRole.
+  string role = 8;
+  string email = 9;
+}
+
+message Applicant {
+  string case_id = 1;
+  string session_id = 2;
+  Claims claims = 3;
+}
+
+message Credential {
+  string credential_id = 1;
+  string case_id = 2;
+  // CredentialKind. Selects the data variant.
+  string kind = 3;
+  string holder_first_name = 4;
+  string holder_last_name = 5;
+  optional string student_id = 6;
+  string issuer = 7;
+  google.protobuf.Timestamp issued_at = 8;
+  // Unset means null.
+  google.protobuf.Timestamp expires_at = 9;
+  // The case must match kind.
+  oneof data {
+    StudentCard student_card = 10;
+    UniversityEmail university_email = 11;
+    EnrollmentProof enrollment_proof = 12;
+    ElseRegistration else_registration = 13;
+  }
+}
+
+// kind = student_id.
+message StudentCard {
+  string major = 1;
+}
+
+// kind = university_email.
+message UniversityEmail {
+  string email = 1;
+  repeated string groups = 2;
+  // ApplicantRole.
+  string role = 3;
+}
+
+// kind = enrollment_confirmation.
+message EnrollmentProof {
+  optional string major = 1;
+  optional int32 year = 2;
+  // active, inactive, or graduated.
+  string status = 3;
+  // ApplicantRole.
+  string role = 4;
+  // Unset means null.
+  google.protobuf.Timestamp enrolled_since = 5;
+  string academic_year = 6;
+  string confirmation_number = 7;
+}
+
+// kind = else_registration.
+message ElseRegistration {
+  string academic_year = 1;
+  // autumn or spring.
+  string semester = 2;
+  repeated string course_ids = 3;
+}
+
+message Validation {
+  string credential_id = 1;
+  bool structurally_valid = 2;
+  bool authentic = 3;
+  bool expired = 4;
+  // ValidationIssue: FORGED, EXPIRED, INCOMPLETE, or INCONSISTENT.
+  repeated string issues = 5;
+  google.protobuf.Timestamp checked_at = 6;
+}
+
+message UniversityRecord {
+  string record_id = 1;
+  string case_id = 2;
+  // RecordKind. Selects the data variant.
+  string kind = 3;
+  optional string subject_id = 4;
+  // The case must match kind.
+  oneof data {
+    Enrollment enrollment = 5;
+    OutlookGroup outlook_group = 6;
+    Course course = 7;
+    AcademicYear academic_year = 8;
+    Schedule schedule = 9;
+    FcimMessage fcim_message = 10;
+  }
+}
+
+// Enrollment also represents staff affiliation. University snapshot entries
+// use it for kind enrollment, where status can also be none.
+message Enrollment {
+  optional string student_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  optional string major = 4;
+  optional int32 year = 5;
+  // active, inactive, or graduated.
+  string status = 6;
+  // Unset means null.
+  google.protobuf.Timestamp enrolled_since = 7;
+  // ApplicantRole.
+  string role = 8;
+}
+
+message OutlookGroup {
+  string email = 1;
+  string group_name = 2;
+  bool member = 3;
+}
+
+// A case record course. exists = false requires an unset title and
+// enrolled = false.
+message Course {
+  string course_id = 1;
+  optional string title = 2;
+  bool exists = 3;
+  bool enrolled = 4;
+}
+
+message AcademicYear {
+  string label = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+}
+
+message Schedule {
+  string semester = 1;
+  string course_id = 2;
+  google.protobuf.Timestamp starts_at = 3;
+  google.protobuf.Timestamp ends_at = 4;
+}
+
+message FcimMessage {
+  string author_first_name = 1;
+  string author_last_name = 2;
+  string channel = 3;
+  string text = 4;
+  google.protobuf.Timestamp sent_at = 5;
+}
+
+message Permission {
+  string session_id = 1;
+  string player_id = 2;
+  // RecordKind values.
+  repeated string record_kinds = 3;
+}
+
+message Ban {
+  string ban_id = 1;
+  string subject_id = 2;
+  string source_case_id = 3;
+  string reason = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message PriorDecision {
+  // Action.
+  string action = 1;
+  google.protobuf.Timestamp created_at = 2;
+}
+
+message PolicyResult {
+  string rule_version = 1;
+  // Action.
+  string expected_action = 2;
+  repeated string allowed_channels = 3;
+  repeated string matched_rule_ids = 4;
+  repeated string violated_rule_ids = 5;
+  repeated string reasons = 6;
+}

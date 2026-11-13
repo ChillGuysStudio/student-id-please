@@ -4,6 +4,8 @@ This contract adds two kinds of queues to the [Message Broker](broker.md). A tar
 
 The Broker implements both kinds in Go. Topic queues keep their state in the Broker's own PostgreSQL, `broker-db`. Domain services never connect to `broker-db`. RabbitMQ leaves the stack when the [migration](#migration) completes.
 
+The [gRPC contract](grpc.md#events) replaces the REST publish and delivery endpoints with `BrokerService.PublishEvent` and `EventConsumerService.DeliverEvent`, and the topic listing with `BrokerService.ListTopics`. The commit, acknowledgement, retry, and storage rules below do not change.
+
 ## Targeted queues
 
 Every request that the Broker dispatches to a replica enters the queue of its destination service. This covers Gateway dispatch with `X-Broker-Target`, service ingress after the route table selects the target, and the Broker's own policy reads. Each logical service has one queue. Replicas do not have their own queues.

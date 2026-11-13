@@ -18,12 +18,12 @@ CaseInitializedPayload =
 
 | Method and path | Owner and authorized caller | Request | Success response |
 | --- | --- | --- | --- |
-| `POST /internal/v1/applicant/cases` | Applicant owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
-| `POST /internal/v1/credential/cases` | Credential owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
-| `POST /internal/v1/university-record/cases` | University Record owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
-| `GET /internal/v1/applicant/cases/{case_id}/status` | Applicant owns<br>Session calls | None | `200 LocalCaseStateResponse` |
-| `GET /internal/v1/credential/cases/{case_id}/status` | Credential owns<br>Session calls | None | `200 LocalCaseStateResponse` |
-| `GET /internal/v1/university-record/cases/{case_id}/status` | University Record owns<br>Session calls | None | `200 LocalCaseStateResponse` |
+| `POST /internal/v1/applicant/cases`<br>gRPC `CaseOwnerService.StartCase` | Applicant owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
+| `POST /internal/v1/credential/cases`<br>gRPC `CaseOwnerService.StartCase` | Credential owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
+| `POST /internal/v1/university-record/cases`<br>gRPC `CaseOwnerService.StartCase` | University Record owns<br>Session calls | `CaseStart` with retained Moderator acceptance | `202 CaseAccepted` |
+| `GET /internal/v1/applicant/cases/{case_id}/status`<br>gRPC `CaseOwnerService.GetCaseState` | Applicant owns<br>Session calls | None | `200 LocalCaseStateResponse` |
+| `GET /internal/v1/credential/cases/{case_id}/status`<br>gRPC `CaseOwnerService.GetCaseState` | Credential owns<br>Session calls | None | `200 LocalCaseStateResponse` |
+| `GET /internal/v1/university-record/cases/{case_id}/status`<br>gRPC `CaseOwnerService.GetCaseState` | University Record owns<br>Session calls | None | `200 LocalCaseStateResponse` |
 
 The event envelope's `producer` is the discriminator: `applicant` requires `claims`, `credential` requires `credentials`, and `university_record` requires `university_records`. Each payload has one domain section, including when its value is an empty array. The payload omits `source` and `generation_version`. Embedded `case_id` values must match the outer case, and entity IDs are unique within their owning service. A record's `subject_id` identifies its person; global academic-year and schedule records have null subjects.
 

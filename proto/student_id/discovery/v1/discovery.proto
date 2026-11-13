@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+// Registry operations served by Discovery.
+package student_id.discovery.v1;
+
+import "google/protobuf/timestamp.proto";
+import "student_id/control/v1/control.proto";
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/discovery/v1;discoveryv1";
+option java_multiple_files = true;
+option java_outer_classname = "DiscoveryProto";
+option java_package = "com.chillguysstudio.studentid.discovery.v1";
+
+// DiscoveryService replaces the /internal/v1/discovery/instances endpoints.
+// Callers authenticate with x-control-name and x-control-token metadata.
+service DiscoveryService {
+  // Register or renew the caller's own instance. Replaces PUT .../{instance_id}.
+  rpc RegisterInstance(RegisterInstanceRequest) returns (RegisterInstanceResponse);
+  // Registry snapshot. Replaces GET .../instances.
+  rpc ListInstances(ListInstancesRequest) returns (Snapshot);
+  // One instance, including unavailable state. Replaces GET .../{instance_id}.
+  rpc GetInstance(GetInstanceRequest) returns (Instance);
+  // Breaker, operator, or shutdown removal. Replaces POST .../remove.
+  rpc RemoveInstance(RemoveInstanceRequest) returns (Instance);
+  // Operator re-entry. Replaces POST .../reactivate.
+  rpc ReactivateInstance(ReactivateInstanceRequest) returns (Instance);
+}
+
+message Registration {
+  string service_name = 1;
+  string boot_id = 2;
+  string http_url = 3;
+  optional string ws_url = 4;
+  // Plaintext gRPC origin of this replica, http://<host>:<port>. Required.
+  string grpc_url = 5;
+  // Consumed topics. Empty means none.
+  repeated string topics = 6;
+}
+
+message RegisterInstanceRequest {
+  string instance_id = 1;
+  Registration registration = 2;
+}
+
+message RegisterInstanceResponse {
+  Instance instance = 1;
+  // True where REST returned 201, false where it returned 200.
+  bool created = 2;
+}
+
+message Instance {
+  string service_name = 1;
+  string instance_id = 2;
+  string boot_id = 3;
+  string registration_id = 4;
+  string http_url = 5;
+  optional string ws_url = 6;
+  // Unset only for a REST registration during the rollout.
+  optional string grpc_url = 7;
+  repeated string topics = 8;
+  // pending, ready, unhealthy, expired, or removed.
+  string state = 9;
+  google.protobuf.Timestamp lease_expires_at = 10;
+  // Unset means null.
+  google.protobuf.Timestamp last_checked_at = 11;
+  // Unset means null.
+  student_id.control.v1.Status status = 12;
+  // Unset means null.
+  google.protobuf.Timestamp removed_at = 13;
+  // circuit_open, operator, or shutdown. Unset means null.
+  optional string removal_reason = 14;
+}
+
+message ListInstancesRequest {
+  optional string service_name = 1;
+  bool include_unavailable = 2;
+}
+
+message Snapshot {
+  string discovery_epoch = 1;
+  int64 revision = 2;
+  repeated Instance instances = 3;
+}
+
+message GetInstanceRequest {
+  string instance_id = 1;
+}
+
+message Failure {
+  string attempt_id = 1;
+  google.protobuf.Timestamp finished_at = 2;
+  // HTTP method, or POST for a gRPC attempt.
+  string method = 3;
+  // Route template, or the full gRPC method name for a gRPC attempt.
+  string endpoint = 4;
+  // connection_error, timeout, or http_5xx.
+  string kind = 5;
+  // 500 to 599 only for http_5xx. Unset means null.
+  optional int32 status_code = 6;
+}
+
+message Removal {
+  string registration_id = 1;
+  string operation_id = 2;
+  string caller_instance_id = 3;
+  // circuit_open, operator, or shutdown.
+  string reason = 4;
+  int32 task_timeout_ms = 5;
+  repeated Failure failures = 6;
+}
+
+message RemoveInstanceRequest {
+  string instance_id = 1;
+  Removal removal = 2;
+}
+
+message ReactivateInstanceRequest {
+  string instance_id = 1;
+  string registration_id = 2;
+  string operation_id = 3;
+}

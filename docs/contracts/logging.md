@@ -24,6 +24,7 @@ Records add fields for their kind:
 - **Outbound call:** `event` is `dependency_call`. The record adds `target_service`, plus `target_instance_id`, `attempt_id`, and `status` when they are known.
 - **Broker dispatch:** `event` is `dispatch`. The Broker writes it for each backend attempt. The record adds `caller`, `target_service`, `target_instance_id`, `registration_id`, `attempt_id`, `route`, and `status`, so that replica selection is visible. The [Message Broker contract](broker.md#logging) defines its route values.
 - **Domain event:** `event` is `event_published` or `event_consumed`. The record adds `event_type` and `event_id`. `outcome` is `published`, `processed`, `duplicate`, `retry`, or `rejected`. The Broker writes `event_published` for each publish request and a `delivery` record for each push attempt, with outcome `delivered`, `retry`, or `rejected`. The [queues and topics contract](queues.md#logging) defines their fields.
+- **RPC:** `event` is `rpc_request` for an RPC the process serves. The [gRPC contract](grpc.md#logging) defines its fields and the RPC fields of `dependency_call` and `dispatch`.
 - **Error:** the record adds `error_kind`, a short stable code. It never includes a stack trace at `INFO`.
 
 One user action keeps one `request_id` across every hop. A service sends its current `request_id` as `X-Request-ID` on each outbound call it makes while handling a request. The receiver, including the Message Broker, keeps a valid UUID it receives instead of generating a new one. Work that no request triggered, such as an outbox relay or an event consumer, uses `event_id` for correlation.
@@ -53,7 +54,7 @@ The Moderation publisher has no HTTP listener. It writes its file to a volume th
 
 ## Instance export
 
-Every process with an HTTP listener serves its own records on its private listener:
+Every process with an HTTP listener serves its own records on its private listener. The [gRPC contract](grpc.md#log-export) replaces this endpoint with `ControlService.ExportLogs`, with the same limits:
 
 ```text
 GET /internal/v1/logs?since=Time&until=Time&max_bytes=Int

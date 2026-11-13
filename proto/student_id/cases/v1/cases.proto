@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+// Case initialization served by each case owner: applicant, credential, and
+// university_record. The Broker selects the owner by x-broker-target.
+package student_id.cases.v1;
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/cases/v1;casesv1";
+option java_multiple_files = true;
+option java_outer_classname = "CasesProto";
+option java_package = "com.chillguysstudio.studentid.cases.v1";
+
+service CaseOwnerService {
+  // Workload. Caller: session. idempotency-key must equal attempt_id.
+  // Replaces POST /internal/v1/{owner}/cases.
+  rpc StartCase(StartCaseRequest) returns (CaseAccepted);
+  // Workload. Caller: session. NOT_FOUND for an unknown local case.
+  // Replaces GET /internal/v1/{owner}/cases/{case_id}/status.
+  rpc GetCaseState(GetCaseStateRequest) returns (LocalCaseState);
+}
+
+// CaseStart in docs/contracts/cases.md.
+message StartCaseRequest {
+  string session_id = 1;
+  string attempt_id = 2;
+  string case_id = 3;
+  // Always random.
+  string scenario = 4;
+}
+
+message CaseAccepted {
+  string case_id = 1;
+  string session_id = 2;
+  // Always pending.
+  string state = 3;
+}
+
+message GetCaseStateRequest {
+  string case_id = 1;
+}
+
+// LocalCaseStateResponse in docs/contracts/cases.md.
+message LocalCaseState {
+  string case_id = 1;
+  string session_id = 2;
+  // pending or ready.
+  string state = 3;
+}

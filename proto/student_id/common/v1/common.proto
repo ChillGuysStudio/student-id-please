@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+// Shared error detail for every gRPC status that a Student ID process returns.
+// docs/contracts/grpc.md defines the status mapping.
+package student_id.common.v1;
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/common/v1;commonv1";
+option java_multiple_files = true;
+option java_outer_classname = "CommonProto";
+option java_package = "com.chillguysstudio.studentid.common.v1";
+
+// ErrorDetail is the only entry in google.rpc.Status.details of a non-OK
+// status. It carries the fields of the HTTP contract's Error body plus the
+// HTTP status that the same failure returned over REST.
+message ErrorDetail {
+  // Stable error code, for example CASE_NOT_READY.
+  string code = 1;
+  // Short safe text. Never contains hidden facts, secrets, or stack traces.
+  string message = 2;
+  // The request_id of the call being answered.
+  string request_id = 3;
+  repeated FieldViolation details = 4;
+  // HTTP status of the same failure in the HTTP contract, for example 409.
+  int32 http_status = 5;
+  // Seconds a caller waits before a retry. 0 means no Retry-After.
+  int32 retry_after_seconds = 6;
+}
+
+message FieldViolation {
+  string field = 1;
+  string reason = 2;
+}

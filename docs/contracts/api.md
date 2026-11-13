@@ -1,6 +1,6 @@
 # Service APIs
 
-Common API behavior comes from the [HTTP contract](http.md). Shared payloads use the [domain types](domain.md). [Integration principles](../integration.md) describe mocked and integrated deployments.
+Common API behavior comes from the [HTTP contract](http.md). Each internal row names the gRPC method that replaces it in the [gRPC contract](grpc.md#rpc-inventory). Its path stays as that method's authorization resource. Shared payloads use the [domain types](domain.md). [Integration principles](../integration.md) describe mocked and integrated deployments.
 
 ## Player Service endpoints
 ```text
@@ -29,9 +29,9 @@ Friendship = {friendship_id: Id, requester_id: Id, recipient_id: Id,
 | `POST /api/v1/teams/{team_id}/members` | Team owner | `{player_id: Id}` | `200 Team`<br>The target must be an accepted friend. |
 | `DELETE /api/v1/teams/{team_id}/members/{player_id}` | Owner or departing member | None | `200 Team`<br>The owner cannot leave without deleting the team. |
 | `DELETE /api/v1/teams/{team_id}` | Owner | None | `204`, no body<br>Historical shift rosters remain snapshots. |
-| `GET /internal/v1/players/{player_id}` | Session or Moderation | None | `200 Player` |
-| `GET /internal/v1/teams/{team_id}` | Session | None | `200 Team` |
-| `POST /internal/v1/events/{topic}` | Message Broker delivery of `ShiftEnded` or `DisciplinaryActionApplied` | Event | `200 {event_id: Id, applied: Bool}` |
+| `GET /internal/v1/players/{player_id}`<br>gRPC `PlayerService.GetPlayer` | Session or Moderation | None | `200 Player` |
+| `GET /internal/v1/teams/{team_id}`<br>gRPC `PlayerService.GetTeam` | Session | None | `200 Team` |
+| `POST /internal/v1/events/{topic}`<br>gRPC `EventConsumerService.DeliverEvent` | Message Broker delivery of `ShiftEnded` or `DisciplinaryActionApplied` | Event | `200 {event_id: Id, applied: Bool}` |
 | `GET /.well-known/jwks.json` | Anyone | None | `200` public verification keys |
 | `GET /health` | Anyone | None | `200` process health |
 | `GET /ready` | Anyone | None | `200` when configured dependencies are ready |
@@ -65,11 +65,11 @@ SessionContext = {session: Session, player: Participant}
 | `GET /api/v1/sessions/{session_id}` | Participant | None | `200 Session` |
 | `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>Pins the current published rules and a university snapshot; freezes roster and roles. |
 | `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>Calls the selected initializer with internal scenario `random` and reserves the current-case slot. |
-| `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant, including Moderation on behalf of the assigned Moderator | None | `200 CaseStatus`<br>The service queries all three case owners and records aggregate readiness before returning. |
+| `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant, including Moderation on behalf of the assigned Moderator | None | `200 CaseStatus`<br>The service queries all three case owners and records aggregate readiness before returning. Moderation and Rules use gRPC `SessionService.GetCaseStatus`. |
 | `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. An unfinished case returns `409`. |
 | `DELETE /api/v1/sessions/{session_id}` | Session owner, lobby only | None | `204`, no body |
-| `GET /internal/v1/sessions/{session_id}/context` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
-| `POST /internal/v1/events/{topic}` | Message Broker delivery of `DecisionScored` | Event | `200 {event_id: Id, applied: Bool}` |
+| `GET /internal/v1/sessions/{session_id}/context`<br>gRPC `SessionService.GetSessionContext` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
+| `POST /internal/v1/events/{topic}`<br>gRPC `EventConsumerService.DeliverEvent` | Message Broker delivery of `DecisionScored` | Event | `200 {event_id: Id, applied: Bool}` |
 | `GET /health` | Anyone | None | `200` process health |
 | `GET /ready` | Anyone | None | `200` when configured dependencies are ready |
 
@@ -117,7 +117,7 @@ Presets describe reusable generation choices rather than existing applicants. La
 | `PUT /api/v1/admin/applicant-presets/{preset_id}` | Global admin | Full `ProfilePresetInput` | `200 ProfilePreset` |
 | `DELETE /api/v1/admin/applicant-presets/{preset_id}` | Global admin | None | `204`, no body; existing case snapshots remain |
 | `GET /api/v1/sessions/{session_id}/applicants/{case_id}` | Assigned Moderator in active shift | None | `200 Applicant` with presented claims only |
-| `GET /internal/v1/applicants/{case_id}` | Moderation | Query `session_id: Id` | `200 Applicant`<br>The service verifies that the case belongs to the shift. |
+| `GET /internal/v1/applicants/{case_id}`<br>gRPC `ApplicantService.GetApplicant` | Moderation | Query `session_id: Id` | `200 Applicant`<br>The service verifies that the case belongs to the shift. |
 
 ## Credential Service endpoints
 
@@ -138,7 +138,7 @@ Seed one enabled template per kind using the issuer table and `validity_days = n
 | `DELETE /api/v1/admin/credential-templates/{template_id}` | Global admin | None | `204`, no body; stored documents and validations remain |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/credentials` | Assigned Moderator in active shift | Pagination | `200 Page<Credential>` |
 | `POST /api/v1/sessions/{session_id}/credentials/{credential_id}/validation` | Assigned Moderator in active shift | Empty object | `200 Validation`<br>The credential must belong to the current case. |
-| `GET /internal/v1/cases/{case_id}/credential-results` | Moderation | Query `session_id: Id` | `200 {case_id: Id, credentials: Credential[], validations: Validation[]}` with complete results for every credential |
+| `GET /internal/v1/cases/{case_id}/credential-results`<br>gRPC `CredentialService.GetCredentialResults` | Moderation | Query `session_id: Id` | `200 {case_id: Id, credentials: Credential[], validations: Validation[]}` with complete results for every credential |
 
 The internal endpoint runs or reuses deterministic validation even if the player did not request validation. Expiry checks use the shift start time, so a replay cannot change the result during a case. Forgery checks use private authenticity metadata. Credentials do not change during an active case.
 
@@ -174,8 +174,8 @@ PolicyInput = {session_id: Id, case_id: Id, rule_version: Id, claims: Claims,
 | `DELETE /api/v1/rule-versions/{rule_version}` | Global admin | None | `204`, draft only; published version returns `409 RULE_VERSION_IMMUTABLE` |
 | `POST /api/v1/rule-versions/{rule_version}/publish` | Global admin | Empty object | `200 RuleSet`<br>One transaction makes the version current for future shifts. |
 | `GET /api/v1/rule-versions/{rule_version}` | Player | None | `200 RuleSet`<br>Players without `admin` access can read only published versions. |
-| `GET /internal/v1/rule-versions/current` | Session | None | `200 RuleSet`<br>If no published version exists, the endpoint returns `409`. |
-| `POST /internal/v1/policy/evaluations` | Moderation | `PolicyInput` | `200 PolicyResult`<br>The `rule_version` must match the version pinned to the session. |
+| `GET /internal/v1/rule-versions/current`<br>gRPC `RulesService.GetCurrentRuleSet` | Session | None | `200 RuleSet`<br>If no published version exists, the endpoint returns `409`. |
+| `POST /internal/v1/policy/evaluations`<br>gRPC `RulesService.EvaluatePolicy` | Moderation | `PolicyInput` | `200 PolicyResult`<br>The `rule_version` must match the version pinned to the session. |
 
 The `kind` field identifies each condition type. `applies_to_roles = []` means all verified roles; otherwise skip the rule when the verified role is not listed. The `major`, `year`, `enrollment_duration`, and `credential` conditions match when a requirement fails. The `role` and `ban` conditions match when the specified role or ban exists.
 
@@ -251,15 +251,15 @@ UniversityIdentity = {subject_id: Id, first_name: string, last_name: string,
 | `GET /api/v1/admin/university-data/{reference_id}` | Global admin | None | `200 UniversityData` |
 | `PUT /api/v1/admin/university-data/{reference_id}` | Global admin | Full `UniversityDataInput` | `200 UniversityData`; kind, subject, and natural code cannot change |
 | `DELETE /api/v1/admin/university-data/{reference_id}` | Global admin | None | `204`; live references block deletion with `409 REFERENCE_IN_USE`, snapshots do not |
-| `POST /internal/v1/university-identities/reservations` | Selected initializer workload, verified against Session acceptance | `IdentityReservationInput`; `Idempotency-Key = case_id` | `200 UniversityIdentity`; commits identity and case/attempt provenance atomically, reusing valid reference identities |
-| `GET /internal/v1/university-identities/{subject_id}` | Applicant, Credential, or University Record subscriber workload with retained `case_project` authority | Required query `case_id: Id`, `session_id: Id`, `attempt_id: Id` | `200 UniversityIdentity` with the exact case binding; no allocation or new binding on read |
-| `POST /internal/v1/university-snapshots` | Session | `{session_id: Id, reference_at: Time}` | `201 {snapshot_id: Id, session_id: Id, reference_at: Time}`; copies and validates current reference data in one transaction |
-| `GET /internal/v1/university-snapshots/{snapshot_id}` | Retained Applicant, Credential, or University Record workload; existing actor-bound callers also include Session | Retained mode requires exactly query `session_id: Id`, `attempt_id: Id`; actor-bound mode has no query | `200 UniversitySnapshot`; fresh retained acceptance and actual local snapshot must match before disclosure; full immutable reference data, internal only |
+| `POST /internal/v1/university-identities/reservations`<br>gRPC `UniversityRecordService.ReserveIdentity` | Selected initializer workload, verified against Session acceptance | `IdentityReservationInput`; `Idempotency-Key = case_id` | `200 UniversityIdentity`; commits identity and case/attempt provenance atomically, reusing valid reference identities |
+| `GET /internal/v1/university-identities/{subject_id}`<br>gRPC `UniversityRecordService.GetIdentity` | Applicant, Credential, or University Record subscriber workload with retained `case_project` authority | Required query `case_id: Id`, `session_id: Id`, `attempt_id: Id` | `200 UniversityIdentity` with the exact case binding; no allocation or new binding on read |
+| `POST /internal/v1/university-snapshots`<br>gRPC `UniversityRecordService.CreateSnapshot` | Session | `{session_id: Id, reference_at: Time}` | `201 {snapshot_id: Id, session_id: Id, reference_at: Time}`; copies and validates current reference data in one transaction |
+| `GET /internal/v1/university-snapshots/{snapshot_id}`<br>gRPC `UniversityRecordService.GetSnapshot` and `GetRetainedSnapshot` | Retained Applicant, Credential, or University Record workload; existing actor-bound callers also include Session | Retained mode requires exactly query `session_id: Id`, `attempt_id: Id`; actor-bound mode has no query | `200 UniversitySnapshot`; fresh retained acceptance and actual local snapshot must match before disclosure; full immutable reference data, internal only |
 | `PUT /api/v1/sessions/{session_id}/record-permissions` | Session owner while lobby is open | `{permissions: Permission[]}` | `200 {permissions: Permission[]}`<br>The body replaces all Junior Moderator permissions. |
 | `GET /api/v1/sessions/{session_id}/record-permissions/me` | Participant | None | `200 Permission`<br>The Moderator has no direct record permissions. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/university-records` | Junior Moderator in active shift | Required query `kind: RecordKind` with pagination | `200 Page<UniversityRecord>`<br>An unassigned `kind` returns `403`. |
-| `GET /internal/v1/sessions/{session_id}/record-permissions/{player_id}` | DMs or Session with verified initiating-player context | None | `200 Permission`<br>Participation remains required after shift end; the Moderator receives an empty `record_kinds` array. |
-| `GET /internal/v1/cases/{case_id}/university-records` | Moderation | Query `session_id: Id` | `200 {case_id: Id, subject_id: Id \| null, records: UniversityRecord[]}` with all internal facts |
+| `GET /internal/v1/sessions/{session_id}/record-permissions/{player_id}`<br>gRPC `UniversityRecordService.GetRecordPermission` | DMs or Session with verified initiating-player context | None | `200 Permission`<br>Participation remains required after shift end; the Moderator receives an empty `record_kinds` array. |
+| `GET /internal/v1/cases/{case_id}/university-records`<br>gRPC `UniversityRecordService.GetCaseRecords` | Moderation | Query `session_id: Id` | `200 {case_id: Id, subject_id: Id \| null, records: UniversityRecord[]}` with all internal facts |
 
 Record permissions do not change after a shift starts. The Server Moderation Session Service checks that at least one Junior Moderator can inspect each record kind. It also rejects an assignment that gives one Junior Moderator every kind. An incomplete or invalid assignment returns `409`. These rules require at least two Junior Moderators.
 

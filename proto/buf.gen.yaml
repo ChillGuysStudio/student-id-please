@@ -1,0 +1,23 @@
+# Reference generation for all three languages. Each repository copies the
+# lines for its language and sets its own output directory. Plugin versions
+# are pinned and match the runtime versions in docs/contracts/grpc.md.
+version: v2
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.36.5
+    out: gen/go
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go:v1.5.1
+    out: gen/go
+    opt: paths=source_relative
+  - remote: buf.build/protocolbuffers/java:v29.3
+    out: gen/java
+  - remote: buf.build/grpc/java:v1.70.0
+    out: gen/java
+    # Omit javax.annotation.Generated, so no extra annotation dependency.
+    opt: '@generated=omit'
+  - remote: buf.build/protocolbuffers/python:v29.3
+    out: gen/python
+  - remote: buf.build/protocolbuffers/pyi:v29.3
+    out: gen/python
+  - remote: buf.build/grpc/python:v1.70.0
+    out: gen/python
