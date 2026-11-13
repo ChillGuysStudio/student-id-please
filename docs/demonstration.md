@@ -47,13 +47,13 @@ The domain services are `player`, `session`, `applicant`, `credential`, `univers
 	docker compose ps applicant
 	```
 
-3. In a second terminal, follow Gateway, Discovery, and Applicant:
+3. In a second terminal, follow the Message Broker, Discovery, and Applicant:
 
 	```sh
-	docker compose logs -f --tail 50 --timestamps gateway discovery applicant
+	docker compose logs -f --tail 50 --timestamps message-broker discovery applicant
 	```
 
-	Discovery logs each new registration. Gateway's `dispatch` records name the `target_instance_id`, so you can see requests spread across the four replicas. To follow one replica, pass its index, for example `docker compose logs -f --index 2 applicant`.
+	Discovery logs each new registration. The Broker's `dispatch` records name the `target_instance_id`, so you can see requests spread across the four replicas. To follow one replica, pass its index, for example `docker compose logs -f --index 2 applicant`.
 
 4. Stop one replica. Copy a container ID from the `docker compose ps applicant` output, then run:
 
@@ -71,7 +71,19 @@ The domain services are `player`, `session`, `applicant`, `credential`, `univers
 
 	Compose removes the extra containers. Each one deregisters on its way out.
 
-The same commands work for every domain service listed above. Gateway, Discovery, and the Moderation outbox publisher run as one instance each.
+The same commands work for every domain service listed above. Gateway, the Message Broker, Discovery, and the Moderation outbox publisher run as one instance each.
+
+## Watch Broker dispatch
+
+Gateway sends each public request to the Message Broker with its target service. Domain services send every peer call to the Broker. The Broker selects one ready replica with round-robin and writes one `INFO` `dispatch` record for each attempt. After a shift has started, list the dispatch records:
+
+```sh
+docker compose logs --no-log-prefix message-broker | grep '"event":"dispatch"'
+```
+
+Each record names the `caller`, the `target_service`, the selected `target_instance_id` and `registration_id`, the `route`, the `status`, and the `outcome`. `caller` is `gateway` for public traffic and the service name, such as `session` or `moderation`, for a peer call. A peer call keeps the `request_id` of the public request that caused it.
+
+Gateway's control listener on `:8083` answers only health, status, and log export. It returns `404 NOT_FOUND` for every business path.
 
 ## Use the two Discord DMs services
 
@@ -82,7 +94,7 @@ Clients open the chat WebSocket directly on a host port that the DMs replica adv
 | `discord-dms-1` | `DMS_PORT`, default `8009` | `ws://localhost:8009` |
 | `discord-dms-2` | `DMS_PORT_2`, default `8010` | `ws://localhost:8010` |
 
-Gateway picks a ready DMs instance for each negotiation and returns that instance's WebSocket URL. Both services share the ticket secret, PostgreSQL history, and Redis delivery, so players connected to different replicas exchange messages. To take one out of new negotiations, run `docker compose stop discord-dms-2`. Start it again with `docker compose start discord-dms-2`.
+Gateway picks a ready DMs instance for each negotiation, sends ticket issuance through the Broker pinned to that instance, and returns that instance's WebSocket URL. Both services share the ticket secret, PostgreSQL history, and Redis delivery, so players connected to different replicas exchange messages. To take one out of new negotiations, run `docker compose stop discord-dms-2`. Start it again with `docker compose start discord-dms-2`.
 
 ## Run the HTTP checks
 

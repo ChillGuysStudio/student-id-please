@@ -34,48 +34,70 @@ class SetupTests(unittest.TestCase):
         setup.prepare(self.root, 28080, 18009)
         directory = self.root / ".local/stack"
         runtime = read_env(directory / "gateway.env")
-        receivers = json.loads(runtime["GATEWAY_RECEIVERS"])
-        credentials = json.loads(runtime["GATEWAY_SERVICE_TOKENS"])
-        names = json.loads(runtime["GATEWAY_CALLER_NAMES"])
+        broker = read_env(directory / "broker.env")
+        receivers = json.loads(broker["BROKER_RECEIVERS"])
+        credentials = json.loads(broker["BROKER_SERVICE_TOKENS"])
+        names = json.loads(broker["BROKER_CALLER_NAMES"])
+        self.assertEqual(names, json.loads(runtime["GATEWAY_CALLER_NAMES"]))
         self.assertEqual(names["university_record"], "university_record")
         self.assertEqual(names["discord-dms"], "discord-dms")
-        self.assertEqual(runtime["GATEWAY_EXTERNAL_WS_URL"], "ws://localhost:18009")
-        all_tokens = list(credentials.values()) + [value["HopToken"] for value in receivers.values()]
+        self.assertEqual(json.loads(runtime["GATEWAY_RECEIVERS"]),
+                         {owner: {"Target": value["Target"], "Audience": value["Audience"]}
+                          for owner, value in receivers.items()})
+        self.assertEqual(set(receivers), set(setup.OWNERS))
+        self.assertEqual(runtime["GATEWAY_BROKER_URL"], "http://message-broker:8080")
+        self.assertEqual(runtime["GATEWAY_BROKER_TOKEN"], broker["BROKER_GATEWAY_TOKEN"])
+        for name in ("GATEWAY_SERVICE_TOKENS", "GATEWAY_EXTERNAL_WS_URL", "GATEWAY_PLAYER_URL", "GATEWAY_DMS_URL"):
+            self.assertNotIn(name, runtime)
+        self.assertEqual((broker["BROKER_SIGNING_KEY_FILE"], broker["BROKER_KEY_ID"]),
+                         ("/keys/broker-private.pem", "broker-v1"))
+        self.assertEqual((broker["BROKER_GATEWAY_PUBLIC_KEY_FILE"], broker["BROKER_GATEWAY_KEY_ID"]),
+                         ("/keys/gateway-public.pem", "gateway-v1"))
+        config = read_env(self.root / ".env")
+        controls = [config[f"{name}_CONTROL_TOKEN"] for name in setup.CONTROL_NAMES]
+        all_tokens = (list(credentials.values()) + [value["HopToken"] for value in receivers.values()] +
+                      [broker["BROKER_GATEWAY_TOKEN"]] + controls)
         self.assertEqual(len(all_tokens), len(set(all_tokens)))
+        self.assertTrue(all(len(token) >= 43 for token in all_tokens))
+        for variable, caller in setup.CALLER_VARIABLES.items():
+            self.assertEqual(config[variable], credentials[caller])
         for owner in setup.OWNERS:
             settings = read_env(directory / f"{owner}.env")
+            self.assertEqual(settings["AUTH_MODE"], "gateway")
+            self.assertEqual(settings["BROKER_HOP_TOKEN"], receivers[owner]["HopToken"])
+            self.assertEqual(settings["BROKER_KEY_ID"], "broker-v1")
+            self.assertEqual(settings["BROKER_ASSERTION_ISSUER"], "student-id-broker")
+            for name in ("GATEWAY_HOP_TOKEN", "GATEWAY_RULES_RECEIVER_TOKEN", "SERVICE_TOKENS", "GATEWAY_URL",
+                         "GATEWAY_SERVICE_TOKEN", "GATEWAY_INTERNAL_URL", "GATEWAY_CALLER_TOKEN",
+                         "INTERNAL_GATEWAY_URL", "RULES_SERVICE_TOKEN"):
+                self.assertNotIn(name, settings)
+            if owner in ("applicant", "credential"):
+                self.assertEqual(json.loads(settings["GATEWAY_JWKS_JSON"])["keys"][0]["kid"], "gateway-v1")
+                self.assertIn("BROKER_JWKS_JSON", settings)
+                self.assertNotIn("BROKER_PUBLIC_KEY_FILE", settings)
+            else:
+                self.assertEqual(settings["BROKER_PUBLIC_KEY_FILE"], "/keys/broker-public.pem")
+            if owner in ("player", "moderation", "discord-dms"):
+                self.assertNotIn("BROKER_SERVICE_TOKEN", settings)
+            else:
+                self.assertEqual(settings["BROKER_URL"], "http://message-broker:8080")
+                self.assertEqual(settings["BROKER_SERVICE_TOKEN"], credentials[names[owner]])
             if owner in ("player", "session"):
-                self.assertEqual(settings["AUTH_MODE"], "gateway")
                 self.assertEqual(settings["GATEWAY_ASSERTION_AUDIENCE"], receivers[owner]["Audience"])
                 self.assertEqual(settings["GATEWAY_ASSERTION_ISSUER"], "student-id-gateway")
-                self.assertEqual(json.loads(settings["SERVICE_TOKENS"]), {"gateway": receivers[owner]["HopToken"]})
                 self.assertEqual(settings["MAX_CONCURRENT_TASKS"], "100")
                 self.assertEqual(settings["TASK_TIMEOUT_SECONDS"], "30")
                 self.assertNotIn("GATEWAY_JWKS_URL", settings)
                 self.assertNotIn("PLAYER_JWKS_URL", settings)
                 if owner == "session":
-                    self.assertEqual(settings["GATEWAY_URL"], "http://gateway:8083")
-                    self.assertEqual(settings["GATEWAY_SERVICE_TOKEN"], credentials["session"])
                     self.assertEqual(settings["JWT_PUBLIC_KEY_PATH"], "/keys/player-public.pem")
                 continue
-            self.assertEqual(settings["AUTH_MODE"], "gateway")
-            self.assertEqual(settings["GATEWAY_HOP_TOKEN"], receivers[owner]["HopToken"])
             self.assertEqual(settings["GATEWAY_AUDIENCE"], receivers[owner]["Audience"])
-            self.assertEqual(settings["GATEWAY_CALLER_TOKEN"], credentials[names[owner]])
-            self.assertEqual(settings["GATEWAY_INTERNAL_URL"], "http://gateway:8083")
-            if owner in ("applicant", "credential"):
-                self.assertEqual(json.loads(settings["GATEWAY_JWKS_JSON"])["keys"][0]["kid"], "gateway-v1")
-        rules = read_env(directory / "rules.env")
-        self.assertEqual(rules["GATEWAY_RULES_RECEIVER_TOKEN"], receivers["rules"]["HopToken"])
-        self.assertEqual(rules["RULES_SERVICE_TOKEN"], credentials["rules"])
-        config = read_env(self.root / ".env")
         self.assertFalse([name for name in config if name.endswith("_IMAGE")])
         self.assertFalse([name for name in config if "INSTANCE_ID" in name or "REPLICA" in name])
         self.assertNotIn("COMPOSE_FILE", config)
         self.assertEqual((config["DMS_PORT"], config["DMS_PORT_2"]), ("18009", "8010"))
         self.assertFalse((self.root / "compose.replicas.yaml").exists())
-        tokens = [config[f"{name}_CONTROL_TOKEN"] for name in setup.CONTROL_NAMES]
-        self.assertEqual(len(tokens), len(set(tokens)))
         self.assertEqual(config["DISCOVERY_DISCORD_WEBHOOK_URL"], "")
         self.assertNotIn("PLAYER_VERSION", config)
         self.assertEqual((self.root / ".env").stat().st_mode & 0o777, 0o600)
@@ -97,7 +119,7 @@ class SetupTests(unittest.TestCase):
     def test_compose_images_default_to_latest(self):
         compose = (ROOT / "compose.yaml").read_text()
         self.assertNotIn("_IMAGE:?", compose)
-        self.assertEqual(len(re.findall(r"image: \$\{[A-Z_]+_IMAGE:-[a-z0-9._-]+/[a-z0-9._-]+:latest\}", compose)), 11)
+        self.assertEqual(len(re.findall(r"image: \$\{[A-Z_]+_IMAGE:-[a-z0-9._-]+/[a-z0-9._-]+:latest\}", compose)), 12)
 
     def test_bind_mounts_carry_the_shared_selinux_label(self):
         # On SELinux hosts such as Fedora, a bind mount without `z` is unreadable inside the container.
@@ -117,16 +139,20 @@ class SetupTests(unittest.TestCase):
         self.assertNotIn("EXTERNAL_SERVICES_MODE: mock", compose)
         self.assertNotIn("PLAYER_JWKS_URL:", compose)
         self.assertNotIn("OUTGOING_SERVICE_TOKEN:", compose)
-        self.assertIn("GATEWAY_URL: http://gateway:8083", compose)
+        self.assertNotIn("GATEWAY_URL:", compose)
+        for name in ("GATEWAY_INTERNAL_URL", "INTERNAL_GATEWAY_URL", "PLAYER_URL:", "RULES_URL:"):
+            self.assertNotIn(name, compose)
         self.assertIn("INSTANCE_HTTP_URL: http://gateway:8083", compose)
+        self.assertIn("INSTANCE_HTTP_URL: http://message-broker:8080", compose)
+        self.assertEqual(compose.count("BROKER_URL: http://message-broker:8080"), 3)
         self.assertIn("player-public.pem:/keys/player-public.pem:ro", compose)
         self.assertNotIn("player-public-key:", compose)
         self.assertIn("SPRING_PROFILES_ACTIVE: gateway", compose)
-        self.assertIn("SESSION_URL: http://gateway:8083", compose)
+        self.assertIn("broker-public.pem:/keys/broker-public.pem:ro", compose)
         self.assertNotIn("slot", compose)
         self.assertNotIn("pull_policy", compose)
         self.assertNotIn("INSTANCE_ID", compose)
-        self.assertEqual(compose.count("INSTANCE_HTTP_URL"), 1)
+        self.assertEqual(compose.count("INSTANCE_HTTP_URL"), 2)
 
     def test_domain_services_scale_natively(self):
         compose = (ROOT / "compose.yaml").read_text()

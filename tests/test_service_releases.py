@@ -13,8 +13,8 @@ IMAGE_KEYS = {"gateway": "GATEWAY", "discovery": "DISCOVERY", "player": "PLAYER"
               "moderation": "MODERATION", "discord-dms": "DISCORD_DMS", "applicant": "APPLICANT",
               "credential": "CREDENTIAL", "rules": "SERVER_RULES", "university_record": "UNIVERSITY_RECORD",
               "broker": "BROKER"}
-# Released services that Compose does not run yet. The Broker joins the stack when it owns routing.
-NOT_DEPLOYED = {"broker"}
+# Released services that Compose does not run.
+NOT_DEPLOYED = set()
 
 
 class ServiceReleases(unittest.TestCase):
