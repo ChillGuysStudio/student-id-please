@@ -21,7 +21,9 @@ Delivery is at least once. A lost `PublishEvent` reply is retried with the same 
 
 `BROKER_DELIVERY_MAX_ATTEMPTS`, default `5`, minimum `1`, maximum `20`, limits the attempts for one delivery. The waits after failed attempts stay 1, 5, then 30 seconds. With the default, the last attempt starts about 66 seconds after the first.
 
-`attempts` counts physical attempts. A claim that sends nothing does not count: the Broker could not sign the assertion, could not open the connection, or the breaker excluded the replica after selection. The Broker restores the count when it releases such a claim. An attempt whose lease expired, for example because the Broker stopped, counts, because the consumer may have received it.
+`attempts` counts claims. One claim is refunded: when the breaker excludes the selected replica before the Broker sends anything, the Broker restores the count and the delivery is due again at once. Every other claim counts, including a claim that failed before sending, such as a signing failure or a stored envelope that cannot be encoded. Those failures therefore end in `exhausted` instead of retrying forever. An attempt whose lease expired, for example because the Broker stopped, counts, because the consumer may have received it.
+
+When `Claim` would reclaim an expired `in_flight` row whose `attempts` already equals the limit, it does not send it again. It moves the delivery to `dead_letters` with reason `exhausted` in the same transaction.
 
 A subscriber service with no eligible replica keeps its deliveries `pending`. They are not claimed, so they use no attempts, and they are delivered when a replica becomes ready. Waiting for a consumer is not a retry.
 
@@ -60,13 +62,13 @@ CREATE INDEX dead_letters_topic ON dead_letters (topic, id);
 CREATE INDEX dead_letters_subscriber ON dead_letters (subscriber, id);
 ```
 
-`deliveries.state` accepts `dead_lettered` in place of `rejected`. The migration copies every existing `rejected` delivery into `dead_letters` with reason `rejected` and sets its state to `dead_lettered`, in one transaction.
+`deliveries.state` accepts `dead_lettered` in place of `rejected`. The migration copies every existing `rejected` delivery into `dead_letters` and sets its state to `dead_lettered`, in one transaction. A row whose `last_error_kind` is `forbidden_pair` gets reason `forbidden_pair`. Every other row gets reason `rejected`.
 
 The Broker moves a delivery in one transaction: it sets the delivery to `dead_lettered` while this attempt still holds the row, and it inserts the `dead_letters` row. A late result for a row that another attempt reclaimed changes nothing. The event row stays, because other subscribers may still need it. Nothing deletes dead letters, and nothing requeues them automatically.
 
 ## Dead-letter listing
 
-The Broker serves `BrokerService.ListDeadLetters` to the `gateway` and `operator` control principals. Other authenticated callers receive `PERMISSION_DENIED FORBIDDEN`. At most two listings run at once.
+The Broker serves `BrokerService.ListDeadLetters` to the `gateway` and `operator` control principals. Other authenticated callers receive `PERMISSION_DENIED FORBIDDEN`. At most two listings run at once. A third returns `UNAVAILABLE TASK_LIMIT_EXCEEDED`, which Gateway returns as `503 DEPENDENCY_UNAVAILABLE`.
 
 | Request field | Rule |
 | --- | --- |
@@ -112,7 +114,7 @@ The topic listing's `deliveries` counts become `pending`, `in_flight`, `done`, a
 
 ## Logging
 
-Moving a delivery logs one `WARN` record with event `dead_lettered`, `event_id`, `topic`, `producer`, `subscriber`, `reason`, `attempts`, `last_status`, and `last_error_kind`. It never logs the envelope or payload. A listing logs the usual `rpc_request` record.
+The attempt's `delivery` record has `outcome` `dead_lettered` when it moves the delivery. The move also logs one `WARN` record with event `dead_lettered`, `event_id`, `topic`, `producer`, `subscriber`, `reason`, `attempts`, `last_status`, and `last_error_kind`. It never logs the envelope or payload. A listing logs the usual `rpc_request` record.
 
 ## Producers and consumers
 
@@ -132,7 +134,7 @@ No service changes its event path. Each producer and consumer must already behav
 
 | Repository | Change |
 | --- | --- |
-| Message Broker | Migration `002`, the attempt limit and refund, the dead-letter transaction, `ListDeadLetters`, the `dead_lettered` count, the `dead_lettered` log record, and tests. Vendor the updated `broker.proto`. |
+| Message Broker | Migration `002`, the attempt limit, the breaker-exclusion refund, the reclaim check at the limit, the dead-letter transaction, `ListDeadLetters`, the `dead_lettered` count, the `dead_lettered` log record, and tests. Vendor the updated `broker.proto`. |
 | Gateway | `GET /api/v1/admin/broker/dead-letters`, the `dead_lettered` count in the topic listing, and tests. Vendor the updated `broker.proto`. |
 | Producers and consumers | Verification against this section. Change only what fails it. |
 | CPR | This contract, `broker.proto`, the demonstration commands, Postman checks for the listing's denials and success, and the image pins. |

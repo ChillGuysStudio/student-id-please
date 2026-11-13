@@ -125,7 +125,7 @@ The consumer commits its domain update and its inbox record before it responds. 
 | Consumer response | Broker action |
 | --- | --- |
 | `200` or `204` | The delivery is done. This includes a duplicate the consumer had already applied. |
-| `409` or `422` | The delivery is rejected and not retried. Use it for a conflicting payload or an invalid schema, as [events.md](events.md) requires. |
+| `409` or `422` | The delivery is dead-lettered and not retried. Use it for a conflicting payload or an invalid schema, as [events.md](events.md) requires. |
 | Any other status, a connection error, a timeout, or an invalid response | The delivery is retried. |
 
 A retry waits 1, 5, then 30 seconds after the failed attempt, then every 30 seconds. The [dead-letter contract](dead-letters.md) limits the attempts and moves rejected and exhausted deliveries to the `dead_letters` table. A timed-out attempt is uncertain, and the consumer's deduplication makes its retry safe.
@@ -151,7 +151,7 @@ deliveries(
   id bigserial primary key,
   event_id uuid not null references events,
   subscriber text not null,
-  state text not null check (state in ('pending', 'in_flight', 'done', 'rejected')),
+  state text not null check (state in ('pending', 'in_flight', 'done', 'dead_lettered')),
   attempts int not null default 0,
   next_attempt_at timestamptz not null,
   lease_until timestamptz,
@@ -185,7 +185,7 @@ WHERE d.event_id = e.event_id AND d.id IN (
 RETURNING d.id, d.event_id, d.attempts, e.topic, e.envelope::text;
 ```
 
-The lease is `T` plus one second. A success sets `done` and `finished_at`. A `409` or `422` sets `rejected`. Any other failure sets `pending` with the next backoff time, `last_status`, and `last_error_kind`. After a Broker restart, an expired `in_flight` row becomes claimable again. `SKIP LOCKED` keeps two workers from claiming one row. The Broker wakes the subscriber's worker after each commit and also polls every second.
+The lease is `T` plus one second. A success sets `done` and `finished_at`. A `409` or `422` moves the delivery to `dead_letters`. Any other failure sets `pending` with the next backoff time, `last_status`, and `last_error_kind`, until the [attempt limit](dead-letters.md#retry-policy) moves it to `dead_letters`. After a Broker restart, an expired `in_flight` row becomes claimable again. `SKIP LOCKED` keeps two workers from claiming one row. The Broker wakes the subscriber's worker after each commit and also polls every second.
 
 ## Subscriptions
 
@@ -221,7 +221,7 @@ The Broker serves `GET /internal/v1/topics` to the `gateway` and `operator` cont
 
 The listing is built from current state and contains no payloads or event IDs:
 
-- `topics`: every catalogue topic with its `producers` and one entry for each allowed subscriber. Each entry gives `subscribed` (a `subscriptions` row exists), `ready_instances` (ready instances whose registration declares the topic), and `deliveries`, the pending, in-flight, done, and rejected counts.
+- `topics`: every catalogue topic with its `producers` and one entry for each allowed subscriber. Each entry gives `subscribed` (a `subscriptions` row exists), `ready_instances` (ready instances whose registration declares the topic), and `deliveries`, the pending, in-flight, done, and dead-lettered counts.
 - `targeted_queues`: each destination service with its current `depth` and `capacity`.
 - `threads`: the `active` request threads and their `max`.
 
@@ -234,7 +234,7 @@ The Broker writes these [logging contract](logging.md) records:
 | `event` | Level | When | Fields besides the common ones |
 | --- | --- | --- | --- |
 | `event_published` | `INFO`, `WARN` when rejected | Each publish request | `event_type`, `event_id`, `producer`, `deliveries`, `status`. `outcome` is `published`, `duplicate`, or `rejected`, with `error_kind` when rejected. |
-| `delivery` | `INFO` when done, `WARN` otherwise | Each delivery attempt | `event_type`, `event_id`, `target_service`, `target_instance_id`, `registration_id`, `attempt_id`, `attempt`, `status`. `outcome` is `delivered`, `retry`, or `rejected`, with `error_kind` on failure. |
+| `delivery` | `INFO` when done, `WARN` otherwise | Each delivery attempt | `event_type`, `event_id`, `target_service`, `target_instance_id`, `registration_id`, `attempt_id`, `attempt`, `status`. `outcome` is `delivered`, `retry`, or `dead_lettered`, with `error_kind` on failure. |
 | `dispatch` | As before | Each targeted attempt | Adds `queue_ms`, the time the request waited. |
 | `queue_rejected` | `WARN` | `QUEUE_FULL` or `QUEUE_TIMEOUT` | `target_service`, `caller`, `route`, `error_kind`. |
 
