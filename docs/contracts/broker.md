@@ -160,6 +160,8 @@ The Broker finishes each task within `T - 250 ms` of receipt, 1.75 seconds by de
 
 Status reports `active_tasks` and `max_concurrent_tasks` as the sums over both gates. No layer replays a write.
 
+Each admitted business request, whether service ingress, Gateway dispatch, or a topic publish, runs on its own operating-system thread for its whole lifetime. The gate's worker goroutine calls `runtime.LockOSThread()` before any other work and never unlocks it. When the request finishes by success, error, timeout, cancellation, or a recovered panic, that goroutine exits while locked, and the Go runtime terminates the thread instead of reusing it. A request keeps its gate slot until its thread ends, so concurrent request threads never exceed the sum of both gate capacities, 200 by default. A full gate answers `503 TASK_LIMIT_EXCEEDED` without starting a thread. Authentication, rejections, status, health, logs, the topic listing, delivery workers, and subscription derivation run on ordinary goroutines. Each `dispatch` record and the `http_request` record of an admitted request carry `thread_id`, the operating-system thread ID.
+
 ## Logging
 
 The Broker writes the [logging contract](logging.md) records. It writes one `dispatch` record at `INFO` for each business attempt. The record has `request_id`, `caller`, `target_service`, `target_instance_id`, `registration_id`, `attempt_id`, `method`, `route`, `status`, `outcome`, and `duration_ms`, plus `error_kind` on failure. `caller` is the authenticated name, or `gateway`. On service ingress, `route` is the matched internal template. On Gateway dispatch, `route` is the path with every UUID segment replaced by `{id}`.
