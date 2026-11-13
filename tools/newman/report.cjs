@@ -168,7 +168,7 @@ function parseArgs(args) {
         if (flag === '--with-overload') { options.overload = true; continue; }
         if (flag === '--http' || flag === '--http-private') {
             if (options.http) throw new Error('Choose one HTTP checks folder.');
-            options.http = flag === '--http' ? 'Safe public smoke' : 'Private operator reads';
+            options.http = flag === '--http' ? 'Safe public smoke' : 'Private Discovery health';
             options.environment = path.join(ROOT, 'postman/http-checks.postman_environment.json');
             options.output = path.join(ROOT, '.local/postman/http-checks/newman-htmlextra.html');
             if (options.http === 'Safe public smoke') options.gateway = 'http://127.0.0.1:8080';
@@ -188,7 +188,7 @@ function parseArgs(args) {
 }
 
 function help() {
-    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27, then 30–70; these create disposable service data.\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery operator checks; supply a private environment\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery and 30–70\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
+    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27, then 30–70; these create disposable service data.\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery liveness on a private network URL\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery and 30–70\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
 }
 
 async function executePhase(collection, environment) {
@@ -239,9 +239,9 @@ async function runLive(options) {
     }
     const plan = options.http ? null : phases(source);
     const first = options.http ? { ...source, item: source.item.filter(folder => folder.name === options.http) } : plan.before;
-    if (options.http === 'Private operator reads') {
+    if (options.http === 'Private Discovery health') {
         const values = Object.fromEntries(environment.values.filter(entry => entry.enabled !== false).map(entry => [entry.key, entry.value]));
-        if (values.control_name !== 'operator' || !values.control_token || values.control_token === 'REPLACE_IN_PRIVATE_COPY' || !values.discovery_url) throw new Error('Private operator checks require a private environment with a Discovery URL and operator credential.');
+        if (!values.discovery_url) throw new Error('Private Discovery checks require an environment with a Discovery URL.');
     }
     if (options.http) { await execute(first, 'http-checks'); return results; }
     if (!await execute(first, plan.labels.before)) return results;

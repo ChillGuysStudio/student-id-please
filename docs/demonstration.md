@@ -33,7 +33,7 @@ To stop the stack and keep its data, run `docker compose down`. Never add `--vol
 
 ## Scale a service
 
-The domain services are `player`, `session`, `applicant`, `credential`, `university-record`, `server-rules`, and `moderation`. Each one scales with `--scale`. A new container generates its own instance ID, registers its own container address with Discovery, and receives traffic after its first ready probe. The [resilience contract](contracts/resilience.md) defines this identity.
+The domain services are `player`, `session`, `applicant`, `credential`, `university-record`, `server-rules`, `moderation`, and `discord-dms`. Each one scales with `--scale`. A new container generates its own instance ID, registers its own container address with Discovery, and receives traffic after its first ready probe. The [resilience contract](contracts/resilience.md) defines this identity.
 
 1. Raise Applicant to four replicas. `--no-deps` leaves the other services untouched:
 
@@ -75,15 +75,15 @@ The same commands work for every domain service listed above. Gateway, the Messa
 
 ## Watch Broker dispatch
 
-Gateway sends each public request to the Message Broker with its target service. Domain services send every peer call to the Broker. The Broker selects one ready replica with round-robin and writes one `INFO` `dispatch` record for each attempt. After a shift has started, list the dispatch records:
+Gateway sends each public request to the Message Broker over REST with its target service. Client requests stay REST end to end. Domain services send every peer call to the Broker as a typed gRPC call on port `50051`. The Broker selects one ready replica with round-robin and writes one `INFO` `dispatch` record for each attempt. After a shift has started, list the dispatch records:
 
 ```sh
 docker compose logs --no-log-prefix message-broker | grep '"event":"dispatch"'
 ```
 
-Each record names the `caller`, the `target_service`, the selected `target_instance_id` and `registration_id`, the `route`, the `status`, and the `outcome`. `caller` is `gateway` for public traffic and the service name, such as `session` or `moderation`, for a peer call. A peer call keeps the `request_id` of the public request that caused it.
+Each record names the `caller`, the `target_service`, the selected `target_instance_id` and `registration_id`, the `route`, the `status`, and the `outcome`. For a peer call, `route` is the full RPC method name, such as `/student_id.session.v1.SessionService/GetSessionContext`, and the record also has the gRPC `code`. `caller` is `gateway` for public traffic and the service name, such as `session` or `moderation`, for a peer call. A peer call keeps the `request_id` of the public request that caused it.
 
-Gateway's control listener on `:8083` answers only health, status, and log export. It returns `404 NOT_FOUND` for every business path.
+Gateway's control listener on `:8083` answers only `/healthz`. It returns `404 NOT_FOUND` for every other path. Status and log export use each process's gRPC `ControlService`.
 
 ## Watch request threads
 
@@ -131,16 +131,47 @@ docker compose exec broker-db psql -U broker -c 'select e.topic, d.subscriber, d
 
 `done` counts the deliveries the subscriber accepted. `pending` and `in_flight` rows wait for a ready replica, and `rejected` rows were refused and are not retried.
 
-## Use the two Discord DMs services
+## Call a service over gRPC
 
-Clients open the chat WebSocket directly on a host port that the DMs replica advertises. Scaled replicas cannot share one host port, so DMs runs as two explicit services instead of a scaled one:
+Every process serves plaintext gRPC on port `50051` of the Compose network, with no host port and no reflection. Use `grpcurl` with the checked-in protos. It runs in a one-off container on the Compose network, `student-id-please_default`. Export the operator control token from `.env` first, so the value never appears in the command line or the output:
 
-| Service | Host port | Advertised WebSocket |
-| --- | --- | --- |
-| `discord-dms-1` | `DMS_PORT`, default `8009` | `ws://localhost:8009` |
-| `discord-dms-2` | `DMS_PORT_2`, default `8010` | `ws://localhost:8010` |
+```sh
+export CONTROL_TOKEN="$(sed -n "s/^OPERATOR_CONTROL_TOKEN='\(.*\)'$/\1/p" .env)"
+```
 
-Gateway picks a ready DMs instance for each negotiation, sends ticket issuance through the Broker pinned to that instance, and returns that instance's WebSocket URL. Both services share the ticket secret, PostgreSQL history, and Redis delivery, so players connected to different replicas exchange messages. To take one out of new negotiations, run `docker compose stop discord-dms-2`. Start it again with `docker compose start discord-dms-2`.
+Read the status of one Applicant replica with `ControlService.GetStatus`. Compose names the replicas `student-id-please-applicant-1`, `student-id-please-applicant-2`, and so on:
+
+```sh
+docker run --rm --network student-id-please_default -e CONTROL_TOKEN -v "$PWD/proto:/proto:ro,z" fullstorydev/grpcurl:v1.9.1 \
+	-plaintext -import-path /proto -proto student_id/control/v1/control.proto \
+	-expand-headers -H 'x-control-name: operator' -H 'x-control-token: ${CONTROL_TOKEN}' \
+	student-id-please-applicant-1:50051 student_id.control.v1.ControlService/GetStatus
+```
+
+The response names the `service_name`, `instance_id`, `boot_id`, readiness, and `load`. A wrong token returns `Unauthenticated`. List the ready instances that Discovery knows, with their `grpc_url`:
+
+```sh
+docker run --rm --network student-id-please_default -e CONTROL_TOKEN -v "$PWD/proto:/proto:ro,z" fullstorydev/grpcurl:v1.9.1 \
+	-plaintext -import-path /proto -proto student_id/discovery/v1/discovery.proto \
+	-expand-headers -H 'x-control-name: operator' -H 'x-control-token: ${CONTROL_TOKEN}' \
+	-d '{"service_name": "applicant"}' \
+	discovery:50051 student_id.discovery.v1.DiscoveryService/ListInstances
+```
+
+Business RPCs accept only the Broker's hop credential and a signed assertion, so `grpcurl` cannot call them directly. Watch them in the Broker's `dispatch` records instead.
+
+## Scale Discord DMs
+
+Clients open chat on the DMs proxy, `dms-proxy`, which publishes `127.0.0.1:${DMS_PORT:-8009}`. Gateway returns that one URL from every negotiation. The proxy is Caddy. It resolves the `discord-dms` replicas through Compose DNS every 5 seconds and sends each new WebSocket to the replica with the fewest connections. Chat connections are balanced by the DMs proxy because Lab 2 requires chat to bypass Gateway and the Broker, while service-to-service balancing stays in the Broker.
+
+Raise DMs to three replicas:
+
+```sh
+docker compose up -d --no-deps --scale discord-dms=3 discord-dms
+docker compose ps discord-dms
+```
+
+The replicas share the ticket secret, PostgreSQL history, and Redis delivery, so players connected to different replicas exchange messages. A new replica receives new connections after the next DNS refresh. Stopping a replica closes its connections. A client reconnects by negotiating a new ticket through Gateway, and the proxy sends the new connection to a remaining replica. Return to two replicas with `docker compose up -d --no-deps --scale discord-dms=2 discord-dms`.
 
 ## Run the HTTP checks
 
@@ -151,7 +182,7 @@ The Postman collections run through the public Gateway. The [guided demo](../pos
 ./scripts/run_newman.sh --with-overload
 ```
 
-[HTTP checks](../postman/HTTP-CHECKS.md) describes the read-only public and operator folders.
+[HTTP checks](../postman/HTTP-CHECKS.md) describes the read-only public folder and the private Discovery health folder.
 
 ## Check the repository
 

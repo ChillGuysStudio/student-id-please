@@ -22,6 +22,7 @@ OWNERS = {
     "discord-dms": ("discord-dms", "discord-dms"),
 }
 BROKER_URL = "http://message-broker:8080"
+BROKER_GRPC_URL = "http://message-broker:50051"
 PASSWORDS = (
     "PLAYER_DB_PASSWORD", "SESSION_DB_PASSWORD", "MODERATION_DB_PASSWORD", "DMS_DB_PASSWORD",
     "BROKER_DB_PASSWORD", "REDIS_PASSWORD", "CHAT_TICKET_SECRET", "UNIVERSITY_MONGO_PASSWORD",
@@ -67,10 +68,10 @@ def rsa_pair(directory, name):
                       "n": encode(bytes.fromhex(modulus)), "e": "AQAB"}]}
 
 
-def prepare(root, gateway_port=8080, dms_port=8009, dms_port_2=8010):
-    ports = (gateway_port, dms_port, dms_port_2)
+def prepare(root, gateway_port=8080, dms_port=8009):
+    ports = (gateway_port, dms_port)
     if not all(1 <= port <= 65535 for port in ports) or len(set(ports)) != len(ports):
-        raise ValueError("Select distinct valid public and WebSocket ports")
+        raise ValueError("Select distinct valid public and chat ports")
     directory = root / ".local/stack"
     if (root / ".env").exists() or directory.exists():
         raise ValueError("Existing development configuration is unchanged. Use a fresh clone for another stack")
@@ -88,7 +89,7 @@ def prepare(root, gateway_port=8080, dms_port=8009, dms_port_2=8010):
     config.update({name: callers[owner] for name, owner in CALLER_VARIABLES.items()})
     config.update({f"{name}_CONTROL_TOKEN": secrets.token_urlsafe(32) for name in CONTROL_NAMES})
     config.update(DISCOVERY_DISCORD_WEBHOOK_URL="")
-    config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port, DMS_PORT_2=dms_port_2,
+    config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
     caller_names, credentials = {}, {}
@@ -99,7 +100,8 @@ def prepare(root, gateway_port=8080, dms_port=8009, dms_port_2=8010):
         "GATEWAY_ALLOW_INSECURE_WS": "true", "GATEWAY_ALLOW_LOCAL_WS": "true",
         "HTTP_TASK_TIMEOUT_SECONDS": "30", "HTTP_MAX_CONCURRENT_TASKS": "100",
         "GATEWAY_PEER_TIMEOUT": "2s",
-        "GATEWAY_BROKER_URL": BROKER_URL, "GATEWAY_BROKER_TOKEN": broker_gateway_token,
+        "GATEWAY_BROKER_URL": BROKER_URL, "BROKER_GRPC_URL": BROKER_GRPC_URL,
+        "GATEWAY_BROKER_TOKEN": broker_gateway_token,
     }
     broker = {
         "BROKER_SIGNING_KEY_FILE": "/keys/broker-private.pem", "BROKER_KEY_ID": "broker-v1",
@@ -120,13 +122,13 @@ def prepare(root, gateway_port=8080, dms_port=8009, dms_port_2=8010):
                         "MAX_CONCURRENT_TASKS": "100", "TASK_TIMEOUT_SECONDS": "30",
                         "JWT_ISSUER": "student-id-please", "JWT_AUDIENCE": "student-id-players"}
             if owner == "session":
-                settings.update(BROKER_URL=BROKER_URL, BROKER_SERVICE_TOKEN=callers[owner],
+                settings.update(BROKER_GRPC_URL=BROKER_GRPC_URL, BROKER_SERVICE_TOKEN=callers[owner],
                                 JWT_PUBLIC_KEY_PATH="/keys/player-public.pem")
         else:
             settings.update(AUTH_MODE="gateway", GATEWAY_KEY_ID="gateway-v1", GATEWAY_AUDIENCE=audience,
                             GATEWAY_PUBLIC_KEY_FILE="/keys/gateway-public.pem")
             if owner not in CALLER_VARIABLES.values():
-                settings.update(BROKER_URL=BROKER_URL, BROKER_SERVICE_TOKEN=callers[owner])
+                settings.update(BROKER_GRPC_URL=BROKER_GRPC_URL, BROKER_SERVICE_TOKEN=callers[owner])
         settings.update(BROKER_HOP_TOKEN=hops[owner], BROKER_KEY_ID="broker-v1",
                         BROKER_ASSERTION_ISSUER="student-id-broker")
         if owner in ("applicant", "credential"):
@@ -147,10 +149,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gateway-port", type=int, default=8080)
     parser.add_argument("--dms-port", type=int, default=8009)
-    parser.add_argument("--dms-port-2", type=int, default=8010)
     args = parser.parse_args()
     try:
-        prepare(ROOT, args.gateway_port, args.dms_port, args.dms_port_2)
+        prepare(ROOT, args.gateway_port, args.dms_port)
     except (ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Development configuration failed: {error}\n")
     print("Created ignored .env and .local/stack configuration. No credentials were printed.")

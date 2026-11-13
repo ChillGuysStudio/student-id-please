@@ -31,7 +31,7 @@ The shared deployment reads [`.env.example`](../../.env.example).
 - `MODERATION_DB_PASSWORD` supplies the database password.
 - `MODERATION_SERVICE_TOKEN` identifies the caller to peers.
 - Compose mounts the Gateway public key, and `.local/stack/moderation.env` holds the receiver-hop settings.
-- Compose gives `moderation-publisher` `BROKER_URL` and the same `MODERATION_SERVICE_TOKEN` for event publication.
+- Compose gives `moderation-publisher` `BROKER_GRPC_URL` and the same `MODERATION_SERVICE_TOKEN` for event publication.
 
 ## Contracts and checks
 

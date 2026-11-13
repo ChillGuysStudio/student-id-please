@@ -1,6 +1,6 @@
 name: student-id-please
 x-registration: &registration
-  DISCOVERY_URL: ${DISCOVERY_URL:-http://discovery:8081}
+  DISCOVERY_GRPC_URL: http://discovery:50051
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
   CONTROL_MAX_CONCURRENT_CALLS: '8'
   DISCOVERY_REGISTER_INTERVAL_SECONDS: '5'
@@ -13,9 +13,11 @@ services:
     environment:
       <<: *registration
       SERVICE_NAME: gateway
-      # The singleton advertises its control listener by service name. It serves only
-      # health, status, and log export; business calls go through the Message Broker.
+      # The singleton advertises its health listener by service name. Status and log
+      # export use its gRPC listener; business calls go through the Message Broker.
       INSTANCE_HTTP_URL: http://gateway:8083
+      # Clients open chat on the DMs proxy, which balances the DMs replicas.
+      GATEWAY_CHAT_WS_URL: ws://localhost:${DMS_PORT:-8009}
       CONTROL_PLANE_NAME: gateway
       CONTROL_PLANE_TOKEN: ${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}
     ports:
@@ -35,8 +37,8 @@ services:
     environment:
       <<: *registration
       SERVICE_NAME: message-broker
-      # Callers match the Broker's registration to their configured BROKER_URL. Discovery
-      # rejects two live instances with one http_url, so the Broker runs as one replica.
+      # Callers match the Broker's registration grpc_url to their BROKER_GRPC_URL. Discovery
+      # rejects two live instances with one address, so the Broker runs as one replica.
       INSTANCE_HTTP_URL: http://message-broker:8080
       CONTROL_PLANE_NAME: message-broker
       CONTROL_PLANE_TOKEN: ${MESSAGE_BROKER_CONTROL_TOKEN:?Set MESSAGE_BROKER_CONTROL_TOKEN in .env}
@@ -214,10 +216,8 @@ services:
       CONTROL_PLANE_NAME: session
       CONTROL_PLANE_TOKEN: ${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
-      BROKER_URL: http://message-broker:8080
+      BROKER_GRPC_URL: http://message-broker:50051
       BROKER_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
-      PLAYER_MODE: http
-      EXTERNAL_SERVICES_MODE: http
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
@@ -242,7 +242,7 @@ services:
       CONTROL_PLANE_NAME: moderation
       CONTROL_PLANE_TOKEN: ${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
-      BROKER_URL: http://message-broker:8080
+      BROKER_GRPC_URL: http://message-broker:50051
       BROKER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
@@ -265,7 +265,7 @@ services:
     command: [python, -m, moderation.publisher]
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
-      BROKER_URL: http://message-broker:8080
+      BROKER_GRPC_URL: http://message-broker:50051
       BROKER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
     volumes:
       - moderation-publisher-logs:/var/log/student-id-publisher
@@ -275,27 +275,23 @@ services:
       message-broker:
         condition: service_healthy
     restart: unless-stopped
-  # Clients open the DMs WebSocket directly on a host port that each replica advertises.
-  # Host ports cannot be shared by scaled replicas, so DMs runs as two explicit services.
-  discord-dms-1: &discord-dms
+  # DMs scales natively. Clients reach its WebSocket only through dms-proxy.
+  discord-dms:
+    deploy:
+      replicas: 2
     image: ${DISCORD_DMS_IMAGE:-sentientmoss/pad-discord-dms-service:latest}
     env_file: .local/stack/discord-dms.env
-    environment: &discord-dms-environment
+    environment:
       <<: *registration
       SERVICE_NAME: discord-dms
       CONTROL_PLANE_NAME: discord-dms
       CONTROL_PLANE_TOKEN: ${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}
       DISCOVERY_LEASE_SECONDS: '15'
-      GATEWAY_ALLOW_INSECURE_WS: 'true'
-      GATEWAY_ALLOW_LOCAL_WS: 'true'
-      INSTANCE_WS_URL: ws://localhost:${DMS_PORT:-8009}
       DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHAT_TICKET_SECRET: ${CHAT_TICKET_SECRET:?Set CHAT_TICKET_SECRET in .env}
-      BROKER_URL: http://message-broker:8080
+      BROKER_GRPC_URL: http://message-broker:50051
       BROKER_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN:?Set DISCORD_DMS_SERVICE_TOKEN in .env}
-    ports:
-      - '127.0.0.1:${DMS_PORT:-8009}:8000'
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
       - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
@@ -313,13 +309,23 @@ services:
       message-broker:
         condition: service_healthy
     restart: unless-stopped
-  discord-dms-2:
-    <<: *discord-dms
-    environment:
-      <<: *discord-dms-environment
-      INSTANCE_WS_URL: ws://localhost:${DMS_PORT_2:-8010}
+  dms-proxy:
+    # Chat bypasses Gateway and the Broker, so this proxy balances the DMs WebSockets.
+    image: caddy:2.8-alpine
     ports:
-      - '127.0.0.1:${DMS_PORT_2:-8010}:8000'
+      - '127.0.0.1:${DMS_PORT:-8009}:8009'
+    volumes:
+      - ./config/dms-proxy.Caddyfile:/etc/caddy/Caddyfile:ro,z
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:8009/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      discord-dms:
+        condition: service_healthy
+    restart: unless-stopped
   applicant:
     deploy:
       replicas: 2
@@ -332,8 +338,6 @@ services:
       CONTROL_PLANE_TOKEN: ${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}
       SERVER_ADDRESS: 0.0.0.0
       MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
-      SESSION_URL: http://gateway:8083
-      UNIVERSITY_URL: http://gateway:8083
     healthcheck:
       test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8081 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
       interval: 10s
@@ -355,8 +359,6 @@ services:
       CONTROL_PLANE_NAME: credential
       CONTROL_PLANE_TOKEN: ${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}
       MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
-      SESSION_URL: http://gateway:8083
-      UNIVERSITY_URL: http://gateway:8083
     healthcheck:
       test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8082 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
       interval: 10s
