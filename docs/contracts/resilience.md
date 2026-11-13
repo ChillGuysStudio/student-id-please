@@ -91,7 +91,8 @@ Registration = {
 	service_name: string,
 	boot_id: Id,
 	http_url: string,
-	ws_url: string | null
+	ws_url: string | null,
+	topics: string[]?
 }
 Instance = {
 	service_name: string,
@@ -100,6 +101,7 @@ Instance = {
 	registration_id: Id,
 	http_url: string,
 	ws_url: string | null,
+	topics: string[],
 	state: "pending" | "ready" | "unhealthy" | "expired" | "removed",
 	lease_expires_at: Time,
 	last_checked_at: Time | null,
@@ -143,7 +145,7 @@ Reactivation = {registration_id: Id, operation_id: Id}
 
 Each registrant binds its listeners and starts liveness before its registration loop. It sends its first PUT without waiting for the Broker, Gateway, or other domain services. A failed attempt does not exit the process or hang startup. The registration loop has one in-flight call, uses the bounded caller policy below, and renews every 5 seconds by default. HTTP failures use backoff of 1, 2, then 5 seconds, capped at 5 seconds, subject to the breaker cooldown. A `401`, `403`, or configuration conflict logs a configuration error and retries no faster than every 5 seconds.
 
-A PUT with the same service, boot ID, and addresses renews the lease to Discovery's current time plus 15 seconds. It creates no duplicate and does not reset health, counters, or removal state. Changed addresses within one boot return `409 REGISTRATION_CONFLICT`. A duplicate live HTTP origin under another ID also returns `409`. A different boot for the same instance ID returns `409` while the previous boot has an unexpired lease. After expiry, Discovery accepts the new boot as pending with a fresh generation. Removed IDs remain removed even after expiry or a new boot. Discovery can update their candidate boot and addresses only after the previous lease expires.
+A PUT with the same service, boot ID, and addresses renews the lease to Discovery's current time plus 15 seconds. It creates no duplicate and does not reset health, counters, or removal state. Changed addresses within one boot return `409 REGISTRATION_CONFLICT`. A changed `topics` list within one boot is a renewal that updates the list, as the [queues and topics contract](queues.md#discovery-changes) defines. A duplicate live HTTP origin under another ID also returns `409`. A different boot for the same instance ID returns `409` while the previous boot has an unexpired lease. After expiry, Discovery accepts the new boot as pending with a fresh generation. Removed IDs remain removed even after expiry or a new boot. Discovery can update their candidate boot and addresses only after the previous lease expires.
 
 A ready instance requires both an unexpired lease and a valid ready status probe. Lease expiry immediately excludes it, without waiting for three failures. Renewal after expiry requires a new successful probe before routing resumes. Startup registration and lease expiry do not clear removal records. Discovery deletes a removal record once its instance has not renewed for `DISCOVERY_REMOVAL_RETENTION_SECONDS`, which keeps the state file bounded as processes come and go.
 
@@ -187,6 +189,8 @@ The Broker owns the physical backend attempts for client REST and service REST. 
 | Gateway | Public dispatch, its Session context reads, and DMs ticket issuance through the Broker | Gateway records its Broker hop. The Broker records backend attempts. |
 | Session, Applicant, Credential, Rules, University Record, Moderation, and DMs | All business peer operations through the Broker, including permission and readiness callbacks | The service records its Broker hop. The Broker records backend attempts. |
 | Player | Registration, renewal, lookup, removal reporting, and any future business HTTP | Player already needs a control-plane breaker even without a current business peer caller. |
+| Outbox relays, including the Moderation publisher | Event publish to the Broker | Each publish is one attempt bounded by `T`. The relay backs off and keeps the outbox row. It keeps no Broker hop counter, as [publish](queues.md#publish) explains. |
+| Message Broker push delivery | Each topic delivery attempt | The Broker records the subscriber replica's generation through the shared recorder. |
 | All registrants, including Gateway and the Broker | Direct registration, registry refresh, removal reports, and operator reactivation clients | The direct caller records Discovery failures across all these endpoints. |
 | Discovery | Direct status probes for every registered instance, including Gateway | A failed probe makes that instance unavailable and can raise an alert. Probes never remove an instance; removal comes only from caller breaker reports, shutdown, and the operator. |
 | Discovery notification adapter | Outbound Discord delivery | The adapter bounds calls and records failures for its configured external destination. It never evicts a domain instance for a Discord outage. |
