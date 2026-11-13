@@ -245,8 +245,8 @@ class SetupTests(unittest.TestCase):
         self.assertIn("url: http://loki:3100", datasource)
         dashboard = json.loads((ROOT / "config/grafana/dashboards/logs.json").read_text())
         self.assertEqual(dashboard["uid"], "student-id-logs")
-        self.assertEqual([variable["name"] for variable in dashboard["templating"]["list"]], ["service", "level", "search"])
-        self.assertEqual([panel["type"] for panel in dashboard["panels"]], ["timeseries", "logs"])
+        self.assertEqual([variable["name"] for variable in dashboard["templating"]["list"]], ["service", "level", "search", "request_id"])
+        self.assertEqual([panel["type"] for panel in dashboard["panels"]], ["timeseries", "logs", "logs", "logs"])
         for panel in dashboard["panels"]:
             self.assertEqual(panel["datasource"]["uid"], "loki")
             self.assertTrue(all(target["expr"] for target in panel["targets"]))

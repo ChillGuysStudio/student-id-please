@@ -83,6 +83,24 @@
             "value": ""
           }
         ]
+      },
+      {
+        "name": "request_id",
+        "label": "request or event ID",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "description": "Paste an X-Request-ID from a response, or an event_id, to see its trail."
       }
     ]
   },
@@ -151,6 +169,74 @@
         "wrapLogMessage": true,
         "enableLogDetails": true,
         "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Request trail: every service",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "description": "All log records that contain the pasted request or event ID, from every service, newest first.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "expr": "{service=~\".+\"} |= \"$request_id\" | json | line_format \"{{.service}} {{.level}} {{.event}} {{.caller}}{{if .target_service}} -> {{.target_service}}{{end}} {{.rpc}}{{.route}} {{.outcome}}{{if .status}} status={{.status}}{{end}}{{if .duration_ms}} {{.duration_ms}}ms{{end}}\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Ascending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Broker hops for this ID",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "description": "Each Broker dispatch is one hop: caller, target service and replica, method, outcome, and attempt.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "expr": "{service=\"message-broker\"} |= \"$request_id\" |= \"\\\"event\\\":\\\"dispatch\\\"\" | json | line_format \"{{.caller}} -> {{.target_service}} [{{.target_instance_id}}] {{.rpc}}{{.route}} outcome={{.outcome}} attempt={{.attempt}} {{.duration_ms}}ms\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Ascending",
         "dedupStrategy": "none"
       }
     }
