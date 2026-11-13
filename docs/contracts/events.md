@@ -1,8 +1,8 @@
-# RabbitMQ events
+# Domain events
 
-The payload types come from the [domain contract](domain.md), [case initialization](cases.md), and [service APIs](api.md).
+The payload types come from the [domain contract](domain.md), [case initialization](cases.md), and [service APIs](api.md). The Message Broker carries these events as topics. The [queues and topics contract](queues.md) defines publish, push delivery, subscriptions, and the allowlists.
 
-Version-1 events use the durable topic exchange `student-id.events.v1` and `schema_version = 1`. New `CaseInitialized` events use `student-id.events.v2` and `schema_version = 2`; the other events remain version 1. Messages use JSON and RabbitMQ persistent delivery. Publishers wait for broker confirms, and consumers acknowledge messages after processing. The event names, routing keys, and payload fields below are fixed. Removing or changing a required field requires a new major schema and exchange version. Consumers accept additional optional fields.
+Every event uses JSON. `CaseInitialized` uses `schema_version = 2`. The other events use `schema_version = 1`. A topic name equals its `event_type`. The event names and payload fields below are fixed. Removing or changing a required field requires a new major schema version. Consumers accept additional optional fields.
 
 ```text
 Event<T> = {event_id: Id, event_type: string, schema_version: Int,
@@ -17,22 +17,24 @@ DisciplinaryPayload = {disciplinary_action_id: Id, player_id: Id, xp_penalty: In
                        reason: string}
 ```
 
-| Event | Routing key | Producer | Durable subscriber queues | Payload and correlation |
-| --- | --- | --- | --- | --- |
-| `CaseInitialized` (schema 2, exchange v2) | `case.initialized` | Applicant, Credential, or University Record | `applicant.case-initialized.v2`<br>`credential.case-initialized.v2`<br>`university-record.case-initialized.v2` | `CaseInitializedPayload`, including required `initialization_attempt_id`<br>`correlation_id = case_id`, never attempt ID |
-| `DecisionScored` | `decision.scored` | Moderation | `session.decision-scored.v1` | `DecisionScoredPayload`<br>`correlation_id = case_id` |
-| `ShiftEnded` | `shift.ended` | Session | `player.shift-ended.v1` | `ShiftEndedPayload`<br>`correlation_id = session_id` |
-| `DisciplinaryActionApplied` | `discipline.applied` | Moderation | `player.discipline-applied.v1` | `DisciplinaryPayload`<br>`correlation_id = disciplinary_action_id` |
+| Event | Producer | Subscribers | Payload and correlation |
+| --- | --- | --- | --- |
+| `CaseInitialized` (schema 2) | Applicant, Credential, or University Record | Applicant, Credential, University Record | `CaseInitializedPayload`, including required `initialization_attempt_id`<br>`correlation_id = case_id`, never attempt ID |
+| `DecisionScored` | Moderation | Session | `DecisionScoredPayload`<br>`correlation_id = case_id` |
+| `ShiftEnded` | Session | Player | `ShiftEndedPayload`<br>`correlation_id = session_id` |
+| `DisciplinaryActionApplied` | Moderation | Player | `DisciplinaryPayload`<br>`correlation_id = disciplinary_action_id` |
 
-Each subscriber has its own queue. Replicas of one service share that service's queue. An initializer can consume its own case event as a deduplicated no-op, but it never republishes a consumed initialization event. A publication retry uses the original `event_id`. Consumers also deduplicate by the business ID in the payload. This protects against a producer that assigns two event IDs to one case, decision, shift, or disciplinary action.
+Each subscriber service receives one copy, and its replicas compete for that copy. An initializer can consume its own case event as a deduplicated no-op, but it never republishes a consumed initialization event. A publication retry uses the original `event_id`. Consumers also deduplicate by the business ID in the payload. This protects against a producer that assigns two event IDs to one case, decision, shift, or disciplinary action.
 
 Version 2 requires the original Session initialization attempt reference in every source branch, including empty outsider bundles. Subscribers enforce [retained initialization authority](cases.md#retained-initialization-authority) before creating or resuming projections. The authenticated producer must be the retained selected initializer; `correlation_id`, `event_id`, and `case_id` are not substitutes for `initialization_attempt_id`.
 
 The old version-1 `CaseInitialized` shape, exchange, queues, and stored events remain historical and unchanged. Its payload has the original `CaseSeed` fields without `initialization_attempt_id` and the same three domain branches. Do not synthesize an attempt reference, upgrade stored envelopes, dual-publish a new case as version 1, or replay unverifiable version-1 messages to authorize new effects. An exact already-completed duplicate can be acknowledged as a no-op. Otherwise quarantine unverifiable history under the existing bounded failure policy and preserve its domain data. This is not a legacy authorization protocol.
 
-After a temporary failure, delayed queues retry the message after 1, 5, and 30 seconds. If all retries fail, the message moves to `<subscriber-queue>.dlq`, a durable queue for inspection and replay. A message with an invalid schema or a conflicting payload moves there without a retry. A replay keeps the original IDs and remains idempotent. A consumer never drops a failed message or requeues it without a retry limit.
+The Broker retries a failed delivery after 1, 5, and 30 seconds, then every 30 seconds. A consumer answers `409` or `422` for a conflicting payload or an invalid schema, and the Broker does not retry it. Neither the Broker nor a consumer drops a failed event. A redelivery keeps the original IDs and remains idempotent.
 
-Broker credentials grant publishers and consumers access only to the exchanges and queues they need. Only the Applicant, Credential, and University Record services can read hidden `CaseInitialized` payloads. A service retains an outbox entry until the broker confirms it. The service retains inbox and domain deduplication records for as long as the related domain records exist.
+The topic allowlists grant each producer and subscriber only the topics it needs. Only the Applicant, Credential, and University Record services can read hidden `CaseInitialized` payloads. A service retains an outbox entry until the Broker answers its publish with `200` or `201`. A consumer commits its domain update and inbox record before it answers a delivery. The service retains inbox and domain deduplication records for as long as the related domain records exist.
+
+Before the [migration](queues.md#migration), RabbitMQ carried these events on the topic exchanges `student-id.events.v1` and `student-id.events.v2`, with routing keys `case.initialized`, `decision.scored`, `shift.ended`, and `discipline.applied`.
 
 Example scored event:
 
