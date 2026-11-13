@@ -29,7 +29,7 @@ The shared deployment reads [`.env.example`](../../.env.example).
 - `SESSION_DB_PASSWORD` supplies the database password.
 - `SESSION_SERVICE_TOKEN` identifies Session to its peers.
 - `MODERATION_SERVICE_TOKEN` and `DISCORD_DMS_SERVICE_TOKEN` configure accepted internal callers.
-- `REDIS_PASSWORD` and `RABBITMQ_PASSWORD` configure shared infrastructure.
+- `REDIS_PASSWORD` configures shared infrastructure.
 
 ## Contracts and checks
 
