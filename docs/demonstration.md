@@ -121,7 +121,7 @@ After a shift has started and one decision is made, list the delivery attempts:
 docker compose logs --no-log-prefix message-broker | grep '"event":"delivery"'
 ```
 
-Each record names the `event_type`, `event_id`, `target_service`, the selected `target_instance_id`, the `attempt`, the `status`, and the `outcome`: `delivered`, `retry`, or `rejected`. One `CaseInitialized` shows one delivered record for each of its three subscribers, each on one replica.
+Each record names the `event_type`, `event_id`, `target_service`, the selected `target_instance_id`, the `attempt`, the `status`, and the `outcome`: `delivered`, `retry`, or `dead_lettered`. One `CaseInitialized` shows one delivered record for each of its three subscribers, each on one replica.
 
 Count the deliveries per topic, subscriber, and state:
 
@@ -129,7 +129,52 @@ Count the deliveries per topic, subscriber, and state:
 docker compose exec broker-db psql -U broker -c 'select e.topic, d.subscriber, d.state, count(*) from deliveries d join events e using (event_id) group by 1, 2, 3 order by 1, 2, 3'
 ```
 
-`done` counts the deliveries the subscriber accepted. `pending` and `in_flight` rows wait for a ready replica, and `rejected` rows were refused and are not retried.
+`done` counts the deliveries the subscriber accepted. `pending` and `in_flight` rows wait for a ready replica or their next attempt, and `dead_lettered` rows moved to the dead-letter table.
+
+## Inspect dead letters
+
+The Broker gives each delivery at most `BROKER_DELIVERY_MAX_ATTEMPTS` attempts, 5 by default, waiting 1, 5, then 30 seconds between them. A delivery that the consumer rejects with 409 or 422, or that fails every attempt, moves to the `dead_letters` table in `broker-db`. The [dead-letter contract](contracts/dead-letters.md) defines the rules. An administrator lists the newest dead letters:
+
+```sh
+curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" 'http://127.0.0.1:8080/api/v1/admin/broker/dead-letters?limit=20'
+```
+
+Each item names the event, topic, producer, subscriber, `reason`, attempts, and last status, and never the payload. Pass `next_cursor` as `cursor` for the next page, and filter with `topic` or `subscriber`.
+
+Publish an event that the consumer rejects. Export Moderation's service token, then publish a `DecisionScored` event whose `score_delta` breaks the scoring rule:
+
+```sh
+export SERVICE_TOKEN="$(sed -n "s/^MODERATION_SERVICE_TOKEN='\(.*\)'$/\1/p" .env)"
+docker run --rm --network student-id-please_default -e SERVICE_TOKEN -v "$PWD/proto:/proto:ro,z" fullstorydev/grpcurl:v1.9.1 \
+	-plaintext -import-path /proto -proto student_id/broker/v1/broker.proto \
+	-expand-headers -H 'x-service-name: moderation' -H 'x-service-token: ${SERVICE_TOKEN}' \
+	-d "$(python3 -c 'import json, uuid, datetime; c = str(uuid.uuid4()); print(json.dumps({"topic": "DecisionScored", "event": {"event_id": str(uuid.uuid4()), "event_type": "DecisionScored", "schema_version": 1, "occurred_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "producer": "moderation", "correlation_id": c, "payload_json": json.dumps({"decision_id": str(uuid.uuid4()), "session_id": str(uuid.uuid4()), "case_id": c, "moderator_id": str(uuid.uuid4()), "action": "accept", "correct": True, "score_delta": 3, "penalty": 0})}}))')" \
+	message-broker:50051 student_id.broker.v1.BrokerService/PublishEvent
+```
+
+Session answers with 422, and the listing shows the delivery with reason `rejected` after one attempt. Other topics keep delivering.
+
+Make one consumer fail on every attempt while it stays ready. Player's readiness check only reads, so a read-only database makes each delivery fail with a retryable 500:
+
+```sh
+docker compose exec player-db psql -U player -d player_db -c 'ALTER SYSTEM SET default_transaction_read_only = on' -c 'SELECT pg_reload_conf()'
+```
+
+End a shift. After five attempts, about a minute, the `ShiftEnded` delivery to Player appears in the listing with reason `exhausted`. Restore the database:
+
+```sh
+docker compose exec player-db psql -U player -d player_db -c 'ALTER SYSTEM RESET default_transaction_read_only' -c 'SELECT pg_reload_conf()'
+```
+
+Accepted events survive a Broker restart. Stop Credential, start a case, restart the Broker and its database, then start Credential again:
+
+```sh
+docker compose stop credential
+docker compose restart broker-db message-broker
+docker compose start credential
+```
+
+The `CaseInitialized` delivery to Credential waits as `pending` with no attempts, and it is delivered once after Credential is ready.
 
 ## Call a service over gRPC
 

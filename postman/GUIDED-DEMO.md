@@ -23,7 +23,7 @@
 
 8. Folder **E** starts the Session, opens one case, records a decision through Moderation and ends the shift. Starting needs a published rule version and a valid University catalog. Request **33** returns **202** while the record services initialize the case. Requests **34** and **37** poll: in Newman they repeat about once per second, up to 30 times, until the case is ready and the decision is scored. When you send them manually, an empty **Test Results** tab means the work is still pending, so send again. Requests **40–43** create, delete and confirm the removal of a separate lobby; a started or ended Session cannot be deleted.
 9. Folder **F** checks the public signing keys, refreshes player 0's tokens, renames player 0, reads profiles and lists friendships. It then creates and removes a separate friendship and team, so the shared demo team and friendships stay intact. Request **65** logs player 0 out, and **66** checks that its refresh token now returns **401 `INVALID_REFRESH`**. The access token from **45** stays valid until it expires, because logout revokes only the refresh token family.
-10. Folder **G** checks that `GET /api/v1/admin/logs` (67–68) and `GET /api/v1/admin/broker/topics` (69–70) refuse an anonymous client with **401** and an ordinary player with **403**. The demo players are not administrators. An administrator downloads the archive with `curl`, passing the token from a shell variable so it does not appear in the command:
+10. Folder **G** checks that `GET /api/v1/admin/logs` (67–68), `GET /api/v1/admin/broker/topics` (69–70), and `GET /api/v1/admin/broker/dead-letters` (71–72) refuse an anonymous client with **401** and an ordinary player with **403**. The demo players are not administrators. An administrator downloads the archive with `curl`, passing the token from a shell variable so it does not appear in the command:
 
     ```sh
     curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" -o logs.tar.gz \
@@ -56,7 +56,7 @@ To render the recorded phases of one run without sending any new requests:
   --from-json .local/postman/run-XXXXXX/private-01-27.json \
   --from-json .local/postman/run-XXXXXX/private-28.json \
   --from-json .local/postman/run-XXXXXX/private-29.json \
-  --from-json .local/postman/run-XXXXXX/private-30-70.json
+  --from-json .local/postman/run-XXXXXX/private-30-72.json
 ```
 
 Repeated inputs are shown as separate recorded phases/iterations, not claimed as one uninterrupted Newman run. The dashboard timestamp is report generation time; the original start time and tested scope appear in its collection description. See `--help` for a different output path or public Gateway URL. Tests: `npm test --prefix tools/newman`. Exit status is nonzero for failed requests/assertions or report-generation errors. This collection does not prove task-timeout handling or direct WebSocket communication.

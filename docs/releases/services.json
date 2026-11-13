@@ -159,22 +159,22 @@
    "service": "gateway",
    "submodule": "gateway-service",
    "repository": "ChillGuysStudio/gateway-service",
-   "version": "4.0.7",
-   "source_sha": "f324f6767f7c0f6f83ed06150090d7f0237653e5",
-   "image": "maxnoragami/gateway-service@sha256:c847af437a5e596a192eef30f8a1a842a8400769707abd52d21f192529d4e96f",
+   "version": "4.0.8",
+   "source_sha": "c7ebcb0209ce678a50f1e583cabf1e7081c1b552",
+   "image": "maxnoragami/gateway-service@sha256:3d33bb71a79a8191c695bcccec5ec2188b393468e0edb08a2c4896107be24718",
    "platforms": {
-    "amd64": "sha256:61e42c3427f0001689016dced21566992c17f2419724d625480ed94dd7595eda",
-    "arm64": "sha256:5f15518380f5f2c2774fe1a26fc727a95349dd570b8482ae548624a9af39d8f2"
+    "amd64": "sha256:c992d6321783f8c6e0938410fa991d55eace200dbaaa5f49d945036be3859b0e",
+    "arm64": "sha256:dadbf76b55b64364c4008ae9c98cd96344cce48fe59da491d92b0d34c6840680"
    },
    "configs": {
-    "amd64": "sha256:320591117fa996643b5e3e086427fb01fb8d046a0ea512e0cc6b788c0184cd6b",
-    "arm64": "sha256:d159a4f4601c6a9cbdfad7ea8b48d55a29300eb453ec6d903f82c4999f8194f8"
+    "amd64": "sha256:a81f3369a1b5f106f21d614a0bae238b28eae30ce816582cc07aa59b5ab68eae",
+    "arm64": "sha256:5327cbdd76b5daac5e2249116970ca3eca5a6a61b5db320352c6dd4468820cb3"
    },
    "revision_labels": {
-    "amd64": "f324f6767f7c0f6f83ed06150090d7f0237653e5",
-    "arm64": "f324f6767f7c0f6f83ed06150090d7f0237653e5"
+    "amd64": "c7ebcb0209ce678a50f1e583cabf1e7081c1b552",
+    "arm64": "c7ebcb0209ce678a50f1e583cabf1e7081c1b552"
    },
-   "publication_run": 43388500121,
+   "publication_run": 43412615974,
    "repository_source_labels_verified": true
   },
   {
@@ -225,22 +225,22 @@
    "service": "broker",
    "submodule": "message-broker-service",
    "repository": "ChillGuysStudio/message-broker-service",
-   "version": "4.0.6",
-   "source_sha": "594bdaf10412c11ac41c8fbb82403a769a7c6796",
-   "image": "maxnoragami/message-broker-service@sha256:8e1c35190ba14ccb8e9f257c34fce63b5052551de82d27f4bfeb91c59659ae72",
+   "version": "4.0.7",
+   "source_sha": "68799a44f5aaa292024e661f5a2fce0a1d96bf3a",
+   "image": "maxnoragami/message-broker-service@sha256:e54d13589902578c4fde1f2b1bb2cce36308b1efc1f87b25f75f65b51c32aa6c",
    "platforms": {
-    "amd64": "sha256:ae6ce3710e7ca7e8cbe294a56df727da10008a935df5617644719c2cdb0657ca",
-    "arm64": "sha256:ec4c4c483661adaa703ada23229d83603d8d51315933961693da3a9a910cd5f3"
+    "amd64": "sha256:ea60153aca8a325144050f6122e5b9293589a6e0ccb9c51afd5a740e62d4c4b6",
+    "arm64": "sha256:5e8f7a7578e2157cfc84448505437a072829c1533fce1777f43d699cc5563d3a"
    },
    "configs": {
-    "amd64": "sha256:1875847c2aaaa69d4351ab108ada6e22d927530e0478184fb3fb8d7a2a054e7d",
-    "arm64": "sha256:be0df67ff84558904a3d5d9cd0ad2022cd031fbf4a8e68d39bdc587454694481"
+    "amd64": "sha256:064b511bd91863b19e16508b0a38e1ea5b6e7aab9a76976debc023bc15401287",
+    "arm64": "sha256:3e92cca25e826efdbc74ddc54bb896a2e01b31a610bc09d13cd786282d6ff604"
    },
    "revision_labels": {
-    "amd64": "594bdaf10412c11ac41c8fbb82403a769a7c6796",
-    "arm64": "594bdaf10412c11ac41c8fbb82403a769a7c6796"
+    "amd64": "68799a44f5aaa292024e661f5a2fce0a1d96bf3a",
+    "arm64": "68799a44f5aaa292024e661f5a2fce0a1d96bf3a"
    },
-   "publication_run": 43406099639,
+   "publication_run": 43413624483,
    "repository_source_labels_verified": true
   }
  ]
