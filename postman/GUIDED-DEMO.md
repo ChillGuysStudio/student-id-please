@@ -35,6 +35,52 @@
 
 The collection does not include direct WebSocket frames. The helper does not configure or restart any service. Keep the populated Postman environment private: it contains the generated players' passwords and tokens. Do not export or commit it after running.
 
+## Follow a request through the services
+
+Every guided request enters at Gateway, which sends it to the Message Broker. The Broker dispatches it to the owning service and writes a `dispatch` record per call. Work that service does for the request, and the events it publishes, pass through the Broker too, so the Broker log shows the path.
+
+To follow one request:
+
+1. Copy the `X-Request-ID` header from the response in Postman.
+2. From the Compose directory, read the Broker records for that ID:
+
+   ```sh
+   docker compose logs --no-log-prefix message-broker | grep <request-id>
+   ```
+
+   Each `dispatch` record names the `caller`, the `target_service` and `target_instance_id`, the `method` and `route` (or `rpc` for a gRPC call), the `status`, the `outcome`, and the `attempt`. A request that Gateway refuses itself, such as a 401 or 403, leaves no Broker record.
+3. Every service keeps that `request_id` and passes it on its own calls through the Broker, so the same search finds every synchronous hop, nested calls included. To see every service's records at once, search all logs:
+
+   ```sh
+   docker compose logs --no-log-prefix | grep <request-id>
+   ```
+
+   In Grafana, paste the ID into **request or event ID** on the `student-id-logs` dashboard. Or run `{service=~".+"} |= "<request-id>" | json` in Explore with the Loki data source.
+
+4. Events appear as an `event_published` record followed by one `delivery` record per subscriber, with the `event_type` and `target_service`. A delivery runs after the response, under the event's `event_id`, so search that ID to follow its fan-out and retries.
+
+The table lists what each request triggers. Peer calls read `caller` to `target_service` and the RPC name. Each row was checked by sending the request once and reading the Broker's `dispatch` records. Requests that share a route with a listed one trigger the same path.
+
+| Requests | Gateway to Broker to | Peer calls and events that follow |
+| --- | --- | --- |
+| 02–07 (register, login) | Player | None |
+| 08, 44, 45 | Player (`players/me`, `jwks.json`, `auth/refresh`) | None |
+| 11–17 | Player (teams, friendships, members) | None |
+| 18, 23, 37 | Session (list, read) | None |
+| 19 | Session (`POST /sessions`) | Session to Player `GetTeam`, `GetPlayer` |
+| 20, 21 | Session (`POST /sessions/{id}/participants`) | Session to Player `GetTeam`, `GetPlayer` |
+| 22 | Session (`PUT /sessions/{id}/roles`) | None |
+| 24 | Session `GetSessionContext` check, then University Record (`PUT .../record-permissions`) | University Record to Session `GetSessionContext` |
+| 25–27 | Session `GetSessionContext` check, then University Record (`GET .../record-permissions/me`) | University Record to Session `GetSessionContext` |
+| 31 | Session `GetSessionContext` check, then Session (`POST .../start`) | Session to Player `GetTeam`, `GetPlayer`; Session to University Record `GetRecordPermission` and `CreateSnapshot`; Session to Rules `GetCurrentRuleSet`; University Record to Session `GetSessionContext`, `GetAcceptedAttempt` |
+| 33 | Session (`POST .../cases`) | Session to Applicant `StartCase`; Applicant to University Record `GetRetainedSnapshot`; Applicant and University Record to Session `GetAcceptedAttempt`. Then `CaseInitialized` is published and delivered to Applicant, University Record, and Credential, and Credential calls University Record `GetIdentity`, `GetRetainedSnapshot`. |
+| 34 | Session (`GET .../cases/{id}/status`) | Session to Applicant, Credential, and University Record `GetCaseState`. Until `CaseInitialized` reaches Credential and University Record, they answer `404` (outcome `rejected`) and the case stays pending. |
+| 36 | Session `GetSessionContext` check (twice), then Moderation (`POST .../decisions`) | Moderation to Session `GetSessionContext`, `GetCaseStatus`; Moderation to Applicant `GetApplicant`, Credential `GetCredentialResults`, University Record `GetCaseRecords`, and Rules `EvaluatePolicy`. Then `DecisionScored` is published and delivered to Session. |
+| 39 | Session (`POST .../end`) | `ShiftEnded` is published and delivered to Player |
+| 67, 69 as a non-administrator | None: Gateway answers 403 before the Broker | None |
+
+Case creation shows the pattern. Request 33 produces a `dispatch` from `gateway` to `session`, then the `StartCase` dispatch from `session` to `applicant` and the nested `GetAcceptedAttempt` calls back to Session, all under the request's `X-Request-ID`. A retry shows as a higher `attempt` on the same call.
+
 ## Newman and native HTML reports
 
 From the CPR root, run the same HTTP demo with the existing `newman-reporter-htmlextra` dashboard:

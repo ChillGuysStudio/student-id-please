@@ -1,0 +1,41 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /positions/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: containers
+    static_configs:
+      - targets: [localhost]
+        labels:
+          __path__: /var/lib/docker/containers/*/*-json.log
+    pipeline_stages:
+      # Unwrap Docker's json-file envelope into the service's own line.
+      - docker: {}
+      # A service record is one JSON object. Other lines extract nothing.
+      - json:
+          expressions:
+            service: service
+            level: level
+            ts: ts
+      # Keep only service records. Postgres, Redis, Caddy, and the monitoring
+      # components have no `service` field, so they are dropped here.
+      - labels:
+          service:
+          level:
+      - match:
+          selector: '{service=""}'
+          action: drop
+      - timestamp:
+          source: ts
+          format: RFC3339Nano
+          fallback_formats: [RFC3339]
+      # Keep only service and level as labels. The file name carries the container ID.
+      - labeldrop:
+          - filename
+          - stream
