@@ -1,4 +1,12 @@
 name: student-id-please
+# Application logs use the json-file driver whatever the daemon default is, so
+# Promtail can read them. The files rotate at 10 MB, keeping three.
+x-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 x-registration: &registration
   DISCOVERY_GRPC_URL: http://discovery:50051
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
@@ -11,6 +19,7 @@ x-registration: &registration
 services:
   gateway:
     image: ${GATEWAY_IMAGE:-maxnoragami/gateway-service:latest}
+    logging: *json-logging
     env_file: .local/stack/gateway.env
     environment:
       <<: *registration
@@ -35,6 +44,7 @@ services:
     restart: unless-stopped
   message-broker:
     image: ${BROKER_IMAGE:-maxnoragami/message-broker-service:latest}
+    logging: *json-logging
     env_file: .local/stack/broker.env
     environment:
       <<: *registration
@@ -82,6 +92,7 @@ services:
       discovery-state-init:
         condition: service_completed_successfully
     image: ${DISCOVERY_IMAGE:-maxnoragami/discovery-service:latest}
+    logging: *json-logging
     environment:
       SERVICE_NAME: discovery
       DISCOVERY_ADDR: ':8081'
@@ -192,6 +203,7 @@ services:
     deploy:
       replicas: 2
     image: ${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}
+    logging: *json-logging
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001']
     env_file: .local/stack/player.env
     environment:
@@ -213,6 +225,7 @@ services:
     deploy:
       replicas: 2
     image: ${SESSION_IMAGE:-tirppy/student-id-session-service:latest}
+    logging: *json-logging
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002']
     env_file: .local/stack/session.env
     environment:
@@ -240,6 +253,7 @@ services:
     deploy:
       replicas: 2
     image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
+    logging: *json-logging
     env_file: .local/stack/moderation.env
     environment:
       <<: *registration
@@ -267,6 +281,7 @@ services:
     restart: unless-stopped
   moderation-publisher:
     image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
+    logging: *json-logging
     command: [python, -m, moderation.publisher]
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
@@ -285,6 +300,7 @@ services:
     deploy:
       replicas: 2
     image: ${DISCORD_DMS_IMAGE:-sentientmoss/pad-discord-dms-service:latest}
+    logging: *json-logging
     env_file: .local/stack/discord-dms.env
     environment:
       <<: *registration
@@ -335,6 +351,7 @@ services:
     deploy:
       replicas: 2
     image: ${APPLICANT_IMAGE:-mcittkmims/applicant-service:latest}
+    logging: *json-logging
     env_file: .local/stack/applicant.env
     environment:
       <<: *registration
@@ -357,6 +374,7 @@ services:
     deploy:
       replicas: 2
     image: ${CREDENTIAL_IMAGE:-mcittkmims/credential-service:latest}
+    logging: *json-logging
     env_file: .local/stack/credential.env
     environment:
       <<: *registration
@@ -411,6 +429,7 @@ services:
     deploy:
       replicas: 2
     image: ${UNIVERSITY_RECORD_IMAGE:-maxnoragami/university-record-service:latest}
+    logging: *json-logging
     env_file: .local/stack/university_record.env
     environment:
       <<: *registration
@@ -456,6 +475,7 @@ services:
     deploy:
       replicas: 2
     image: ${SERVER_RULES_IMAGE:-maxnoragami/server-rules-service:latest}
+    logging: *json-logging
     env_file: .local/stack/rules.env
     environment:
       <<: *registration

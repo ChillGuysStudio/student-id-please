@@ -213,7 +213,7 @@ The `service` variable of this dashboard filters `target_service`. The panels sh
 
 ## Logs
 
-Every process already writes its records to stdout as the [logging contract](logging.md) defines. Docker keeps them in its `json-file` log of each container. The collection path adds no code to any service:
+Every process already writes its records to stdout as the [logging contract](logging.md) defines. Compose sets the `json-file` logging driver on every application service (`x-logging` in `compose.yaml`, rotating at 10 MB with three files), because a daemon's default driver may be `local`, which writes no files that Promtail can read. Docker keeps the records in each container's `json-file` log. The collection path adds no code to any service:
 
 ```text
 container stdout -> Docker json-file log -> Promtail -> Loki -> Grafana
