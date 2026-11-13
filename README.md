@@ -26,7 +26,7 @@ Service-owned storage connections do not pass through the gateway or the Broker.
 
 The Message Broker is shared Go infrastructure in the private `ChillGuysStudio/message-broker-service` repository, with the public image `maxnoragami/message-broker-service`. Compose runs one instance as `message-broker`, with REST for Gateway dispatch on port `8080` and gRPC on port `50051` of the container network, and no host port.
 
-The Broker owns service-to-service dispatch, service-call authorization, replica load balancing, backend breakers, and topic event delivery. A targeted request names its destination service. Gateway sends public requests there over REST with an explicit target. Domain services send every peer call there as a typed gRPC call with the `x-broker-target` metadata key. The Broker authenticates the caller, signs the receiver assertion, selects one ready replica with round-robin, and writes a `dispatch` log record for each attempt. It reports breaker trips to Discovery.
+The Broker owns service-to-service dispatch, service-call authorization, replica load balancing, backend breakers, and topic event delivery. A targeted request names its destination service. Gateway sends public requests there over REST with an explicit target. Domain services send every peer call there as a typed gRPC call with the `x-broker-target` metadata key. The Broker authenticates the caller, signs the receiver assertion, selects the ready replica with the lowest load, and writes a `dispatch` log record for each attempt. After a failed attempt, it can reroute an eligible request to another replica within the same budget, as the [load routing contract](docs/contracts/routing.md) defines. It reports breaker trips to Discovery.
 
 Producers publish domain events to the Broker by topic. The Broker stores each event and one delivery per subscribing service in its own PostgreSQL, `broker-db`, and retries each delivery a bounded number of times. A delivery that the subscriber rejects, or that fails every attempt, moves to a dead-letter table that administrators can list. The [queues and topics contract](docs/contracts/queues.md) defines targeted queues and topic delivery, and the [dead-letter contract](docs/contracts/dead-letters.md) defines the retry limit and the dead-letter listing. The [service-to-service gRPC contract](docs/contracts/grpc.md) defines the RPCs, metadata, and status mapping. Client authentication, Discord DMs WebSockets, event schemas, and domain ownership stay unchanged. The [Message Broker dispatch contract](docs/contracts/broker.md) defines the credentials, assertions, attribution, and logging.
 
@@ -82,6 +82,8 @@ Rules introduced by updates to this README or the other project documentation ap
 - [Message Broker queues and topics](docs/contracts/queues.md)
 - [Durable delivery and dead letters](docs/contracts/dead-letters.md)
 - [Service-to-service gRPC](docs/contracts/grpc.md)
+- [Load routing and rerouting](docs/contracts/routing.md)
+- [Service metrics and monitoring](docs/contracts/metrics.md)
 - [Release procedure](docs/releases.md)
 - [GitHub checks and permissions](docs/github.md)
 

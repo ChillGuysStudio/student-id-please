@@ -75,7 +75,7 @@ The same commands work for every domain service listed above. Gateway, the Messa
 
 ## Watch Broker dispatch
 
-Gateway sends each public request to the Message Broker over REST with its target service. Client requests stay REST end to end. Domain services send every peer call to the Broker as a typed gRPC call on port `50051`. The Broker selects one ready replica with round-robin and writes one `INFO` `dispatch` record for each attempt. After a shift has started, list the dispatch records:
+Gateway sends each public request to the Message Broker over REST with its target service. Client requests stay REST end to end. Domain services send every peer call to the Broker as a typed gRPC call on port `50051`. The Broker selects the ready replica with the lowest load, alternating between replicas with equal load, and writes one `INFO` `dispatch` record for each attempt. The [load routing contract](contracts/routing.md) defines selection and rerouting. After a shift has started, list the dispatch records:
 
 ```sh
 docker compose logs --no-log-prefix message-broker | grep '"event":"dispatch"'
