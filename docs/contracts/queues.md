@@ -215,7 +215,15 @@ The Broker reads topics from its existing one-second snapshot refresh. No other 
 
 ## Topic listing
 
-The Broker answers a later topics view from the catalogue, `subscriptions`, and delivery counts by state. A later version defines its endpoint, `GET /api/v1/admin/broker/topics`, and its authorization. This version adds no listing endpoint.
+The Broker serves `GET /internal/v1/topics` to the `gateway` and `operator` control principals. Other authenticated principals receive `403 FORBIDDEN`. At most two listings run at once. Gateway exposes it to administrators as `GET /api/v1/admin/broker/topics`, verified like `GET /api/v1/admin/logs`. Gateway makes one fixed call with its control credential, forwards no client path, query, or header, allows 3 seconds, and accepts at most 64 KiB. Any other Broker result returns `503 DEPENDENCY_UNAVAILABLE`.
+
+The listing is built from current state and contains no payloads or event IDs:
+
+- `topics`: every catalogue topic with its `producers` and one entry for each allowed subscriber. Each entry gives `subscribed` (a `subscriptions` row exists), `ready_instances` (ready instances whose registration declares the topic), and `deliveries`, the pending, in-flight, done, and rejected counts.
+- `targeted_queues`: each destination service with its current `depth` and `capacity`.
+- `threads`: the `active` request threads and their `max`.
+
+If `broker-db` does not answer within one second, the listing still returns `200` with `store_available: false` and `null` subscription and delivery values. If the registry snapshot is unusable, `registry_available` is `false` and `ready_instances` is `null`.
 
 ## Logging
 

@@ -2782,7 +2782,7 @@
       ]
     },
     {
-      "name": "G. Administrator log download \u2014 67\u201368",
+      "name": "G. Administrator log download and Broker topics \u2014 67\u201370",
       "item": [
         {
           "name": "67 \u2014 Log download without bearer",
@@ -2823,6 +2823,65 @@
             ],
             "url": "{{gateway_url}}/api/v1/admin/logs?service=gateway",
             "description": "Send to the public Gateway. Only administrators can download logs; docs/contracts/logging.md shows the administrator download with curl."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "69 \u2014 Broker topics without bearer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/broker/topics",
+            "description": "Send to the public Gateway. Only administrators can list Broker topics; docs/demonstration.md shows the administrator request with curl."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(401));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 401) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"UNAUTHORIZED\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "70 \u2014 Broker topics as a non-administrator",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/topics",
+            "description": "Send to the public Gateway. Only administrators can list Broker topics; docs/demonstration.md shows the administrator request with curl."
           },
           "event": [
             {

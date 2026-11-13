@@ -85,6 +85,26 @@ Each record names the `caller`, the `target_service`, the selected `target_insta
 
 Gateway's control listener on `:8083` answers only health, status, and log export. It returns `404 NOT_FOUND` for every business path.
 
+## Watch request threads
+
+Each admitted Broker request runs on its own operating-system thread, which ends with the request. Overlapping requests therefore show different `thread_id` values, and a finished request's ID does not serve another request:
+
+```sh
+docker compose logs --no-log-prefix message-broker | grep '"event":"dispatch"' | grep -o '"thread_id":[0-9]*' | sort | uniq -c | sort -rn | head
+```
+
+The `threads` object in the topic listing below reports the active request threads and the bound.
+
+## List topics
+
+An administrator lists the topics, their producers and subscribers, the ready instances per subscriber, delivery counts by state, and the depth of each targeted queue:
+
+```sh
+curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8080/api/v1/admin/broker/topics
+```
+
+Stop every replica of a subscriber with `docker compose stop credential` and list again. Its `ready_instances` drops to 0 while `subscribed` stays `true`, and new deliveries to it stay `pending` until `docker compose start credential`.
+
 ## Watch topic delivery
 
 Producers publish each domain event to the Broker by topic. The Broker stores the event in `broker-db` with one delivery per subscribing service and pushes each delivery to one ready replica of that service. Each replica declares its topics when it registers, and the Broker derives the subscriptions from them. After the stack is healthy, list the subscriptions:
