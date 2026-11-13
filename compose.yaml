@@ -1,6 +1,6 @@
 name: student-id-please
 x-registration: &registration
-  DISCOVERY_URL: ${DISCOVERY_URL:-http://discovery-slot-1:8081}
+  DISCOVERY_URL: ${DISCOVERY_URL:-http://discovery:8081}
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
   CONTROL_MAX_CONCURRENT_CALLS: '8'
   DISCOVERY_REGISTER_INTERVAL_SECONDS: '5'
@@ -9,13 +9,13 @@ x-registration: &registration
 services:
   gateway:
     image: ${GATEWAY_IMAGE:-maxnoragami/gateway-service:latest}
-    pull_policy: always
     env_file: .local/stack/gateway.env
     environment:
       <<: *registration
       SERVICE_NAME: gateway
-      INSTANCE_ID: ${GATEWAY_INSTANCE_ID:?Set GATEWAY_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://gateway-slot-1:8083
+      # Callers match Gateway's registration to their configured Gateway origin, so the
+      # singleton advertises its service name rather than a container address.
+      INSTANCE_HTTP_URL: http://gateway:8083
       CONTROL_PLANE_NAME: gateway
       CONTROL_PLANE_TOKEN: ${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}
     ports:
@@ -28,9 +28,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-    networks:
-      default:
-        aliases: [gateway-slot-1]
     restart: unless-stopped
   discovery-state-init:
     # The Discovery image runs as 65532 and has no /state directory, so a fresh volume starts root-owned.
@@ -44,10 +41,8 @@ services:
       discovery-state-init:
         condition: service_completed_successfully
     image: ${DISCOVERY_IMAGE:-maxnoragami/discovery-service:latest}
-    pull_policy: always
     environment:
       SERVICE_NAME: discovery
-      INSTANCE_ID: ${DISCOVERY_INSTANCE_ID:?Set DISCOVERY_INSTANCE_ID in .env}
       DISCOVERY_ADDR: ':8081'
       DISCOVERY_HEALTH_INTERVAL_SECONDS: '1'
       DISCOVERY_LEASE_SECONDS: '15'
@@ -62,9 +57,6 @@ services:
       DISCORD_WEBHOOK_URL: ${DISCOVERY_DISCORD_WEBHOOK_URL:-}
     volumes:
       - discovery-state:/state
-    networks:
-      default:
-        aliases: [discovery-slot-1]
     healthcheck:
       test: [CMD, /discovery, --healthcheck]
       interval: 10s
@@ -172,15 +164,14 @@ services:
       retries: 30
       start_period: 5s
   player:
+    deploy:
+      replicas: 2
     image: ${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}
-    pull_policy: always
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8001']
     env_file: .local/stack/player.env
     environment:
       <<: *registration
       SERVICE_NAME: player
-      INSTANCE_ID: ${PLAYER_SLOT1_INSTANCE_ID:?Set PLAYER_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://player-slot-1:8001
       CONTROL_PLANE_NAME: player
       CONTROL_PLANE_TOKEN: ${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
@@ -194,24 +185,20 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [player-slot-1]
     restart: unless-stopped
   session:
+    deploy:
+      replicas: 2
     image: ${SESSION_IMAGE:-tirppy/student-id-session-service:latest}
-    pull_policy: always
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8002']
     env_file: .local/stack/session.env
     environment:
       <<: *registration
       SERVICE_NAME: session
-      INSTANCE_ID: ${SESSION_SLOT1_INSTANCE_ID:?Set SESSION_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://session-slot-1:8002
       CONTROL_PLANE_NAME: session
       CONTROL_PLANE_TOKEN: ${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
-      GATEWAY_URL: http://gateway-slot-1:8083
+      GATEWAY_URL: http://gateway:8083
       GATEWAY_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
       PLAYER_MODE: http
       EXTERNAL_SERVICES_MODE: http
@@ -229,36 +216,30 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [session-slot-1]
     restart: unless-stopped
   moderation:
+    deploy:
+      replicas: 2
     image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
-    pull_policy: always
-    command: [uvicorn, moderation.api:app, --host, 0.0.0.0, --port, '8000']
     env_file: .local/stack/moderation.env
     environment:
       <<: *registration
       SERVICE_NAME: moderation
-      INSTANCE_ID: ${MODERATION_SLOT1_INSTANCE_ID:?Set MODERATION_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://moderation-slot-1:8000
       CONTROL_PLANE_NAME: moderation
       CONTROL_PLANE_TOKEN: ${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
-      SESSION_URL: http://gateway-slot-1:8083
+      SESSION_URL: http://gateway:8083
       SESSION_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      APPLICANT_URL: http://gateway-slot-1:8083
+      APPLICANT_URL: http://gateway:8083
       APPLICANT_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      CREDENTIAL_URL: http://gateway-slot-1:8083
+      CREDENTIAL_URL: http://gateway:8083
       CREDENTIAL_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://gateway-slot-1:8083
+      UNIVERSITY_URL: http://gateway:8083
       UNIVERSITY_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      RULES_URL: http://gateway-slot-1:8083
+      RULES_URL: http://gateway:8083
       RULES_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      PLAYER_URL: http://gateway-slot-1:8083
+      PLAYER_URL: http://gateway:8083
       PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
@@ -274,13 +255,9 @@ services:
         condition: service_healthy
       gateway:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [moderation-slot-1]
     restart: unless-stopped
   moderation-publisher:
     image: ${MODERATION_IMAGE:-sentientmoss/pad-moderation-service:latest}
-    pull_policy: always
     command: [python, -m, moderation.publisher]
     environment:
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
@@ -293,16 +270,14 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
-  discord-dms:
+  # Clients open the DMs WebSocket directly on a host port that each replica advertises.
+  # Host ports cannot be shared by scaled replicas, so DMs runs as two explicit services.
+  discord-dms-1: &discord-dms
     image: ${DISCORD_DMS_IMAGE:-sentientmoss/pad-discord-dms-service:latest}
-    pull_policy: always
-    command: [uvicorn, discord_dms.api:app, --host, 0.0.0.0, --port, '8000', --ws-ping-interval, '30', --ws-ping-timeout, '60']
     env_file: .local/stack/discord-dms.env
-    environment:
+    environment: &discord-dms-environment
       <<: *registration
       SERVICE_NAME: discord-dms
-      INSTANCE_ID: ${DISCORD_DMS_SLOT1_INSTANCE_ID:?Set DISCORD_DMS_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://discord-dms-slot-1:8000
       CONTROL_PLANE_NAME: discord-dms
       CONTROL_PLANE_TOKEN: ${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}
       DISCOVERY_LEASE_SECONDS: '15'
@@ -312,9 +287,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHAT_TICKET_SECRET: ${CHAT_TICKET_SECRET:?Set CHAT_TICKET_SECRET in .env}
-      SESSION_URL: http://gateway-slot-1:8083
+      SESSION_URL: http://gateway:8083
       SESSION_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://gateway-slot-1:8083
+      UNIVERSITY_URL: http://gateway:8083
       UNIVERSITY_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
     ports:
       - '127.0.0.1:${DMS_PORT:-8009}:8000'
@@ -333,62 +308,70 @@ services:
         condition: service_healthy
       gateway:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [discord-dms-slot-1]
     restart: unless-stopped
+  discord-dms-2:
+    <<: *discord-dms
+    environment:
+      <<: *discord-dms-environment
+      INSTANCE_WS_URL: ws://localhost:${DMS_PORT_2:-8010}
+    ports:
+      - '127.0.0.1:${DMS_PORT_2:-8010}:8000'
   applicant:
+    deploy:
+      replicas: 2
     image: ${APPLICANT_IMAGE:-mcittkmims/applicant-service:latest}
-    pull_policy: always
     env_file: .local/stack/applicant.env
     environment:
       <<: *registration
       SERVICE_NAME: applicant
-      INSTANCE_ID: ${APPLICANT_SLOT1_INSTANCE_ID:?Set APPLICANT_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://applicant-slot-1:8081
       CONTROL_PLANE_NAME: applicant
       CONTROL_PLANE_TOKEN: ${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
+      GATEWAY_INTERNAL_URL: http://gateway:8083
       SERVER_ADDRESS: 0.0.0.0
       MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
-      SESSION_URL: http://gateway-slot-1:8083
-      UNIVERSITY_URL: http://gateway-slot-1:8083
+      SESSION_URL: http://gateway:8083
+      UNIVERSITY_URL: http://gateway:8083
       RABBITMQ_URL: amqp://applicant:${APPLICANT_BROKER_PASSWORD}@rabbitmq:5672/
       BROKER_PRODUCERS: '{"applicant":"applicant","credential":"credential","university_record":"university_record"}'
+    healthcheck:
+      test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8081 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [applicant-slot-1]
     restart: unless-stopped
   credential:
+    deploy:
+      replicas: 2
     image: ${CREDENTIAL_IMAGE:-mcittkmims/credential-service:latest}
-    pull_policy: always
     env_file: .local/stack/credential.env
     environment:
       <<: *registration
       SERVICE_NAME: credential
-      INSTANCE_ID: ${CREDENTIAL_SLOT1_INSTANCE_ID:?Set CREDENTIAL_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://credential-slot-1:8082
       CONTROL_PLANE_NAME: credential
       CONTROL_PLANE_TOKEN: ${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
+      GATEWAY_INTERNAL_URL: http://gateway:8083
       MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
-      SESSION_URL: http://gateway-slot-1:8083
-      UNIVERSITY_URL: http://gateway-slot-1:8083
+      SESSION_URL: http://gateway:8083
+      UNIVERSITY_URL: http://gateway:8083
       RABBITMQ_URL: amqp://credential:${CREDENTIAL_BROKER_PASSWORD}@rabbitmq:5672/
       BROKER_PRODUCERS: '{"applicant":"applicant","credential":"credential","university_record":"university_record"}'
+    healthcheck:
+      test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8082 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [credential-slot-1]
     restart: unless-stopped
   university-mongodb:
     image: mongo:7.0
@@ -424,17 +407,16 @@ services:
       retries: 10
       start_period: 20s
   university-record:
+    deploy:
+      replicas: 2
     image: ${UNIVERSITY_RECORD_IMAGE:-maxnoragami/university-record-service:latest}
-    pull_policy: always
     env_file: .local/stack/university_record.env
     environment:
       <<: *registration
       SERVICE_NAME: university_record
-      INSTANCE_ID: ${UNIVERSITY_RECORD_SLOT1_INSTANCE_ID:?Set UNIVERSITY_RECORD_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://university-record-slot-1:8006
       CONTROL_PLANE_NAME: university_record
       CONTROL_PLANE_TOKEN: ${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
+      GATEWAY_INTERNAL_URL: http://gateway:8083
       SPRING_PROFILES_ACTIVE: gateway
       MONGO_HOST: university-mongodb
       MONGO_DATABASE: university_records
@@ -446,14 +428,17 @@ services:
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+    healthcheck:
+      test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8006 && printf "GET /healthz HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       university-mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [university-record-slot-1]
     restart: unless-stopped
   rules-db:
     image: postgres:18-alpine
@@ -470,18 +455,16 @@ services:
       retries: 10
       start_period: 10s
   server-rules:
+    deploy:
+      replicas: 2
     image: ${SERVER_RULES_IMAGE:-maxnoragami/server-rules-service:latest}
-    pull_policy: always
     env_file: .local/stack/rules.env
     environment:
       <<: *registration
       SERVICE_NAME: rules
-      INSTANCE_ID: ${SERVER_RULES_SLOT1_INSTANCE_ID:?Set SERVER_RULES_SLOT1_INSTANCE_ID in .env}
-      INSTANCE_HTTP_URL: http://server-rules-slot-1:8005
       CONTROL_PLANE_NAME: rules
       CONTROL_PLANE_TOKEN: ${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway-slot-1:8083
-      INTERNAL_GATEWAY_URL: http://gateway-slot-1:8083
+      INTERNAL_GATEWAY_URL: http://gateway:8083
       SPRING_PROFILES_ACTIVE: gateway
       DATABASE_URL: jdbc:postgresql://rules-db:5432/server_rules
       POSTGRES_USER: server_rules
@@ -492,12 +475,15 @@ services:
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+    healthcheck:
+      test: [CMD-SHELL, 'wget -qO- "http://127.0.0.1:$${SERVER_PORT}/healthz" >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       rules-db:
         condition: service_healthy
-    networks:
-      default:
-        aliases: [server-rules-slot-1]
     restart: unless-stopped
 volumes:
   discovery-state:

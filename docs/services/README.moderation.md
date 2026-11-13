@@ -20,7 +20,7 @@ When `MOCK_CONTRACT_FILE` supplies fixtures, the real adapters and decision code
 
 Current owned source supports `AUTH_MODE=gateway`. It authenticates the gateway hop, verifies the request assertion, and rejects original `Authorization`. Peer calls use delegation and service credentials through private internal gateway route prefixes. Moderation retains Session role, lifecycle, readiness, and policy checks. Missing or rejected context cannot become a policy result.
 
-The [owned gateway adapter reference](https://github.com/andyp1xe1/pad-moderation-service/blob/dev/docs/gateway-auth.md) describes its settings. CPR still pins an older service revision and configures direct peer URLs. Gateway-capable source does not prove Compose or real-peer integration.
+The [owned gateway adapter reference](https://github.com/andyp1xe1/pad-moderation-service/blob/dev/docs/gateway-auth.md) describes its settings. CPR Compose runs the gateway adapter with the settings that [`scripts/setup.py`](../../scripts/setup.py) generates.
 
 HTTP capacity exhaustion returns `503 TASK_LIMIT_EXCEEDED`. A task deadline returns `504 TASK_TIMEOUT`. Both include `Retry-After: 1`.
 
@@ -30,7 +30,7 @@ The shared deployment reads [`.env.example`](../../.env.example).
 
 - `MODERATION_DB_PASSWORD` supplies the database password.
 - `MODERATION_SERVICE_TOKEN` identifies the caller to peers.
-- Current Compose uses the legacy Player public-key volume and JWT settings. Gateway mode instead needs the adapter's gateway verification and receiver-hop settings.
+- Compose mounts the Gateway public key, and `.local/stack/moderation.env` holds the receiver-hop settings.
 - `RABBITMQ_PASSWORD` configures event publication.
 
 ## Contracts and checks

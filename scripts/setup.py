@@ -8,11 +8,6 @@ from pathlib import Path
 import secrets
 import shutil
 import subprocess
-import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import replicas  # noqa: E402
-import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNERS = {
@@ -33,7 +28,6 @@ PASSWORDS = (
 )
 CONTROL_NAMES = ("GATEWAY", "DISCOVERY", "OPERATOR", "APPLICANT", "CREDENTIAL", "UNIVERSITY_RECORD",
                  "SERVER_RULES", "MODERATION", "PLAYER", "SESSION", "DISCORD_DMS")
-REPLICA_NAMES = CONTROL_NAMES[3:]
 CALLER_VARIABLES = {
     "SESSION_SERVICE_TOKEN": "session", "MODERATION_SERVICE_TOKEN": "moderation",
     "DISCORD_DMS_SERVICE_TOKEN": "discord-dms",
@@ -72,8 +66,9 @@ def rsa_pair(directory, name):
                       "n": encode(bytes.fromhex(modulus)), "e": "AQAB"}]}
 
 
-def prepare(root, gateway_port=8080, dms_port=8009):
-    if not all(1 <= port <= 65535 for port in (gateway_port, dms_port)) or gateway_port == dms_port:
+def prepare(root, gateway_port=8080, dms_port=8009, dms_port_2=8010):
+    ports = (gateway_port, dms_port, dms_port_2)
+    if not all(1 <= port <= 65535 for port in ports) or len(set(ports)) != len(ports):
         raise ValueError("Select distinct valid public and WebSocket ports")
     directory = root / ".local/stack"
     if (root / ".env").exists() or directory.exists():
@@ -89,10 +84,8 @@ def prepare(root, gateway_port=8080, dms_port=8009):
     config = {name: secrets.token_urlsafe(32) for name in PASSWORDS}
     config.update({name: callers[owner] for name, owner in CALLER_VARIABLES.items()})
     config.update({f"{name}_CONTROL_TOKEN": secrets.token_urlsafe(32) for name in CONTROL_NAMES})
-    config.update({f"{name}_SLOT1_INSTANCE_ID": uuid.uuid4() for name in REPLICA_NAMES})
-    config.update(REPLICAS="2", REPLICA_SEED=uuid.uuid4(), COMPOSE_FILE="compose.yaml:compose.replicas.yaml")
-    config.update(GATEWAY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_INSTANCE_ID=uuid.uuid4(), DISCOVERY_DISCORD_WEBHOOK_URL="")
-    config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
+    config.update(DISCOVERY_DISCORD_WEBHOOK_URL="")
+    config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port, DMS_PORT_2=dms_port_2,
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
     receiver_config, caller_names, credentials = {}, {}, {}
@@ -135,21 +128,20 @@ def prepare(root, gateway_port=8080, dms_port=8009):
                          ("GATEWAY_SERVICE_TOKENS", credentials)):
         runtime[name] = json.dumps(values, separators=(",", ":"))
     save(directory / "gateway.env", env_text(runtime))
-    (root / replicas.OUTPUT).write_text(replicas.render(replicas.read_env(root / ".env")))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gateway-port", type=int, default=8080)
     parser.add_argument("--dms-port", type=int, default=8009)
+    parser.add_argument("--dms-port-2", type=int, default=8010)
     args = parser.parse_args()
     try:
-        prepare(ROOT, args.gateway_port, args.dms_port)
+        prepare(ROOT, args.gateway_port, args.dms_port, args.dms_port_2)
     except (ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Development configuration failed: {error}\n")
     print("Created ignored .env and .local/stack configuration. No credentials were printed.")
     print("Service images default to latest. Set a *_IMAGE key in .env to pin a version.")
-    print("Wrote compose.replicas.yaml for REPLICAS=2; see scripts/replicas.py to change it.")
 
 
 if __name__ == "__main__":

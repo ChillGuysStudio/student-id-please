@@ -69,12 +69,11 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(rules["GATEWAY_RULES_RECEIVER_TOKEN"], receivers["rules"]["HopToken"])
         self.assertEqual(rules["RULES_SERVICE_TOKEN"], credentials["rules"])
         config = read_env(self.root / ".env")
-        self.assertEqual(config["COMPOSE_FILE"], "compose.yaml:compose.replicas.yaml")
         self.assertFalse([name for name in config if name.endswith("_IMAGE")])
-        self.assertIn("player-slot-2:", (self.root / "compose.replicas.yaml").read_text())
-        ids = [config[f"{name}_SLOT1_INSTANCE_ID"] for name in setup.REPLICA_NAMES]
-        ids += [config["GATEWAY_INSTANCE_ID"], config["DISCOVERY_INSTANCE_ID"]]
-        self.assertEqual(len(ids), len(set(ids)))
+        self.assertFalse([name for name in config if "INSTANCE_ID" in name or "REPLICA" in name])
+        self.assertNotIn("COMPOSE_FILE", config)
+        self.assertEqual((config["DMS_PORT"], config["DMS_PORT_2"]), ("18009", "8010"))
+        self.assertFalse((self.root / "compose.replicas.yaml").exists())
         tokens = [config[f"{name}_CONTROL_TOKEN"] for name in setup.CONTROL_NAMES]
         self.assertEqual(len(tokens), len(set(tokens)))
         self.assertEqual(config["DISCOVERY_DISCORD_WEBHOOK_URL"], "")
@@ -90,9 +89,9 @@ class SetupTests(unittest.TestCase):
         self.assertFalse((self.root / ".local").exists())
 
     def test_invalid_ports_create_nothing(self):
-        for gateway_port, dms_port in ((8080, 8080), (0, 8009), (8080, 70000)):
+        for ports in ((8080, 8080), (0, 8009), (8080, 70000), (8080, 8009, 8009), (8080, 8009, 8080)):
             with self.assertRaises(ValueError):
-                setup.prepare(self.root, gateway_port, dms_port)
+                setup.prepare(self.root, *ports)
             self.assertFalse((self.root / ".env").exists())
 
     def test_compose_images_default_to_latest(self):
@@ -112,17 +111,31 @@ class SetupTests(unittest.TestCase):
 
     def test_compose_exposes_only_public_gateway_and_direct_dms(self):
         compose = (ROOT / "compose.yaml").read_text()
-        self.assertEqual(compose.count("    ports:\n"), 2)
+        self.assertEqual(compose.count("    ports:\n"), 3)
         self.assertNotIn("http://session:8002", compose)
         self.assertNotIn("http://player:8001", compose)
         self.assertNotIn("EXTERNAL_SERVICES_MODE: mock", compose)
         self.assertNotIn("PLAYER_JWKS_URL:", compose)
         self.assertNotIn("OUTGOING_SERVICE_TOKEN:", compose)
-        self.assertIn("GATEWAY_URL: http://gateway-slot-1:8083", compose)
+        self.assertIn("GATEWAY_URL: http://gateway:8083", compose)
+        self.assertIn("INSTANCE_HTTP_URL: http://gateway:8083", compose)
         self.assertIn("player-public.pem:/keys/player-public.pem:ro", compose)
         self.assertNotIn("player-public-key:", compose)
         self.assertIn("SPRING_PROFILES_ACTIVE: gateway", compose)
-        self.assertIn("SESSION_URL: http://gateway-slot-1:8083", compose)
+        self.assertIn("SESSION_URL: http://gateway:8083", compose)
+        self.assertNotIn("slot", compose)
+        self.assertNotIn("pull_policy", compose)
+        self.assertNotIn("INSTANCE_ID", compose)
+        self.assertEqual(compose.count("INSTANCE_HTTP_URL"), 1)
+
+    def test_domain_services_scale_natively(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        for service in ("player", "session", "applicant", "credential", "university-record", "server-rules",
+                        "moderation"):
+            self.assertRegex(compose, rf"\n  {service}:\n    deploy:\n      replicas: 2\n", service)
+        self.assertEqual(compose.count("replicas: 2"), 7)
+        self.assertIn("INSTANCE_WS_URL: ws://localhost:${DMS_PORT:-8009}", compose)
+        self.assertIn("INSTANCE_WS_URL: ws://localhost:${DMS_PORT_2:-8010}", compose)
 
 
 if __name__ == "__main__":
