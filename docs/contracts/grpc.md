@@ -232,7 +232,7 @@ Breaker reports keep their `Failure` shape. For a gRPC attempt, `method` is `POS
 
 Every RPC carries a gRPC deadline. A caller sets it to the minimum of `T`, its remaining parent task budget, and the signed authority expiry.
 
-The Broker's task budget ends at the earlier of `T - 250 ms` after receipt and 250 ms before the caller's deadline. The budget covers policy reads, queue wait, and the one attempt. Each attempt's deadline is the minimum of the remaining budget and the assertion's `exp`. A request still queued when the budget ends leaves with `UNAVAILABLE QUEUE_TIMEOUT`.
+The Broker's task budget ends at the earlier of `T - 250 ms` after receipt and 250 ms before the caller's deadline. The budget covers policy reads, queue wait, and every attempt, including a [reroute](routing.md#budget). Each attempt's deadline is the minimum of the remaining budget and the assertion's `exp`. A request still queued when the budget ends leaves with `UNAVAILABLE QUEUE_TIMEOUT`.
 
 A receiver's task deadline is the earlier of its own inbound task limit and the incoming gRPC deadline. It passes the remaining time to every outbound call and store query that accepts one: Go `context.Context`, Java `Context.current().getDeadline()`, Python `context.time_remaining()`. When the caller cancels or its deadline passes, gRPC cancels the call at every hop. A cancellation by the upstream caller is not a qualifying failure. Cancellation does not prove rollback. A caller recovers an uncertain write only by retrying with its original `idempotency-key`. No layer replays a write.
 
@@ -252,7 +252,7 @@ The Broker handles a forwarded RPC in this order:
 6. In service ingress, apply the row's caller list, then its policy. A `delegated` or `workload` row decodes the frame with the row's request type to build the resource and its pins, then runs the existing policy, exchange, and narrowing against the resource. An `unagreed` row returns `UNAVAILABLE POLICY_UNAVAILABLE`. In Gateway mode, the row must allow Gateway. The Broker verifies Gateway's assertion against the frame and applies no policy.
 7. Check the row's `idempotency-key` rule.
 8. Sign the receiver assertion over the frame, or keep Gateway's assertion. Add the receiver grant.
-9. Enqueue the request on the target's targeted queue. Select an instance with a `grpc_url` by the [round-robin and breaker rules](broker.md#selection-and-breaker). Send one attempt with the hop credential, the assertion, the grant, `x-request-id`, and `idempotency-key`. The Broker never forwards caller credentials or `x-broker-target`.
+9. Enqueue the request on the target's targeted queue. Select an instance with a `grpc_url` by the [load and breaker rules](routing.md#selection). Send one attempt, and at most one reroute to another instance, for at most two attempts in total under the [rerouting rules](routing.md#rerouting), with the hop credential, the assertion, the grant, `x-request-id`, and `idempotency-key`. The Broker never forwards caller credentials or `x-broker-target`.
 10. Check the response. Refuse a response frame over 8 MiB, and any response frame or metadata value that contains a forwarded grant, a hop token, or a `gateway-*` token, with `UNKNOWN INVALID_DEPENDENCY_RESPONSE`. Otherwise return the backend's frame, status, and details unchanged, with the attribution trailers.
 
 The Broker's own policy reads are `SessionService.GetSessionContext` RPCs that the Broker signs as `message-broker`. They pass through Session's targeted queue and count in its breakers, as before.
@@ -299,7 +299,7 @@ Every forwarded RPC passes through the Broker. A dash means the RPC forbids `ide
 | `UniversityRecordService/GetRecordPermission` | `university_record` | `delegated` | `discord-dms`, `session` | - | `GET /internal/v1/sessions/{session_id}/record-permissions/{player_id}` |
 | `UniversityRecordService/GetCaseRecords` | `university_record` | `delegated` | `moderation` | - | `GET /internal/v1/cases/{case_id}/university-records?session_id={session_id}` |
 
-Method names omit the package prefix of the [layout table](#layout). `StartCase` and `GetCaseState` have one row per owner. The owner path is `applicant`, `credential`, or `university-record`. The split snapshot read replaces the query-based mode choice. Mode now follows the method name, so the Broker never selects a policy by retrying after a failure. Moderation's `EvaluatePolicy` no longer sends the decision key, because evaluation stores nothing.
+Method names omit the package prefix of the [layout table](#layout). The [routing contract](routing.md#policy-table-classes) gives each row a read or write class for rerouting. `StartCase` and `GetCaseState` have one row per owner. The owner path is `applicant`, `credential`, or `university-record`. The split snapshot read replaces the query-based mode choice. Mode now follows the method name, so the Broker never selects a policy by retrying after a failure. Moderation's `EvaluatePolicy` no longer sends the decision key, because evaluation stores nothing.
 
 These RPCs do not go through the forwarding table:
 
@@ -428,7 +428,7 @@ Releases may publish in any order, because nothing runs them until the CPR integ
 | Repository | Step 2 to 4 | Step 5 |
 | --- | --- | --- |
 | Message Broker | gRPC server, pass-through codec, policy table with all 22 rows, resource-based policy, gRPC dispatch and delivery, `BrokerService`, `ControlService`, gRPC Discovery client, `INSTANCE_GRPC_URL` | Delete REST service ingress, publish, delivery, policy reads, status, logs, and topics. Keep Gateway dispatch on `:8080`. |
-| Discovery | `DiscoveryService`, `ControlService`, `grpc_url` in both APIs, gRPC probes | Delete the REST registry API and HTTP probes. Keep `/healthz`. |
+| Discovery | `DiscoveryService`, `ControlService`, `grpc_url` in both APIs, gRPC probes | Delete the REST registry API and HTTP probes. Keep `/healthz`. The [metrics contract](metrics.md#target-discovery) adds `GET /sd/v1/targets` on the same HTTP listener. |
 | Gateway | `ControlService`, gRPC Discovery client, `grpc_url` | gRPC log collection, `ListTopics`, and Session context reads. `:8083` serves only `/healthz`. |
 | Player | `PlayerService`, `EventConsumerService`, `ControlService`, interceptor | Delete `/internal/v1/*` REST. |
 | Session | `SessionService`, `EventConsumerService`, `ControlService`, interceptor | gRPC clients for Player, Rules, University, and the case owners. gRPC `ShiftEnded` relay. Delete `/internal/v1/*` REST. The public case-status route accepts only `azp=gateway`. |

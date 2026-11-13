@@ -92,7 +92,7 @@ The Broker runs the checks that Gateway's internal listener ran, in the same ord
 4. Authenticate the caller and apply the route's caller allowlist.
 5. Apply the route policy. `Delegated` exchanges the presented grant after scope containment and the delegated policy, including its Session context reads. `Workload` applies the exact-request workload policy and rejects actor headers. The snapshot read selects workload policy from its query, never by retrying after an actor failure.
 6. Add the receiver grant. Permission-context and snapshot dispatches receive an exact receiver delegation. Other delegated routes receive a narrowed delegation.
-7. Select an instance, strip private headers, set the hop credential and `X-Request-ID`, and send one attempt.
+7. Select an instance, strip private headers, set the hop credential and `X-Request-ID`, and send one attempt. An eligible request can make at most one reroute to another instance, for at most two attempts in total, under the [rerouting rules](routing.md#rerouting).
 8. Check the response. Refuse redirects other than `304`, `Content-Encoding`, `text/event-stream`, `101`, bodies over 8 MiB, and any response body or header that contains a forwarded grant, a hop token, or a `gateway-*` token. Refusal returns `502 INVALID_DEPENDENCY_RESPONSE`.
 
 Request bodies are limited to 1 MiB. The Broker forwards the exact body and `Idempotency-Key` it signed.
@@ -115,7 +115,7 @@ A Gateway dispatch error keeps the public status mapping: `504 DEPENDENCY_TIMEOU
 
 The Broker owns the rules that Gateway applied to backend attempts:
 
-- The Broker selects only ready, leased instances from a current snapshot, minus its local breaker exclusions. Each owner has one round-robin cursor over instance IDs in lexical order. With IDs A and B, selections are A, B, A, B. After a membership change, the next selection is the first surviving ID greater than the last selected ID, with wraparound. The cursor advances for each dispatch and for each policy read, not for a rejection before dispatch.
+- The Broker selects only ready, leased instances from a current snapshot, minus its local breaker exclusions. The [routing contract](routing.md#selection) adds a load-sample age limit, selects the lowest load, and keeps the cursor below only to break ties between equal loads. Each owner has one round-robin cursor over instance IDs in lexical order. With IDs A and B, selections are A, B, A, B. After a membership change, the next selection is the first surviving ID greater than the last selected ID, with wraparound. The cursor advances for each dispatch and for each policy read, not for a rejection before dispatch.
 - The Broker selects once for each physical attempt and keeps that instance's identity through signing, sending, body consumption, logging, and failure reporting. No request header chooses an instance on service ingress. A pin applies only to Gateway dispatch.
 - Each backend generation has a counter in the Broker. Three distinct qualifying attempts within `W = 3.5 * T`, 7 seconds by default, trip the breaker. Qualifying failures are those in [bounded calls and failure accounting](resilience.md#bounded-calls-and-failure-accounting).
 - At the third failure, the Broker excludes that generation locally, logs `circuit_open`, and reports `reason: "circuit_open"` with the three attempt IDs to Discovery. It keeps the exclusion and retries the same `operation_id` until Discovery accepts or rejects the report as stale.
@@ -158,7 +158,7 @@ The Broker authenticates the caller from headers before admission. An unauthenti
 
 The two gates prevent self-deadlock. A public request holds Gateway capacity while its Broker dispatch reaches a receiver. That receiver's own peer calls enter service ingress, so saturated public traffic cannot reject them. Gateway's policy reads are separate, sequential Gateway dispatches. The Broker's own policy reads run inside the admitted task. They never call the Broker's HTTP listener and take no slot.
 
-The Broker finishes each task within `T - 250 ms` of receipt, 1.75 seconds by default. This budget covers policy reads, queue wait, and the one dispatch attempt. Each attempt's deadline is the minimum of the remaining budget and the signed authority expiry. The margin lets an attributed response reach a caller whose hop deadline is `T` before that caller times out. A Broker-side attempt timeout is a backend `timeout`. The configured counter window stays `3.5 * T`.
+The Broker finishes each task within `T - 250 ms` of receipt, 1.75 seconds by default. This budget covers policy reads, queue wait, and every dispatch attempt, including a [reroute](routing.md#budget). Each attempt's deadline is the minimum of the remaining budget and the signed authority expiry. The margin lets an attributed response reach a caller whose hop deadline is `T` before that caller times out. A Broker-side attempt timeout is a backend `timeout`. The configured counter window stays `3.5 * T`.
 
 Status reports `active_tasks` and `max_concurrent_tasks` as the sums over both gates. No layer replays a write.
 
@@ -217,5 +217,5 @@ The released stack passes these checks with real services and no mocks:
 
 - At least two services communicate through the Broker, and every call path in the internal route table goes through it. Gateway's `:8083` listener answers business paths with `404`.
 - Public flows, including realtime negotiation and direct chat, still work.
-- `docker compose up --scale applicant=4` registers distinct instances, and Broker `dispatch` records show round-robin across them.
+- `docker compose up --scale applicant=4` registers distinct instances, and Broker `dispatch` records show round-robin across them while their loads are equal. The [routing checks](routing.md#verification) cover unequal load and rerouting.
 - Three failures from one instance within `W` exclude it, and Discovery records `circuit_open`. A healthy instance serves the next requests, and no caller or Broker is removed.

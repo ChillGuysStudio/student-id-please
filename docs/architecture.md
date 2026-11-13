@@ -22,7 +22,7 @@ flowchart TB
 
 	DiscordHook["Discord webhook\nalerts"]
 
-	BrokerNode["Message Broker (shared Go, one instance)\nREST :8080 from Gateway, gRPC :50051\nService-call authorization, round-robin, breakers"]
+	BrokerNode["Message Broker (shared Go, one instance)\nREST :8080 from Gateway, gRPC :50051\nService-call authorization, least-load routing, breakers"]
 
 	subgraph DomainReplicas["Domain services, two replicas each by default"]
 		PlayerReplicas["Player"]
@@ -54,7 +54,7 @@ flowchart TB
 
 	GWPub -->|"Targeted REST request,\ndestination known"| BrokerNode
 	DomainReplicas -->|"Service-to-service gRPC"| BrokerNode
-	BrokerNode -->|"REST and gRPC, round-robin\nover ready replicas"| DomainReplicas
+	BrokerNode -->|"REST and gRPC, least load\nover ready replicas"| DomainReplicas
 
 	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
 	GWRpc -.->|"Register and renew lease"| DiscoveryNode
@@ -90,7 +90,7 @@ The client sends REST to the API gateway. The gateway authenticates it and sends
 
 Service-to-service traffic is typed gRPC on port `50051`, and every peer call passes through the Broker. The [gRPC contract](contracts/grpc.md) defines the peer RPCs, topic publish and delivery, Discovery control, status probes, and log export. Domain events are Broker topics. A producer publishes to the Broker with `PublishEvent`, and the Broker delivers one copy to each subscribing service with `DeliverEvent`. Each service connects only to its own storage, and only the Broker connects to `broker-db`.
 
-The [discovery and resilience contract](contracts/resilience.md) defines registration, routing, health, and failure accounting. The [demonstration guide](demonstration.md) shows how to scale replicas and watch Discovery and the Broker with Compose commands. Private registration, registry lookup, removal, and status probes use direct control-plane gRPC to `DISCOVERY_GRPC_URL` and to each instance's `grpc_url`, which avoids a bootstrap cycle. Discovery supplies replica addresses, and the Broker selects them with round-robin routing. The dashed Discovery links in the diagram show this control plane.
+The [discovery and resilience contract](contracts/resilience.md) defines registration, routing, health, and failure accounting. The [demonstration guide](demonstration.md) shows how to scale replicas and watch Discovery and the Broker with Compose commands. Private registration, registry lookup, removal, and status probes use direct control-plane gRPC to `DISCOVERY_GRPC_URL` and to each instance's `grpc_url`, which avoids a bootstrap cycle. Discovery supplies replica addresses and load samples, and the Broker selects the replica with the lowest load, as the [load routing contract](contracts/routing.md) defines. The dashed Discovery links in the diagram show this control plane.
 
 ## Service ownership
 
@@ -118,7 +118,7 @@ The Broker owns service-to-service dispatch, service-call authorization, replica
 - Gateway dispatch. Gateway authenticates the client, applies the public policy, signs the receiver assertion with `gateway-v1`, and sends the request with `X-Broker-Target`. The Broker verifies that assertion and forwards it to one ready replica of the target.
 - Service ingress. A domain service sends a peer RPC with its caller name and token in metadata. The Broker matches the RPC policy table, applies the caller allowlist and the delegated or workload policy, signs the receiver assertion with `broker-v1`, and dispatches.
 
-Receivers accept a request only from `message-broker` with their own hop token. They verify Gateway-issued assertions with the Gateway key and Broker-issued assertions with the Broker key. The Broker selects replicas with one round-robin cursor per service, trips a generation's breaker after three qualifying failures within `W`, and reports the trip to Discovery. It writes one `dispatch` log record for each attempt.
+Receivers accept a request only from `message-broker` with their own hop token. They verify Gateway-issued assertions with the Gateway key and Broker-issued assertions with the Broker key. The Broker selects the replica with the lowest load and breaks ties with one round-robin cursor per service, as the [load routing contract](contracts/routing.md) defines. It trips a generation's breaker after three qualifying failures within `W` and reports the trip to Discovery. It writes one `dispatch` log record for each attempt.
 
 These boundaries apply:
 

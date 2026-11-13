@@ -15,15 +15,15 @@ Targeted requests stay in memory. The Broker holds the caller's HTTP request ope
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `BROKER_QUEUE_CAPACITY` | `100` | Waiting requests per destination service. A positive integer. |
-| `BROKER_REPLICA_MAX_IN_FLIGHT` | `32` | Concurrent dispatched requests per replica generation. A positive integer. |
+| `BROKER_REPLICA_MAX_IN_FLIGHT` | `32` | The upper bound on concurrent dispatched requests per replica generation. The slot limit of each generation is its `capacity` from the [load formula](routing.md#load), which never exceeds this value. A positive integer. |
 
 The queue works in this order:
 
 1. The request passes the existing admission gate, authentication, route, and policy checks in [service ingress](broker.md#service-ingress) or [Gateway dispatch](broker.md#gateway-dispatch).
 2. If the service has no eligible instance, the Broker returns `503 NO_HEALTHY_INSTANCES` and queues nothing. If the queue already holds `BROKER_QUEUE_CAPACITY` requests, the Broker returns `503 QUEUE_FULL` at once.
 3. Otherwise the request waits. The Broker starts requests in arrival order. A request pinned to a DMs instance waits only for that instance and does not block requests behind it.
-4. When a replica has a free slot, the Broker takes the oldest request that the replica can serve and selects the instance by the [round-robin and breaker rules](broker.md#selection-and-breaker). The cursor skips an instance whose slots are all in use. Selection happens at dispatch, not at enqueue, so a breaker exclusion or a new replica applies to requests that are already waiting.
-5. The Broker sends one attempt and writes the response to the waiting caller.
+4. When a replica has a free slot, the Broker takes the oldest request that the replica can serve and selects the instance by the [load and breaker rules](routing.md#selection). The cursor skips an instance whose slots are all in use. Selection happens at dispatch, not at enqueue, so a breaker exclusion or a new replica applies to requests that are already waiting.
+5. The Broker sends one attempt and writes the response to the waiting caller. A [reroute](routing.md#rerouting) re-enters this queue at its original arrival position, ahead of later requests, and makes at most one reroute to another instance, for at most two attempts in total. It does not count against `BROKER_QUEUE_CAPACITY`.
 
 Each queued request carries its `attempt_id` and a one-shot reply slot. The attempt's response goes only to that slot, so replies cannot cross between callers. A reply that arrives after the caller left is discarded and logged with `outcome: "abandoned"`.
 
@@ -31,7 +31,7 @@ The [time budget](broker.md#admission-and-time-budget) does not change. The Brok
 
 Both queue responses carry `Retry-After: 1` and `X-Broker-Failure-Origin: none`. No backend attempt happened, so no instance counter moves. The caller does not count them against the Broker, because a busy destination is not a Broker failure. The admission gates keep `503 TASK_LIMIT_EXCEEDED` with origin `broker`.
 
-Every physical attempt to a replica holds one of its slots until the response body is consumed or the attempt fails. A cycle of nested calls under saturation therefore ends in `QUEUE_TIMEOUT` within the budget and cannot wait forever. Completion order is not guaranteed. Gateway public dispatch passes both codes to clients as `503` with their `Retry-After`.
+Every physical attempt to a replica holds one of its `capacity` slots until the response body is consumed or the attempt fails. A cycle of nested calls under saturation therefore ends in `QUEUE_TIMEOUT` within the budget and cannot wait forever. Completion order is not guaranteed. Gateway public dispatch passes both codes to clients as `503` with their `Retry-After`.
 
 ## Topics
 
@@ -132,7 +132,7 @@ A retry waits 1, 5, then 30 seconds after the failed attempt, then every 30 seco
 
 Each attempt is one physical backend attempt. Its deadline is `T`. It records into the replica's breaker counter with the same qualifying failures as a dispatch, and three of them trip the breaker. The Broker reads at most 64 KiB of the response body and ignores its content.
 
-The Broker pushes a delivery only to a ready, leased, non-excluded replica whose own registration declares the topic. It uses the service's round-robin cursor. `BROKER_DELIVERY_REPLICA_IN_FLIGHT`, default `2`, caps concurrent deliveries per replica generation. These slots are separate from the targeted queue's slots, so event delivery cannot starve requests. A subscriber with no eligible replica keeps its deliveries pending.
+The Broker pushes a delivery only to a ready, leased, non-excluded replica whose own registration declares the topic. It orders replicas by [load](routing.md#selection), with the service's round-robin cursor for ties. `BROKER_DELIVERY_REPLICA_IN_FLIGHT`, default `2`, caps concurrent deliveries per replica generation. These slots are separate from the targeted queue's slots, so event delivery cannot starve requests. A subscriber with no eligible replica keeps its deliveries pending.
 
 Topic queues guarantee no order. The Broker claims the oldest due deliveries first, but parallel replicas and retries reorder them. Consumers must not depend on order.
 

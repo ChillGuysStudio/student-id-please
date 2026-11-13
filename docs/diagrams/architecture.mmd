@@ -15,7 +15,7 @@ flowchart TB
 
 	DiscordHook["Discord webhook\nalerts"]
 
-	BrokerNode["Message Broker (shared Go, one instance)\nREST :8080 from Gateway, gRPC :50051\nService-call authorization, round-robin, breakers"]
+	BrokerNode["Message Broker (shared Go, one instance)\nREST :8080 from Gateway, gRPC :50051\nService-call authorization, least-load routing, breakers"]
 
 	subgraph DomainReplicas["Domain services, two replicas each by default"]
 		PlayerReplicas["Player"]
@@ -47,7 +47,7 @@ flowchart TB
 
 	GWPub -->|"Targeted REST request,\ndestination known"| BrokerNode
 	DomainReplicas -->|"Service-to-service gRPC"| BrokerNode
-	BrokerNode -->|"REST and gRPC, round-robin\nover ready replicas"| DomainReplicas
+	BrokerNode -->|"REST and gRPC, least load\nover ready replicas"| DomainReplicas
 
 	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
 	GWRpc -.->|"Register and renew lease"| DiscoveryNode
