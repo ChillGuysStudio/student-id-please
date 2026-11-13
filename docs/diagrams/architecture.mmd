@@ -29,15 +29,14 @@ flowchart TB
 
 	ModPublisher["Moderation outbox publisher"]
 
-	subgraph Stores["Storage and messaging"]
+	subgraph Stores["Domain storage"]
 		PGStores[("PostgreSQL databases\nplayer, session, moderation,\ndms, server rules")]
 		MongoShared[("MongoDB rs0\napplicant, credential")]
 		MongoUniv[("MongoDB\nuniversity records")]
 		RedisStore[("Redis\nSession views, DMs relay and tickets")]
-		RabbitMQBroker[("RabbitMQ\ndomain events")]
 	end
 
-	BrokerDB[("broker-db PostgreSQL\nqueues and topics")]
+	BrokerDB[("broker-db PostgreSQL\nevents, deliveries, subscriptions")]
 
 	Client -->|"REST and negotiation"| GWPub
 	Client <-->|"Direct WebSocket chat"| DMReplicas
@@ -68,17 +67,7 @@ flowchart TB
 	DMReplicas --- RedisStore
 
 	ModReplicas --- ModPublisher
-	ModPublisher -->|"Outbox events"| RabbitMQBroker
-	PlayerReplicas --- RabbitMQBroker
-	SessionReplicas --- RabbitMQBroker
-	ApplicantReplicas --- RabbitMQBroker
-	CredentialReplicas --- RabbitMQBroker
-	UnivReplicas --- RabbitMQBroker
-
-	DomainReplicas -.->|"Planned: topic events,\nsubscribers unknown"| BrokerNode
-	BrokerNode -.->|"Planned: one copy per subscriber"| DomainReplicas
-	BrokerNode -.->|"Planned: queue storage"| BrokerDB
-
-	classDef planned stroke:#d9822b,stroke-width:2px,stroke-dasharray:6 4
-	class BrokerDB planned
-	linkStyle 32,33,34 stroke:#d9822b,stroke-width:2px
+	ModPublisher -->|"Outbox events as moderation"| BrokerNode
+	DomainReplicas -->|"Publish topic events,\nsubscribers unknown"| BrokerNode
+	BrokerNode -->|"One delivery per subscribing service"| DomainReplicas
+	BrokerNode --- BrokerDB

@@ -99,6 +99,8 @@ class SetupTests(unittest.TestCase):
         self.assertEqual((config["DMS_PORT"], config["DMS_PORT_2"]), ("18009", "8010"))
         self.assertFalse((self.root / "compose.replicas.yaml").exists())
         self.assertEqual(config["DISCOVERY_DISCORD_WEBHOOK_URL"], "")
+        self.assertGreaterEqual(len(config["BROKER_DB_PASSWORD"]), 43)
+        self.assertFalse([name for name in config if "RABBITMQ" in name or name.endswith("_BROKER_PASSWORD")])
         self.assertNotIn("PLAYER_VERSION", config)
         self.assertEqual((self.root / ".env").stat().st_mode & 0o777, 0o600)
         self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
@@ -144,7 +146,7 @@ class SetupTests(unittest.TestCase):
             self.assertNotIn(name, compose)
         self.assertIn("INSTANCE_HTTP_URL: http://gateway:8083", compose)
         self.assertIn("INSTANCE_HTTP_URL: http://message-broker:8080", compose)
-        self.assertEqual(compose.count("BROKER_URL: http://message-broker:8080"), 3)
+        self.assertEqual(compose.count("BROKER_URL: http://message-broker:8080"), 4)
         self.assertIn("player-public.pem:/keys/player-public.pem:ro", compose)
         self.assertNotIn("player-public-key:", compose)
         self.assertIn("SPRING_PROFILES_ACTIVE: gateway", compose)
@@ -153,6 +155,17 @@ class SetupTests(unittest.TestCase):
         self.assertNotIn("pull_policy", compose)
         self.assertNotIn("INSTANCE_ID", compose)
         self.assertEqual(compose.count("INSTANCE_HTTP_URL"), 2)
+
+    def test_events_use_the_broker_and_its_database(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        for name in ("rabbitmq", "RABBITMQ", "BROKER_PRODUCERS", "_BROKER_PASSWORD", "broker-data:", "start_broker"):
+            self.assertNotIn(name, compose)
+        self.assertFalse((ROOT / "scripts/start_broker.sh").exists())
+        self.assertIn("\n  broker-db:\n    image: postgres:17-alpine\n", compose)
+        self.assertIn("      - broker-db-data:/var/lib/postgresql/data\n", compose)
+        self.assertIn("BROKER_DATABASE_URL: postgres://broker:${BROKER_DB_PASSWORD:?", compose)
+        self.assertRegex(compose, r"\n  moderation-publisher:\n(    .*\n)*      BROKER_SERVICE_TOKEN: "
+                         r"\$\{MODERATION_SERVICE_TOKEN:\?")
 
     def test_domain_services_scale_natively(self):
         compose = (ROOT / "compose.yaml").read_text()

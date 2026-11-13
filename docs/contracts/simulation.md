@@ -28,7 +28,7 @@ At shift start, Session creates one immutable university snapshot and pins its I
 
 The [retained snapshot policy](retained-workload.md#minimal-retained-snapshot-context) requires explicit session/attempt context and fresh Session authority before hidden reads, even when the data is cached. University compares the actual local immutable snapshot with acceptance. A snapshot cache or ID alone grants no access. Existing synchronous actor-bound reads keep their current semantics.
 
-Editing or deleting live reference data affects future snapshots. Services retain existing snapshots for the lifetime of their shifts and cases. A `snapshot_id` identifies a data snapshot. Generator versions use a separate identifier. Event-schema changes follow the existing RabbitMQ `schema_version` contract.
+Editing or deleting live reference data affects future snapshots. Services retain existing snapshots for the lifetime of their shifts and cases. A `snapshot_id` identifies a data snapshot. Generator versions use a separate identifier. Event-schema changes follow the existing event `schema_version` contract.
 
 ## Initial programs and courses
 
