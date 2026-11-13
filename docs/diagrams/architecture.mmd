@@ -3,10 +3,11 @@ flowchart TB
 
 	subgraph GatewaySvc["Gateway (shared Go, one instance)"]
 		GWPub["Public listener :8080\nClient REST and negotiation"]
-		GWInt["Control listener :8083\nHealth, status, log export"]
+		GWInt["Health listener :8083\n/healthz only"]
+		GWRpc["gRPC :50051\nStatus and log export"]
 	end
 
-	subgraph DiscoverySvc["Discovery (shared Go, :8081)"]
+	subgraph DiscoverySvc["Discovery (shared Go, gRPC :50051)"]
 		DiscoveryNode["Registration, leases,\nstatus probes, removals"]
 		DiscStorage[("Removal state file\nDISCOVERY_STATE_FILE")]
 		DiscoveryNode --- DiscStorage
@@ -14,7 +15,7 @@ flowchart TB
 
 	DiscordHook["Discord webhook\nalerts"]
 
-	BrokerNode["Message Broker (shared Go, one instance, :8080)\nService-call authorization, round-robin, breakers"]
+	BrokerNode["Message Broker (shared Go, one instance)\nREST :8080 from Gateway, gRPC :50051\nService-call authorization, round-robin, breakers"]
 
 	subgraph DomainReplicas["Domain services, two replicas each by default"]
 		PlayerReplicas["Player"]
@@ -24,10 +25,12 @@ flowchart TB
 		RulesReplicas["Server Rules"]
 		UnivReplicas["University Record"]
 		ModReplicas["Moderation"]
-		DMReplicas["Discord DMs\ndiscord-dms-1 :8009, discord-dms-2 :8010"]
+		DMReplicas["Discord DMs\nscaled replicas, no host port"]
 	end
 
 	ModPublisher["Moderation outbox publisher"]
+
+	DMSProxy["DMs proxy (Caddy, :8009)\nLeast-connections WebSocket balancing"]
 
 	subgraph Stores["Domain storage"]
 		PGStores[("PostgreSQL databases\nplayer, session, moderation,\ndms, server rules")]
@@ -39,17 +42,18 @@ flowchart TB
 	BrokerDB[("broker-db PostgreSQL\nevents, deliveries, subscriptions")]
 
 	Client -->|"REST and negotiation"| GWPub
-	Client <-->|"Direct WebSocket chat"| DMReplicas
+	Client <-->|"WebSocket chat"| DMSProxy
+	DMSProxy <-->|"One replica per connection"| DMReplicas
 
-	GWPub -->|"Targeted request,\ndestination known"| BrokerNode
-	DomainReplicas -->|"Service-to-service REST"| BrokerNode
-	BrokerNode -->|"Round-robin over ready replicas"| DomainReplicas
+	GWPub -->|"Targeted REST request,\ndestination known"| BrokerNode
+	DomainReplicas -->|"Service-to-service gRPC"| BrokerNode
+	BrokerNode -->|"REST and gRPC, round-robin\nover ready replicas"| DomainReplicas
 
 	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
-	GWInt -.->|"Register and renew lease"| DiscoveryNode
+	GWRpc -.->|"Register and renew lease"| DiscoveryNode
 	BrokerNode -.->|"Register, snapshot refresh,\nbreaker removals"| DiscoveryNode
 	GWPub -.->|"Background snapshot refresh"| DiscoveryNode
-	DiscoveryNode -.->|"Status probes"| DomainReplicas
+	DiscoveryNode -.->|"GetStatus probes"| DomainReplicas
 	DiscoveryNode -.->|"Status probes"| GatewaySvc
 	DiscoveryNode -.->|"Status probes"| BrokerNode
 	DomainReplicas -.->|"Report Broker hop failures"| DiscoveryNode
@@ -67,7 +71,7 @@ flowchart TB
 	DMReplicas --- RedisStore
 
 	ModReplicas --- ModPublisher
-	ModPublisher -->|"Outbox events as moderation"| BrokerNode
-	DomainReplicas -->|"Publish topic events,\nsubscribers unknown"| BrokerNode
-	BrokerNode -->|"One delivery per subscribing service"| DomainReplicas
+	ModPublisher -->|"Outbox events as moderation, gRPC"| BrokerNode
+	DomainReplicas -->|"PublishEvent gRPC,\nsubscribers unknown"| BrokerNode
+	BrokerNode -->|"DeliverEvent gRPC, one per\nsubscribing service"| DomainReplicas
 	BrokerNode --- BrokerDB

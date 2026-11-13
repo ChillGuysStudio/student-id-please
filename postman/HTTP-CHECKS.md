@@ -12,31 +12,35 @@ From the CPR root, run the existing pinned runner against the public Gateway:
 
 The folder sends four anonymous GET requests. It checks Gateway liveness, denial of private status and registry reads on public ingress, and denial of an unauthenticated Player read. It also checks that public responses do not expose Gateway's private attribution headers. A successful run says nothing about routing or registered replicas. The runner writes redacted HTML under ignored `.local/postman/http-checks/`, and private raw results under that directory's `run-*` subdirectory.
 
-## Run private operator reads separately
+## Run the private Discovery health check separately
 
-Copy `postman/http-checks.postman_environment.json` into ignored `.local/postman/http-checks/`. Set `discovery_url` to a reachable private Discovery listener and replace `control_token` in the copy with the operator credential. Do not put the token in shell arguments, the checked-in template, or a published report. This folder is not part of safe public smoke.
-
-Compose runs Discovery on port `8081` without publishing it, so the template's `http://discovery:8081` resolves only on the Compose network, not from the host. To read Discovery status from the Compose host, attach a one-off container to that network. Set `CONTROL_TOKEN` in your shell first; `-e CONTROL_TOKEN` copies it into the container without putting the value in the command line:
+Discovery serves its registry and status only over gRPC. Its HTTP listener keeps `/healthz`, which this folder reads. Copy `postman/http-checks.postman_environment.json` into ignored `.local/postman/http-checks/` and set `discovery_url` to a reachable private Discovery listener. Compose runs Discovery on port `8081` without publishing it, so the template's `http://discovery:8081` resolves only on the Compose network, not from the host. This folder is not part of safe public smoke.
 
 ```sh
-docker run --rm --network student-id-acceptance_default -e CONTROL_TOKEN curlimages/curl:8.11.1 -sS --variable %CONTROL_TOKEN --expand-header 'X-Control-Token: {{CONTROL_TOKEN}}' -H 'X-Control-Name: operator' http://discovery:8081/internal/v1/status
+./scripts/run_newman.sh --http-private --environment .local/postman/http-checks/discovery.postman_environment.json
 ```
 
-The network name is `<project>_default`; replace `student-id-acceptance` with your Compose project name. A wrong credential returns `401 INVALID_AUTH`, which still confirms that the listener is reachable.
+The folder sends one GET and checks that Discovery reports `ok`. It needs no credential and proves nothing about registration.
+
+To read Discovery status or the registry, call `ControlService.GetStatus` or `DiscoveryService.ListInstances` with `grpcurl` and the checked-in protos. Set `CONTROL_TOKEN` to the operator control token in your shell first; `-e CONTROL_TOKEN` copies it into the container without putting the value in the command line:
 
 ```sh
-./scripts/run_newman.sh --http-private --environment .local/postman/http-checks/operator.postman_environment.json
+docker run --rm --network student-id-please_default -e CONTROL_TOKEN -v "$PWD/proto:/proto:ro,z" fullstorydev/grpcurl:v1.9.1 \
+	-plaintext -import-path /proto -proto student_id/discovery/v1/discovery.proto \
+	-expand-headers -H 'x-control-name: operator' -H 'x-control-token: ${CONTROL_TOKEN}' \
+	-d '{"include_unavailable": true}' \
+	discovery:50051 student_id.discovery.v1.DiscoveryService/ListInstances
 ```
 
-The folder reads Discovery status, a default ready-only registry snapshot, and an unavailable-inclusive snapshot. It checks instance UUIDs, boot IDs, registration IDs, lease time, readiness, load ratios, epoch, and revision where the response contains instances. An empty snapshot is valid; it does not prove successful registration or filtering. IDs saved in the private Newman environment are diagnostic only, not evidence of round-robin routing. Do not print or publish the populated environment or raw run files. The HTML reporter removes response bodies, headers, URLs, scripts, raw failures, and environment values before rendering. The runner returns a nonzero exit code on assertion or request failure.
+The network name is `<project>_default`; replace `student-id-please` with your Compose project name. A wrong credential returns `Unauthenticated`, which still confirms that the listener is reachable. The [demonstration guide](../docs/demonstration.md#call-a-service-over-grpc) has more `grpcurl` examples. Do not print or publish the populated environment, the token, or raw run files.
 
 ## Use companion runtime checks for state changes
 
-The operator must opt in to registration or removal checks outside these read-only folders, using the exact private Discovery API and deployment-owned instance identity. Do not replay removal against a live replica as a default smoke test. Record sanitized instance IDs, registration generations, epoch, and elapsed times without tokens, chat tickets, or webhook URLs.
+The operator must opt in to registration or removal checks outside these read-only folders, using the private `DiscoveryService` RPCs and deployment-owned instance identity. Do not replay removal against a live replica as a default smoke test. Record sanitized instance IDs, registration generations, epoch, and elapsed times without tokens, chat tickets, or webhook URLs.
 
 - Register distinct replicas, renew and expire a lease, and compare ready-only and unavailable-inclusive snapshots. Check that a removal excludes only its failed generation, survives Discovery restart, and needs explicit operator reactivation after the cooldown and two healthy probes.
 - Send repeated authorized reads under a separate runtime demonstration. Match Gateway logs to selected backend instance IDs to prove round-robin across replicas. Public responses intentionally omit private attribution headers; do not forge Gateway assertions to get them.
 - Inject three qualifying failures across backend endpoints within `3.5 * T`. Correlate bounded caller logs and removal records; ordinary Postman response codes cannot prove the timing window or single-attempt accounting. Use a controlled task-load helper to observe the critical-load threshold and Discovery's timed health polls in logs. A failed health check alone is not a load alert.
-- Negotiate chat through public Gateway REST, then open direct WebSocket connections to each advertised DMs address and exchange frames between replicas. HTTP checks cannot prove WebSocket delivery or Discord notification receipt. Live Discord delivery remains deferred pending private configuration.
+- Negotiate chat through public Gateway REST, then open WebSocket connections through the DMs proxy and exchange frames between players on different replicas. HTTP checks cannot prove WebSocket delivery or Discord notification receipt. Live Discord delivery remains deferred pending private configuration.
 
 Run `npm test --prefix tools/newman` for the reporter and redaction tests. Run `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v` for the CPR collection structure and repository checks.

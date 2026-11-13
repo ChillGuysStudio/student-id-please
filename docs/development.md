@@ -13,9 +13,9 @@ cd student-id-please
 
 ## Run public images
 
-Compose sends client REST through the public gateway on `127.0.0.1:8080`. Domain services use the internal gateway at `http://gateway:8083`, which has no host port. The two DMs services expose `127.0.0.1:8009` and `127.0.0.1:8010` for the direct WebSocket returned by negotiation. Chat frames and database connections do not pass through the gateway.
+Compose sends client REST through the public gateway on `127.0.0.1:8080`, and the gateway sends it to the Message Broker over REST. Service-to-service traffic is typed gRPC on port `50051` of the container network. Every process sets `DISCOVERY_GRPC_URL=http://discovery:50051`, and every Broker caller sets `BROKER_GRPC_URL=http://message-broker:50051`. The gateway's `:8083` listener serves only `/healthz` and has no host port. The `dms-proxy` Caddy container publishes `127.0.0.1:8009` for the chat WebSocket that negotiation returns. Chat frames and database connections do not pass through the gateway or the Broker.
 
-The stack runs one Discovery, one Gateway, and two replicas of each domain service. Domain services scale with `docker compose up -d --no-deps --scale <service>=<count> <service>`, and each replica generates its own instance ID. Discord DMs is the exception. It runs as two explicit services, `discord-dms-1` and `discord-dms-2`, because each replica advertises its own host port. Every service image defaults to `latest` in `compose.yaml`, for example `${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}`. To pin a version, set the matching `*_IMAGE` key in `.env` to `owner/repo:version`, for example `PLAYER_IMAGE=tirppy/student-id-player-service:3.0.0`. An unset or empty key means `latest`. [`releases/services.json`](releases/services.json) lists the released versions. The Compose project is `student-id-please`.
+The stack runs one Discovery, one Gateway, and two replicas of each domain service. Domain services scale with `docker compose up -d --no-deps --scale <service>=<count> <service>`, and each replica generates its own instance ID. Discord DMs scales the same way with `--scale discord-dms=N`. Its replicas have no host port, and `dms-proxy` balances chat connections across them. Every service image defaults to `latest` in `compose.yaml`, for example `${PLAYER_IMAGE:-tirppy/student-id-player-service:latest}`. To pin a version, set the matching `*_IMAGE` key in `.env` to `owner/repo:version`, for example `PLAYER_IMAGE=tirppy/student-id-player-service:3.0.0`. An unset or empty key means `latest`. [`releases/services.json`](releases/services.json) lists the released versions. The Compose project is `student-id-please`.
 
 1. Use Python 3 and OpenSSL to generate fresh development keys and configuration:
 
@@ -64,7 +64,7 @@ runtime emulation.
 
 Each bind mount ends in `:ro,z`. On an SELinux host such as Fedora, `z` makes Docker relabel the file so containers can read it. Hosts without SELinux ignore the option. Use lowercase `z`, because several services mount the same key files.
 
-Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's existing peer settings select HTTP, not mocks. The Message Broker keeps topic events, deliveries, and subscriptions in `broker-db`. It applies its schema at startup.
+Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's peer clients default to gRPC, not mocks. The Message Broker keeps topic events, deliveries, and subscriptions in `broker-db`. It applies its schema at startup.
 
 Every domain service and Gateway has a health check, so `--wait` returns after their APIs answer. The Moderation outbox publisher has none and counts as ready once it runs. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
 

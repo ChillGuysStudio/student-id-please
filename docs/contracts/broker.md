@@ -37,7 +37,7 @@ The internal route table moves unchanged from Gateway's `InternalRoutes()`. Its 
 
 | Hop | Headers | Configuration |
 | --- | --- | --- |
-| Domain service to Broker | `X-Service-Name: <caller>`, `X-Service-Token`, and `X-Gateway-Delegation` or `X-Gateway-Chat-Capability` when the route needs actor authority | Caller: `BROKER_URL`, `BROKER_SERVICE_TOKEN`. Broker: `BROKER_SERVICE_TOKENS` |
+| Domain service to Broker | `X-Service-Name: <caller>`, `X-Service-Token`, and `X-Gateway-Delegation` or `X-Gateway-Chat-Capability` when the route needs actor authority | Caller: `BROKER_GRPC_URL`, `BROKER_SERVICE_TOKEN`. Broker: `BROKER_SERVICE_TOKENS` |
 | Gateway to Broker | `X-Service-Name: gateway`, `X-Service-Token`, `X-Gateway-Assertion`, optional `X-Gateway-Delegation` or `X-Gateway-Chat-Capability`, `X-Broker-Target`, optional pin headers | Gateway: `GATEWAY_BROKER_URL`, `GATEWAY_BROKER_TOKEN`. Broker: `BROKER_GATEWAY_TOKEN` |
 | Broker to receiver | `X-Service-Name: message-broker`, `X-Service-Token: <receiver hop token>`, `X-Gateway-Assertion`, and the optional grant header | Broker: `BROKER_RECEIVERS`. Receiver: `BROKER_HOP_TOKEN` |
 
@@ -199,7 +199,7 @@ Each repository changes only its own code and tests. A change is "config only" w
 | Gateway | Code | Delete the moved code. Add Gateway dispatch, the DMs pin, Broker hop accounting, the `X-Broker-*` stripping, and the control-only `:8083` listener. |
 | Discovery | Code | Add `message-broker` to the registry names in `cmd/discovery/server.go`. Probes and removals need no other change. |
 | Player | Code | Receiver rules 1 to 4. Player has no business caller. |
-| Session | Code | Receiver rules 1 to 5. Its caller uses `BROKER_URL` and `BROKER_SERVICE_TOKEN`, looks up `message-broker` in `app/breaker.py` and `app/discovery.py`, and reads `X-Broker-*`. |
+| Session | Code | Receiver rules 1 to 5. Its caller uses `BROKER_GRPC_URL` and `BROKER_SERVICE_TOKEN`, looks up `message-broker` in `app/breaker.py` and `app/discovery.py`, and reads `X-Broker-*`. |
 | Applicant | Code | Receiver rules 1 to 4 in `GatewayProofVerifier`, with `BROKER_JWKS_JSON` beside `GATEWAY_JWKS_JSON`. The `GatewayHopBreaker` caller moves to the Broker hop. |
 | Credential | Code | Receiver rules 1 to 4 in `GatewayProofVerifier`, with `BROKER_JWKS_JSON`. The `PeerHttpClient` and `GatewayHopBreaker` caller moves to the Broker hop. |
 | Server Rules | Code | Receiver rules 1 to 4 in `GatewayAccess`. The caller in `GatewayDirectory`, `DiscoveryRegistration`, and `HttpSessionGateway` moves to the Broker hop. |
