@@ -116,8 +116,8 @@ test('HTTP checks report omits control credentials, webhook, headers and private
     raw.run.executions[0].request.header.push({ key: 'X-Control-Token', value: canaries[0] });
     raw.run.executions[0].response.header.push({ key: 'X-Gateway-Instance-Id', value: canaries[2] });
     raw.run.executions[0].response.stream = { data: [...Buffer.from(canaries.join(' '))] };
-    raw.run.executions[0].item.name = 'Discovery status schema';
-    raw.run.executions[0].assertions[0].assertion = 'Authenticated Discovery status returns 200';
+    raw.run.executions[0].item.name = 'Discovery liveness';
+    raw.run.executions[0].assertions[0].assertion = 'Discovery health returns 200';
     const httpChecks = path.resolve(__dirname, '../../postman/http-checks.postman_collection.json');
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'redaction-'));
     try {
@@ -131,13 +131,13 @@ test('HTTP checks report omits control credentials, webhook, headers and private
             assert.ok(!fs.readFileSync(path.join(directory, 'report.summary.json'), 'utf8').includes(canary));
         }
         assert.equal(safe.reportMetadata.failed, true);
-        assert.ok(html.includes('Discovery status schema'));
+        assert.ok(html.includes('Discovery liveness'));
     } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
 test('HTTP check flags cannot trigger the stateful guided run or overload', () => {
     assert.equal(parseArgs(['--http']).http, 'Safe public smoke');
-    assert.equal(parseArgs(['--http-private']).http, 'Private operator reads');
+    assert.equal(parseArgs(['--http-private']).http, 'Private Discovery health');
     assert.throws(() => parseArgs(['--http', '--with-overload']), /cannot run with overload/);
     assert.throws(() => parseArgs(['--http-private', '--http']), /Choose one/);
     assert.throws(() => parseArgs(['--http', '--from-json', 'private.json']), /cannot be combined/);

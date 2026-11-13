@@ -6,9 +6,9 @@ The Common Project Repository, or CPR, contains the shared design, integration c
 
 ## Architecture
 
-Eight domain services own separate data. They communicate through REST, topic events, and WebSocket chat. Clients reach them through the gateway. Service-to-service REST and topic events go through the Message Broker.
+Eight domain services own separate data. Clients reach them with REST through the gateway, and the gateway sends each client request to the Message Broker over REST. Service-to-service calls and topic events are typed gRPC on port `50051`, and they also go through the Broker. Chat uses WebSockets through the Discord DMs proxy.
 
-The diagram below shows the gateway, Service Discovery, the domain services, and their storage. Its editable source is [`docs/architecture.drawio`](docs/architecture.drawio). Green dashed arrows are the Discovery calls: registration, lease renewal, health probes, and Gateway removal reports. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them. This drawing predates the Message Broker and still shows service REST through the gateway and events through RabbitMQ. The [architecture diagram](docs/architecture.md) shows the current Broker connections.
+The diagram below shows the gateway, Service Discovery, the domain services, and their storage. Its editable source is [`docs/architecture.drawio`](docs/architecture.drawio). Green dashed arrows are the Discovery calls: registration, lease renewal, health probes, and Gateway removal reports. Live chat uses a direct client-to-Discord DMs WebSocket. Replicas register with Discovery, and Discovery probes them. This drawing predates the Message Broker and gRPC. It still shows service REST through the gateway and events through RabbitMQ. The [architecture diagram](docs/architecture.md) shows the current Broker, gRPC, and chat proxy connections.
 
 <img src="docs/architecture.png" alt="Architecture diagram: Gateway, Service Discovery, the Java and Python services with their databases, and RabbitMQ" width="1080"/>
 
@@ -16,19 +16,19 @@ The diagram below shows the gateway, Service Discovery, the domain services, and
 
 ## Gateway
 
-The selected gateway is shared Go infrastructure, separate from the eight domain services. All client-to-service REST traffic uses its public listener. The gateway validates client identity, applies the public policy, signs the receiver assertion, bounds task duration and concurrency, and sends each request to the Message Broker with its target service. Its control listener on `:8083` serves only health, status, and log export. Domain services retain business authorization and data ownership.
+The selected gateway is shared Go infrastructure, separate from the eight domain services. All client-to-service REST traffic uses its public listener. The gateway validates client identity, applies the public policy, signs the receiver assertion, bounds task duration and concurrency, and sends each request to the Message Broker with its target service. Its control listener on `:8083` serves only `/healthz`. Status and log export use its gRPC `ControlService` on `:50051`. Domain services retain business authorization and data ownership.
 
-Realtime negotiation uses REST through the gateway, which pins ticket issuance to one DMs replica, and returns that replica's direct WebSocket URL. Clients connect to Discord DMs for the upgrade and chat frames. The gateway does not relay frames. Chat tickets, permissions, Redis delivery, and stored history belong to Discord DMs.
+Realtime negotiation uses REST through the gateway, which returns one configured chat URL, the DMs proxy on port `8009`. The proxy is Caddy. It balances WebSocket upgrades across the `discord-dms` replicas by least connections. The gateway and the Broker do not relay frames. Chat tickets, permissions, Redis delivery, and stored history belong to Discord DMs.
 
 Service-owned storage connections do not pass through the gateway or the Broker.
 
 ## Message Broker
 
-The Message Broker is shared Go infrastructure in the private `ChillGuysStudio/message-broker-service` repository, with the public image `maxnoragami/message-broker-service`. Compose runs one instance as `message-broker` on port 8080 of the container network, with no host port.
+The Message Broker is shared Go infrastructure in the private `ChillGuysStudio/message-broker-service` repository, with the public image `maxnoragami/message-broker-service`. Compose runs one instance as `message-broker`, with REST for Gateway dispatch on port `8080` and gRPC on port `50051` of the container network, and no host port.
 
-The Broker owns service-to-service dispatch, service-call authorization, replica load balancing, backend breakers, and topic event delivery. A targeted request names its destination service. Gateway sends public requests there with an explicit target, and domain services send every peer call there. The Broker authenticates the caller, signs the receiver assertion, selects one ready replica with round-robin, and writes a `dispatch` log record for each attempt. It reports breaker trips to Discovery.
+The Broker owns service-to-service dispatch, service-call authorization, replica load balancing, backend breakers, and topic event delivery. A targeted request names its destination service. Gateway sends public requests there over REST with an explicit target. Domain services send every peer call there as a typed gRPC call with the `x-broker-target` metadata key. The Broker authenticates the caller, signs the receiver assertion, selects one ready replica with round-robin, and writes a `dispatch` log record for each attempt. It reports breaker trips to Discovery.
 
-Producers publish domain events to the Broker by topic. The Broker stores each event and one delivery per subscribing service in its own PostgreSQL, `broker-db`, and retries each delivery until the subscriber accepts or rejects it. The [queues and topics contract](docs/contracts/queues.md) defines targeted queues and topic delivery. Client authentication, direct Discord DMs WebSockets, event schemas, and domain ownership stay unchanged. The [Message Broker dispatch contract](docs/contracts/broker.md) defines the credentials, assertions, attribution, and logging.
+Producers publish domain events to the Broker by topic. The Broker stores each event and one delivery per subscribing service in its own PostgreSQL, `broker-db`, and retries each delivery until the subscriber accepts or rejects it. The [queues and topics contract](docs/contracts/queues.md) defines targeted queues and topic delivery. The [service-to-service gRPC contract](docs/contracts/grpc.md) defines the RPCs, metadata, and status mapping. Client authentication, Discord DMs WebSockets, event schemas, and domain ownership stay unchanged. The [Message Broker dispatch contract](docs/contracts/broker.md) defines the credentials, assertions, attribution, and logging.
 
 [`docs/releases/services.json`](docs/releases/services.json) records the released version, source commit, and image digest of each service. [Gateway authorization](docs/architecture.md#gateway-authorization) describes identity checks and service permissions; the [guided Postman demo](postman/GUIDED-DEMO.md) covers real Gateway HTTP flows and bounded concurrent tasks.
 
@@ -58,7 +58,7 @@ docker stop <container-id>
 docker compose up -d --no-deps --scale applicant=2 applicant
 ```
 
-A stopped replica deregisters itself before it exits. Discord DMs is the one exception to `--scale`. Clients connect to each DMs replica's WebSocket on its own host port, so Compose defines two services, `discord-dms-1` on port `8009` and `discord-dms-2` on port `8010`. The [demonstration guide](docs/demonstration.md) explains each command.
+A stopped replica deregisters itself before it exits. Discord DMs scales the same way, for example with `--scale discord-dms=3`. Clients open chat on the `dms-proxy` port `8009`, which balances the replicas, so no replica has a host port. The [demonstration guide](docs/demonstration.md) explains each command.
 
 ## Start work
 

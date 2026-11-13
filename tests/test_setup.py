@@ -46,6 +46,7 @@ class SetupTests(unittest.TestCase):
                           for owner, value in receivers.items()})
         self.assertEqual(set(receivers), set(setup.OWNERS))
         self.assertEqual(runtime["GATEWAY_BROKER_URL"], "http://message-broker:8080")
+        self.assertEqual(runtime["BROKER_GRPC_URL"], "http://message-broker:50051")
         self.assertEqual(runtime["GATEWAY_BROKER_TOKEN"], broker["BROKER_GATEWAY_TOKEN"])
         for name in ("GATEWAY_SERVICE_TOKENS", "GATEWAY_EXTERNAL_WS_URL", "GATEWAY_PLAYER_URL", "GATEWAY_DMS_URL"):
             self.assertNotIn(name, runtime)
@@ -67,6 +68,7 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(settings["BROKER_HOP_TOKEN"], receivers[owner]["HopToken"])
             self.assertEqual(settings["BROKER_KEY_ID"], "broker-v1")
             self.assertEqual(settings["BROKER_ASSERTION_ISSUER"], "student-id-broker")
+            self.assertNotIn("BROKER_URL", settings)
             for name in ("GATEWAY_HOP_TOKEN", "GATEWAY_RULES_RECEIVER_TOKEN", "SERVICE_TOKENS", "GATEWAY_URL",
                          "GATEWAY_SERVICE_TOKEN", "GATEWAY_INTERNAL_URL", "GATEWAY_CALLER_TOKEN",
                          "INTERNAL_GATEWAY_URL", "RULES_SERVICE_TOKEN"):
@@ -80,7 +82,7 @@ class SetupTests(unittest.TestCase):
             if owner in ("player", "moderation", "discord-dms"):
                 self.assertNotIn("BROKER_SERVICE_TOKEN", settings)
             else:
-                self.assertEqual(settings["BROKER_URL"], "http://message-broker:8080")
+                self.assertEqual(settings["BROKER_GRPC_URL"], "http://message-broker:50051")
                 self.assertEqual(settings["BROKER_SERVICE_TOKEN"], credentials[names[owner]])
             if owner in ("player", "session"):
                 self.assertEqual(settings["GATEWAY_ASSERTION_AUDIENCE"], receivers[owner]["Audience"])
@@ -96,7 +98,8 @@ class SetupTests(unittest.TestCase):
         self.assertFalse([name for name in config if name.endswith("_IMAGE")])
         self.assertFalse([name for name in config if "INSTANCE_ID" in name or "REPLICA" in name])
         self.assertNotIn("COMPOSE_FILE", config)
-        self.assertEqual((config["DMS_PORT"], config["DMS_PORT_2"]), ("18009", "8010"))
+        self.assertEqual(config["DMS_PORT"], "18009")
+        self.assertNotIn("DMS_PORT_2", config)
         self.assertFalse((self.root / "compose.replicas.yaml").exists())
         self.assertEqual(config["DISCOVERY_DISCORD_WEBHOOK_URL"], "")
         self.assertGreaterEqual(len(config["BROKER_DB_PASSWORD"]), 43)
@@ -113,7 +116,7 @@ class SetupTests(unittest.TestCase):
         self.assertFalse((self.root / ".local").exists())
 
     def test_invalid_ports_create_nothing(self):
-        for ports in ((8080, 8080), (0, 8009), (8080, 70000), (8080, 8009, 8009), (8080, 8009, 8080)):
+        for ports in ((8080, 8080), (0, 8009), (8080, 70000), (70000, 8009)):
             with self.assertRaises(ValueError):
                 setup.prepare(self.root, *ports)
             self.assertFalse((self.root / ".env").exists())
@@ -133,9 +136,11 @@ class SetupTests(unittest.TestCase):
             self.assertIn("z", options, mount)
             self.assertNotIn("Z", options, mount)
 
-    def test_compose_exposes_only_public_gateway_and_direct_dms(self):
+    def test_compose_exposes_only_public_gateway_and_chat_proxy(self):
         compose = (ROOT / "compose.yaml").read_text()
-        self.assertEqual(compose.count("    ports:\n"), 3)
+        self.assertEqual(compose.count("    ports:\n"), 2)
+        self.assertIn("      - '127.0.0.1:${GATEWAY_PORT:-8080}:8080'\n", compose)
+        self.assertIn("      - '127.0.0.1:${DMS_PORT:-8009}:8009'\n", compose)
         self.assertNotIn("http://session:8002", compose)
         self.assertNotIn("http://player:8001", compose)
         self.assertNotIn("EXTERNAL_SERVICES_MODE: mock", compose)
@@ -146,7 +151,12 @@ class SetupTests(unittest.TestCase):
             self.assertNotIn(name, compose)
         self.assertIn("INSTANCE_HTTP_URL: http://gateway:8083", compose)
         self.assertIn("INSTANCE_HTTP_URL: http://message-broker:8080", compose)
-        self.assertEqual(compose.count("BROKER_URL: http://message-broker:8080"), 4)
+        self.assertNotIn("BROKER_URL:", compose)
+        self.assertEqual(compose.count("BROKER_GRPC_URL: http://message-broker:50051"), 4)
+        self.assertIn("  DISCOVERY_GRPC_URL: http://discovery:50051\n", compose)
+        for name in ("DISCOVERY_URL", "INSTANCE_WS_URL", "SESSION_URL:", "UNIVERSITY_URL:", "PLAYER_MODE:",
+                     "EXTERNAL_SERVICES_MODE:", "DMS_PORT_2"):
+            self.assertNotIn(name, compose)
         self.assertIn("player-public.pem:/keys/player-public.pem:ro", compose)
         self.assertNotIn("player-public-key:", compose)
         self.assertIn("SPRING_PROFILES_ACTIVE: gateway", compose)
@@ -170,11 +180,20 @@ class SetupTests(unittest.TestCase):
     def test_domain_services_scale_natively(self):
         compose = (ROOT / "compose.yaml").read_text()
         for service in ("player", "session", "applicant", "credential", "university-record", "server-rules",
-                        "moderation"):
+                        "moderation", "discord-dms"):
             self.assertRegex(compose, rf"\n  {service}:\n    deploy:\n      replicas: 2\n", service)
-        self.assertEqual(compose.count("replicas: 2"), 7)
-        self.assertIn("INSTANCE_WS_URL: ws://localhost:${DMS_PORT:-8009}", compose)
-        self.assertIn("INSTANCE_WS_URL: ws://localhost:${DMS_PORT_2:-8010}", compose)
+        self.assertEqual(compose.count("replicas: 2"), 8)
+        self.assertIn("GATEWAY_CHAT_WS_URL: ws://localhost:${DMS_PORT:-8009}", compose)
+
+    def test_chat_proxy_balances_dms_replicas(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        self.assertRegex(compose, r"\n  dms-proxy:\n(    .*\n)*    image: caddy:2\.8-alpine\n")
+        self.assertIn("./config/dms-proxy.Caddyfile:/etc/caddy/Caddyfile:ro,z", compose)
+        self.assertRegex(compose, r"\n  dms-proxy:\n(    .*\n|      .*\n)*    depends_on:\n      discord-dms:\n"
+                         r"        condition: service_healthy\n")
+        caddyfile = (ROOT / "config/dms-proxy.Caddyfile").read_text()
+        self.assertIn("dynamic a discord-dms 8000", caddyfile)
+        self.assertIn("lb_policy least_conn", caddyfile)
 
 
 if __name__ == "__main__":

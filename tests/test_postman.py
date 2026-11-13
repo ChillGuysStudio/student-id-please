@@ -1,4 +1,4 @@
-"""Guard the read-only default and private operator-only HTTP checks collection."""
+"""Guard the read-only public and private Discovery health HTTP checks collection."""
 
 import json
 import re
@@ -19,7 +19,7 @@ class HttpChecksCollectionTests(unittest.TestCase):
 
     def test_safe_public_folder_contains_only_anonymous_gets(self):
         folders = {folder["name"]: folder["item"] for folder in self.collection["item"]}
-        self.assertEqual(set(folders), {"Safe public smoke", "Private operator reads"})
+        self.assertEqual(set(folders), {"Safe public smoke", "Private Discovery health"})
         public = folders["Safe public smoke"]
         self.assertEqual(len(public), 4)
         for item in public:
@@ -33,24 +33,17 @@ class HttpChecksCollectionTests(unittest.TestCase):
             {"{{gateway_url}}/healthz", "{{gateway_url}}/internal/v1/status", "{{gateway_url}}/internal/v1/discovery/instances", "{{gateway_url}}/api/v1/players/me"},
         )
 
-    def test_private_folder_has_only_operator_gets_and_no_mutations(self):
+    def test_private_folder_reads_only_discovery_health(self):
+        # Discovery serves its registry and status over gRPC. Its HTTP listener keeps only /healthz.
         private = self.collection["item"][1]["item"]
-        self.assertEqual(len(private), 3)
-        for item in private:
-            request = item["request"]
-            self.assertEqual(request["method"], "GET")
-            self.assertTrue(request["url"].startswith("{{discovery_url}}/internal/v1/"))
-            self.assertNotIn("body", request)
-            self.assertEqual(
-                {header["key"]: header["value"] for header in request["header"]},
-                {"X-Control-Name": "{{control_name}}", "X-Control-Token": "{{control_token}}"},
-            )
-            self.assertIn("pm.test(", "\n".join(item["event"][0]["script"]["exec"]))
-        values = {entry["key"]: entry for entry in self.environment["values"]}
-        self.assertEqual(values["control_name"]["value"], "operator")
-        self.assertEqual(values["control_token"]["value"], "REPLACE_IN_PRIVATE_COPY")
-        self.assertEqual(values["control_token"]["type"], "secret")
-
+        self.assertEqual(len(private), 1)
+        request = private[0]["request"]
+        self.assertEqual((request["method"], request["url"]), ("GET", "{{discovery_url}}/healthz"))
+        self.assertNotIn("header", request)
+        self.assertNotIn("body", request)
+        self.assertIn("pm.test(", "\n".join(private[0]["event"][0]["script"]["exec"]))
+        values = {entry["key"]: entry["value"] for entry in self.environment["values"]}
+        self.assertEqual(values, {"gateway_url": "http://127.0.0.1:8080", "discovery_url": "http://discovery:8081"})
 
 GUIDED = ROOT / "postman/guided-demo.postman_collection.json"
 GUIDED_ROUTES = {
