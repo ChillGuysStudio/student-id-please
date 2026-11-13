@@ -20,6 +20,9 @@ service BrokerService {
   // Current topic and queue state. Replaces GET /internal/v1/topics.
   // Callers: gateway, operator, with control credentials.
   rpc ListTopics(ListTopicsRequest) returns (TopicListing);
+  // Dead-lettered deliveries, newest first. Callers: gateway, operator, with
+  // control credentials. See docs/contracts/dead-letters.md.
+  rpc ListDeadLetters(ListDeadLettersRequest) returns (DeadLetterPage);
 }
 
 message PublishEventRequest {
@@ -74,11 +77,45 @@ message DeliveryCounts {
   int32 pending = 1;
   int32 in_flight = 2;
   int32 done = 3;
-  int32 rejected = 4;
+  // Deliveries moved to dead_letters. Replaces the earlier rejected count.
+  int32 dead_lettered = 4;
 }
 
 message TargetedQueue {
   string service = 1;
   int32 depth = 2;
   int32 capacity = 3;
+}
+
+message ListDeadLettersRequest {
+  // 1 to 100. 0 means 20.
+  int32 page_size = 1;
+  // Empty for the first page, otherwise an earlier next_page_token.
+  string page_token = 2;
+  // Optional exact filters.
+  string topic = 3;
+  string subscriber = 4;
+}
+
+message DeadLetterPage {
+  repeated DeadLetter items = 1;
+  // Empty on the last page.
+  string next_page_token = 2;
+}
+
+message DeadLetter {
+  int64 dead_letter_id = 1;
+  string event_id = 2;
+  string topic = 3;
+  string producer = 4;
+  string subscriber = 5;
+  // rejected, exhausted, or forbidden_pair.
+  string reason = 6;
+  int32 attempts = 7;
+  // Unset when no response arrived.
+  optional int32 last_status = 8;
+  string last_error_kind = 9;
+  string last_instance_id = 10;
+  google.protobuf.Timestamp published_at = 11;
+  google.protobuf.Timestamp dead_lettered_at = 12;
 }

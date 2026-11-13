@@ -128,7 +128,7 @@ The consumer commits its domain update and its inbox record before it responds. 
 | `409` or `422` | The delivery is rejected and not retried. Use it for a conflicting payload or an invalid schema, as [events.md](events.md) requires. |
 | Any other status, a connection error, a timeout, or an invalid response | The delivery is retried. |
 
-A retry waits 1, 5, then 30 seconds after the failed attempt, then every 30 seconds. This version has no retry limit. A later version adds a finite retry count and moves rejected and exhausted deliveries to a `dead_letters` table. The `attempts`, `last_status`, and `last_error_kind` columns and the `rejected` state exist for that step. A timed-out attempt is uncertain, and the consumer's deduplication makes its retry safe.
+A retry waits 1, 5, then 30 seconds after the failed attempt, then every 30 seconds. The [dead-letter contract](dead-letters.md) limits the attempts and moves rejected and exhausted deliveries to the `dead_letters` table. A timed-out attempt is uncertain, and the consumer's deduplication makes its retry safe.
 
 Each attempt is one physical backend attempt. Its deadline is `T`. It records into the replica's breaker counter with the same qualifying failures as a dispatch, and three of them trip the breaker. The Broker reads at most 64 KiB of the response body and ignores its content.
 
