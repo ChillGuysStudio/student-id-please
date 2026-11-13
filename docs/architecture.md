@@ -2,7 +2,7 @@
 
 The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
 
-The diagram below shows the services, replicas, request paths, storage, and event connections. Orange dashed links labelled "Planned" show the Message Broker connections that are not yet built. Its source is [`docs/diagrams/architecture.mmd`](diagrams/architecture.mmd), and a test keeps this copy identical to it. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
+The diagram below shows the services, replicas, request paths, storage, and event connections. Orange dashed links labelled "Planned" show the Message Broker topic and queue connections that are not yet built. Its source is [`docs/diagrams/architecture.mmd`](diagrams/architecture.mmd), and a test keeps this copy identical to it. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
 
 ```mermaid
 flowchart TB
@@ -10,7 +10,7 @@ flowchart TB
 
 	subgraph GatewaySvc["Gateway (shared Go, one instance)"]
 		GWPub["Public listener :8080\nClient REST and negotiation"]
-		GWInt["Internal listener :8083\nService-to-service REST"]
+		GWInt["Control listener :8083\nHealth, status, log export"]
 	end
 
 	subgraph DiscoverySvc["Discovery (shared Go, :8081)"]
@@ -21,7 +21,7 @@ flowchart TB
 
 	DiscordHook["Discord webhook\nalerts"]
 
-	BrokerNode["Message Broker (shared Go)\nToday: GET /health only, not in Compose\nPlanned: dispatch, queues, breakers"]
+	BrokerNode["Message Broker (shared Go, one instance, :8080)\nService-call authorization, round-robin, breakers"]
 
 	subgraph DomainReplicas["Domain services, two replicas each by default"]
 		PlayerReplicas["Player"]
@@ -44,20 +44,23 @@ flowchart TB
 		RabbitMQBroker[("RabbitMQ\ndomain events")]
 	end
 
+	BrokerDB[("broker-db PostgreSQL\nqueues and topics")]
+
 	Client -->|"REST and negotiation"| GWPub
 	Client <-->|"Direct WebSocket chat"| DMReplicas
 
-	GWPub -->|"Round-robin over ready replicas"| DomainReplicas
-	DomainReplicas -->|"Service-to-service REST"| GWInt
-	GWInt -->|"Round-robin over ready replicas"| DomainReplicas
+	GWPub -->|"Targeted request,\ndestination known"| BrokerNode
+	DomainReplicas -->|"Service-to-service REST"| BrokerNode
+	BrokerNode -->|"Round-robin over ready replicas"| DomainReplicas
 
 	DomainReplicas -.->|"Register and renew lease"| DiscoveryNode
 	GWInt -.->|"Register and renew lease"| DiscoveryNode
+	BrokerNode -.->|"Register, snapshot refresh,\nbreaker removals"| DiscoveryNode
 	GWPub -.->|"Background snapshot refresh"| DiscoveryNode
-	GWInt -.->|"Background snapshot refresh"| DiscoveryNode
 	DiscoveryNode -.->|"Status probes"| DomainReplicas
 	DiscoveryNode -.->|"Status probes"| GatewaySvc
-	DomainReplicas -.->|"Report breaker removals"| DiscoveryNode
+	DiscoveryNode -.->|"Status probes"| BrokerNode
+	DomainReplicas -.->|"Report Broker hop failures"| DiscoveryNode
 	DiscoveryNode -->|"Alerts"| DiscordHook
 
 	PlayerReplicas --- PGStores
@@ -79,24 +82,22 @@ flowchart TB
 	CredentialReplicas --- RabbitMQBroker
 	UnivReplicas --- RabbitMQBroker
 
-	GWPub -.->|"Planned: targeted request,\ndestination known"| BrokerNode
-	DomainReplicas -.->|"Planned: service requests and\ntopic events, subscribers unknown"| BrokerNode
-	BrokerNode -.->|"Planned: one ready replica,\none copy per subscriber"| DomainReplicas
-	BrokerNode -.->|"Planned: instances and\ntopic subscriptions"| DiscoveryNode
-	BrokerNode -.->|"Planned: queue storage"| RabbitMQBroker
+	DomainReplicas -.->|"Planned: topic events,\nsubscribers unknown"| BrokerNode
+	BrokerNode -.->|"Planned: one copy per subscriber"| DomainReplicas
+	BrokerNode -.->|"Planned: queue storage"| BrokerDB
 
 	classDef planned stroke:#d9822b,stroke-width:2px,stroke-dasharray:6 4
-	class BrokerNode planned
-	linkStyle 31,32,33,34,35 stroke:#d9822b,stroke-width:2px
+	class BrokerDB planned
+	linkStyle 32,33,34 stroke:#d9822b,stroke-width:2px
 ```
 
 ## Request paths
 
-The client sends REST to the API gateway, and the gateway routes each request to one service. Ticket negotiation uses the same REST path. The client then opens a direct WebSocket to the Discord DMs service for live chat. The gateway does not relay chat frames.
+The client sends REST to the API gateway. The gateway authenticates it and sends it to the Message Broker with its target service, and the Broker delivers it to one replica. Ticket negotiation uses the same REST path. The client then opens a direct WebSocket to the Discord DMs service for live chat. The gateway does not relay chat frames.
 
-All service-to-service REST passes through the gateway. Domain events travel through RabbitMQ. Each service connects only to its own storage.
+All service-to-service REST passes through the Broker. Domain events travel through RabbitMQ. Each service connects only to its own storage.
 
-The [discovery and resilience contract](contracts/resilience.md) defines registration, routing, health, and failure accounting. The [demonstration guide](demonstration.md) shows how to scale replicas and watch Discovery and Gateway with Compose commands. Business REST keeps these paths and authorization checks. Private registration, registry lookup, removal, and status probes use direct control-plane HTTP to avoid a Gateway bootstrap cycle. Discovery supplies replica addresses, and Gateway selects them with round-robin routing. The dashed Discovery links in the diagram show this control plane.
+The [discovery and resilience contract](contracts/resilience.md) defines registration, routing, health, and failure accounting. The [demonstration guide](demonstration.md) shows how to scale replicas and watch Discovery and the Broker with Compose commands. Private registration, registry lookup, removal, and status probes use direct control-plane HTTP to avoid a bootstrap cycle. Discovery supplies replica addresses, and the Broker selects them with round-robin routing. The dashed Discovery links in the diagram show this control plane.
 
 ## Service ownership
 
@@ -111,29 +112,31 @@ The [discovery and resilience contract](contracts/resilience.md) defines registr
 | Moderation        | Final decisions, policy snapshots, subject bans, decision scores, and administrator disciplinary actions  | Source evidence, rule definitions, aggregate shift scores, or XP       |
 | Discord DMs       | Channels, membership, messages, chat tickets, and live delivery                                           | Accounts, shift roles, record permissions, or the truth of a message   |
 
-The gateway is shared Go infrastructure and owns no domain data. Its public listener routes all client-to-service REST, including realtime negotiation. Its internal listener routes all service-to-service REST and is not publicly exposed. Services retain business authorization after the gateway verifies identity. Internal endpoints are not public routes.
+The gateway is shared Go infrastructure and owns no domain data. Its public listener accepts all client-to-service REST, including realtime negotiation. Its control listener on `:8083` serves only health, status, and log export and is not publicly exposed. The Message Broker carries all service-to-service REST. Services retain business authorization after the gateway or the Broker verifies identity. Internal endpoints are not public routes.
 
 REST negotiation returns a direct Discord DMs WebSocket URL. The client sends the upgrade and subsequent chat frames directly to Discord DMs. The gateway does not relay frames or hold the live data connection. Discord DMs owns ticket consumption, permission checks, message persistence, and live delivery.
 
 ## Message Broker
 
-The Message Broker is shared Go infrastructure. Its released image, `maxnoragami/message-broker-service:4.0.0`, serves only `GET /health` on port 8080. The current Compose configuration does not run it, and no request or event passes through it. The gateway still owns request routing, round-robin selection, and breakers, and RabbitMQ still carries domain events.
+The Message Broker is shared Go infrastructure with the public image `maxnoragami/message-broker-service`. Compose runs one instance as `message-broker`, listening on `:8080` on the container network with no host port. It registers with Discovery as `message-broker`. Discovery rejects two live instances with one address, so the Broker does not scale.
 
-The planned Broker takes over service-to-service dispatch, replica load balancing, and breakers from the gateway. The [Message Broker dispatch contract](contracts/broker.md) defines its REST dispatch and service-call authorization. It carries two kinds of message:
+The Broker owns service-to-service dispatch, service-call authorization, replica selection, and backend breakers. The [Message Broker dispatch contract](contracts/broker.md) defines both of its request modes:
 
-- A targeted request names its destination service. The gateway forwards a client request to the Broker, and a service sends its own requests there. The Broker delivers each request through the destination service's queue to one ready replica and returns the reply to the caller.
-- A topic event names a topic, not its recipients. The publisher sends it to the Broker without knowing who subscribes. Every subscribing service receives one copy, and that service's replicas compete for it. Services declare the topics they consume when they register with Discovery.
+- Gateway dispatch. Gateway authenticates the client, applies the public policy, signs the receiver assertion with `gateway-v1`, and sends the request with `X-Broker-Target`. The Broker verifies that assertion and forwards it to one ready replica of the target.
+- Service ingress. A domain service sends a peer call with its caller name and token. The Broker matches the internal route table, applies the caller allowlist and the delegated or workload policy, signs the receiver assertion with `broker-v1`, and dispatches.
 
-The topics are the four existing events, `CaseInitialized`, `DecisionScored`, `ShiftEnded`, and `DisciplinaryActionApplied`, with their current routing keys such as `decision.scored`. The Broker reuses RabbitMQ for queue storage. The move changes transport only. Event schemas, producers, idempotency, and service ownership stay as the [RabbitMQ events](contracts/events.md) contract defines them.
+Receivers accept a request only from `message-broker` with their own hop token. They verify Gateway-issued assertions with the Gateway key and Broker-issued assertions with the Broker key. The Broker selects replicas with one round-robin cursor per service, trips a generation's breaker after three qualifying failures within `W`, and reports the trip to Discovery. It writes one `dispatch` log record for each attempt.
 
-These boundaries apply once the Broker carries traffic:
+These boundaries apply:
 
-- Only the gateway's public listener accepts client traffic. The Broker listener stays on the container network with no host port, like the gateway's internal listener on `:8083`.
+- Only the gateway's public listener accepts client traffic.
 - The gateway keeps client authentication and its ingress task and concurrency limits. The Broker authenticates the calling service and carries the verified caller and player context to the receiver. Receivers keep their business authorization.
 - The gateway assigns a UUID `X-Request-ID` to every request, forwards it, and returns it in the response and in the error `request_id`. The Broker keeps that ID on each hop. Events keep their `event_id` and `correlation_id`.
 - Each hop uses one deadline. It is the outbound timeout `T`, 2 seconds by default, capped by the caller's remaining task budget. The gateway task budget stays 30 seconds. No layer replays a business write after a timeout. The [discovery and resilience contract](contracts/resilience.md) defines `T` and the breaker window.
 
 Direct Discord DMs WebSockets stay outside the Broker. Public routes and their responses do not change.
+
+Topic events and durable queues are planned. A topic event will name a topic, not its recipients, and every subscribing service will receive one copy. The topics are the four existing events, `CaseInitialized`, `DecisionScored`, `ShiftEnded`, and `DisciplinaryActionApplied`. Until then RabbitMQ carries them as the [RabbitMQ events](contracts/events.md) contract defines.
 
 ## Gateway authorization
 
@@ -165,16 +168,16 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 | Client through public gateway         | Public services                          | Public REST commands and permitted reads, including Player authentication          |
 | Client through public gateway         | Discord DMs                              | REST realtime negotiation, chat tickets, channels, and history                     |
 | Client directly                       | Discord DMs                              | WebSocket upgrade and live chat frames after negotiation                           |
-| Session through internal gateway      | Player                                   | Check players and team membership over REST                                        |
-| Session through internal gateway      | Server Rules, University Record          | Pin policy, validate permission distribution, and create a reference snapshot over REST |
-| Session through internal gateway      | Applicant, Credential, University Record | Select one initializer and poll all three owners for readiness over REST            |
-| Moderation through internal gateway   | Session                                  | Check the active shift, assigned Moderator, current case, aggregate readiness, and pinned configuration over REST |
-| Moderation through internal gateway   | Applicant, Credential, University Record | Read complete case evidence over REST                                               |
-| Moderation through internal gateway   | Server Rules                             | Evaluate evidence, existing subject bans, and prior history over REST                |
-| Moderation through internal gateway   | Player                                   | Check a disciplinary action's target over REST                                      |
-| Evidence services, Rules, Discord DMs through internal gateway | Session                  | Check participation, roles, and lifecycle over REST                                  |
-| Discord DMs through internal gateway  | University Record                        | Check record-derived channel access over REST                                       |
-| Applicant, Credential through internal gateway | University Record                  | Read a snapshot and reserve or read an identity over REST                            |
+| Session through the Broker            | Player                                   | Check players and team membership over REST                                        |
+| Session through the Broker            | Server Rules, University Record          | Pin policy, validate permission distribution, and create a reference snapshot over REST |
+| Session through the Broker            | Applicant, Credential, University Record | Select one initializer and poll all three owners for readiness over REST            |
+| Moderation through the Broker         | Session                                  | Check the active shift, assigned Moderator, current case, aggregate readiness, and pinned configuration over REST |
+| Moderation through the Broker         | Applicant, Credential, University Record | Read complete case evidence over REST                                               |
+| Moderation through the Broker         | Server Rules                             | Evaluate evidence, existing subject bans, and prior history over REST                |
+| Moderation through the Broker         | Player                                   | Check a disciplinary action's target over REST                                      |
+| Evidence services, Rules, Discord DMs through the Broker       | Session                  | Check participation, roles, and lifecycle over REST                                  |
+| Discord DMs through the Broker        | University Record                        | Check record-derived channel access over REST                                       |
+| Applicant, Credential through the Broker       | University Record                  | Read a snapshot and reserve or read an identity over REST                            |
 | One case initializer                  | Other case owners                        | Derive owned records from `CaseInitialized`                                        |
 | Moderation                            | Session                                  | Apply `DecisionScored` once                                                        |
 | Session                               | Player                                   | Apply `ShiftEnded` once                                                            |
@@ -182,7 +185,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 
 [HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [RabbitMQ events](contracts/events.md) define the request and payload details. The [logging contract](contracts/logging.md) defines log records, retention, instance exports, and the administrator log download.
 
-All client-to-service REST uses the public gateway, and all service-to-service REST uses the internal gateway. The final four rows describe RabbitMQ event delivery. Planned [Message Broker](#message-broker) dispatch replaces the internal gateway hop for service-to-service requests and carries these events as topics. RabbitMQ events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway.
+All client-to-service REST uses the public gateway, and all service-to-service REST uses the [Message Broker](#message-broker). The final four rows describe RabbitMQ event delivery. RabbitMQ events, service-owned storage connections, and direct WebSocket upgrades and frames do not pass through the gateway or the Broker.
 
 ## Data and consistency
 
@@ -202,7 +205,7 @@ Player, Session, Moderation, and Discord DMs use Python and FastAPI. Their work 
 
 Applicant, Credential, Server Rules, and University Record use Java and Spring Boot. Typed models and validation fit their evidence and policy operations.
 
-The shared gateway uses Go for HTTP listeners, request routing, identity verification, and task admission. It owns no domain database. Discovery and the Message Broker also use Go, the team's banned language.
+The shared gateway uses Go for HTTP listeners, identity verification, and task admission. It owns no domain database. Discovery and the Message Broker also use Go, the team's banned language.
 
 PostgreSQL fits relational state and transaction constraints. MongoDB fits the varied evidence and reference record types. Both stores still enforce the shared contract.
 

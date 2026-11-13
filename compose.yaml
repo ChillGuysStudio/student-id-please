@@ -13,8 +13,8 @@ services:
     environment:
       <<: *registration
       SERVICE_NAME: gateway
-      # Callers match Gateway's registration to their configured Gateway origin, so the
-      # singleton advertises its service name rather than a container address.
+      # The singleton advertises its control listener by service name. It serves only
+      # health, status, and log export; business calls go through the Message Broker.
       INSTANCE_HTTP_URL: http://gateway:8083
       CONTROL_PLANE_NAME: gateway
       CONTROL_PLANE_TOKEN: ${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}
@@ -25,6 +25,26 @@ services:
       - ./.local/stack/player-public.pem:/keys/player-public.pem:ro,z
     healthcheck:
       test: [CMD, /gateway, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  message-broker:
+    image: ${BROKER_IMAGE:-maxnoragami/message-broker-service:latest}
+    env_file: .local/stack/broker.env
+    environment:
+      <<: *registration
+      SERVICE_NAME: message-broker
+      # Callers match the Broker's registration to their configured BROKER_URL. Discovery
+      # rejects two live instances with one http_url, so the Broker runs as one replica.
+      INSTANCE_HTTP_URL: http://message-broker:8080
+      CONTROL_PLANE_NAME: message-broker
+      CONTROL_PLANE_TOKEN: ${MESSAGE_BROKER_CONTROL_TOKEN:?Set MESSAGE_BROKER_CONTROL_TOKEN in .env}
+    volumes:
+      - ./.local/stack/broker-private.pem:/keys/broker-private.pem:ro,z
+      - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:8080/health']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -49,7 +69,7 @@ services:
       DISCOVERY_STATE_FILE: /state/removed.json
       CONTROL_PLANE_NAME: discovery
       CONTROL_PLANE_TOKEN: ${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}
-      CONTROL_PLANE_TOKENS: '{"gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","player":"${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}","session":"${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}","moderation":"${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}","discord-dms":"${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}","applicant":"${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}","credential":"${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}","rules":"${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}","university_record":"${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}","discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
+      CONTROL_PLANE_TOKENS: '{"gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","player":"${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}","session":"${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}","moderation":"${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}","discord-dms":"${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}","applicant":"${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}","credential":"${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}","rules":"${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}","university_record":"${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}","discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","message-broker":"${MESSAGE_BROKER_CONTROL_TOKEN:?Set MESSAGE_BROKER_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
       CONTROL_MAX_CONCURRENT_CALLS: '8'
       OUTBOUND_TASK_TIMEOUT_SECONDS: '2'
       GATEWAY_ALLOW_INSECURE_WS: 'true'
@@ -180,6 +200,7 @@ services:
     volumes:
       - ./.local/stack/player-private.pem:/keys/player-private.pem:ro,z
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
     depends_on:
       player-db:
         condition: service_healthy
@@ -198,14 +219,15 @@ services:
       CONTROL_PLANE_NAME: session
       CONTROL_PLANE_TOKEN: ${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
-      GATEWAY_URL: http://gateway:8083
-      GATEWAY_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
+      BROKER_URL: http://message-broker:8080
+      BROKER_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
       PLAYER_MODE: http
       EXTERNAL_SERVICES_MODE: http
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
       - ./.local/stack/player-public.pem:/keys/player-public.pem:ro,z
     depends_on:
       session-db:
@@ -229,20 +251,11 @@ services:
       CONTROL_PLANE_TOKEN: ${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}
       DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
       RABBITMQ_URL: amqp://studentid:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
-      SESSION_URL: http://gateway:8083
-      SESSION_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      APPLICANT_URL: http://gateway:8083
-      APPLICANT_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      CREDENTIAL_URL: http://gateway:8083
-      CREDENTIAL_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://gateway:8083
-      UNIVERSITY_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      RULES_URL: http://gateway:8083
-      RULES_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
-      PLAYER_URL: http://gateway:8083
-      PLAYER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN}
+      BROKER_URL: http://message-broker:8080
+      BROKER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
       - moderation-publisher-logs:/var/log/student-id-publisher:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
@@ -253,7 +266,7 @@ services:
     depends_on:
       moderation-db:
         condition: service_healthy
-      gateway:
+      message-broker:
         condition: service_healthy
     restart: unless-stopped
   moderation-publisher:
@@ -287,14 +300,13 @@ services:
       DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHAT_TICKET_SECRET: ${CHAT_TICKET_SECRET:?Set CHAT_TICKET_SECRET in .env}
-      SESSION_URL: http://gateway:8083
-      SESSION_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
-      UNIVERSITY_URL: http://gateway:8083
-      UNIVERSITY_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN}
+      BROKER_URL: http://message-broker:8080
+      BROKER_SERVICE_TOKEN: ${DISCORD_DMS_SERVICE_TOKEN:?Set DISCORD_DMS_SERVICE_TOKEN in .env}
     ports:
       - '127.0.0.1:${DMS_PORT:-8009}:8000'
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 10s
@@ -306,7 +318,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      gateway:
+      message-broker:
         condition: service_healthy
     restart: unless-stopped
   discord-dms-2:
@@ -326,7 +338,6 @@ services:
       SERVICE_NAME: applicant
       CONTROL_PLANE_NAME: applicant
       CONTROL_PLANE_TOKEN: ${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway:8083
       SERVER_ADDRESS: 0.0.0.0
       MONGODB_URI: mongodb://mongodb:27017/applicant?replicaSet=rs0&directConnection=true
       SESSION_URL: http://gateway:8083
@@ -355,7 +366,6 @@ services:
       SERVICE_NAME: credential
       CONTROL_PLANE_NAME: credential
       CONTROL_PLANE_TOKEN: ${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway:8083
       MONGODB_URI: mongodb://mongodb:27017/credential?replicaSet=rs0&directConnection=true
       SESSION_URL: http://gateway:8083
       UNIVERSITY_URL: http://gateway:8083
@@ -416,7 +426,6 @@ services:
       SERVICE_NAME: university_record
       CONTROL_PLANE_NAME: university_record
       CONTROL_PLANE_TOKEN: ${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}
-      GATEWAY_INTERNAL_URL: http://gateway:8083
       SPRING_PROFILES_ACTIVE: gateway
       MONGO_HOST: university-mongodb
       MONGO_DATABASE: university_records
@@ -428,6 +437,7 @@ services:
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
     healthcheck:
       test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8006 && printf "GET /healthz HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
       interval: 10s
@@ -464,7 +474,6 @@ services:
       SERVICE_NAME: rules
       CONTROL_PLANE_NAME: rules
       CONTROL_PLANE_TOKEN: ${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}
-      INTERNAL_GATEWAY_URL: http://gateway:8083
       SPRING_PROFILES_ACTIVE: gateway
       DATABASE_URL: jdbc:postgresql://rules-db:5432/server_rules
       POSTGRES_USER: server_rules
@@ -475,6 +484,7 @@ services:
       MAX_CONCURRENT_TASKS: ${HTTP_MAX_CONCURRENT_TASKS:-100}
     volumes:
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
+      - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
     healthcheck:
       test: [CMD-SHELL, 'wget -qO- "http://127.0.0.1:$${SERVER_PORT}/healthz" >/dev/null']
       interval: 10s
