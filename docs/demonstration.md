@@ -317,6 +317,14 @@ The Postman collections run through the public Gateway. The [guided demo](../pos
 
 [HTTP checks](../postman/HTTP-CHECKS.md) describes the read-only public folder and the private Discovery health folder.
 
+Each service has its own collection in `postman/`: `applicant`, `credential`, `discord-dms`, `moderation`, `server-rules`, and `university-record`. The runner creates what a collection needs through the public Gateway, then runs it with the same redaction and report:
+
+```sh
+./scripts/run_newman.sh --service applicant
+```
+
+The runner registers disposable players, builds a team and a Session with an assigned Moderator, starts the shift and opens a case where the collection needs one, and grants a disposable player administrator access for the run. It revokes that access when the run ends, as the [catalog seed](../scripts/seed_university_catalog.py) does. The grant runs `docker compose exec player` in the repository root. Pass `--compose-dir DIR` when the stack runs from another directory. `server-rules` needs a published rule version, and `moderation` opens a second case for its ban folder. The report goes to `.local/postman/<service>/newman-htmlextra.html`. To see which services handle a request, follow its `X-Request-ID` in the Broker log as [the guided demo](../postman/GUIDED-DEMO.md#follow-a-request-through-the-services) describes.
+
 ## Check the repository
 
 These checks cover the repository tools and links. They do not need a running stack:
