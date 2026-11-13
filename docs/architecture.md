@@ -129,7 +129,7 @@ These boundaries apply:
 
 Discord DMs WebSockets stay outside the Broker. Public routes and their responses do not change.
 
-The Broker also carries the [domain events](contracts/events.md) as topics. A topic event names a topic, not its recipients, and every subscribing service receives one copy. The topics are the four existing events, `CaseInitialized`, `DecisionScored`, `ShiftEnded`, and `DisciplinaryActionApplied`. Each replica declares the topics it consumes when it registers with Discovery, and the Broker derives `subscriptions` from those registrations. Events, deliveries, and subscriptions live in the Broker's own PostgreSQL, `broker-db`. The [queues and topics contract](contracts/queues.md) defines the targeted queues, topic delivery, subscriptions, and retries.
+The Broker also carries the [domain events](contracts/events.md) as topics. A topic event names a topic, not its recipients, and every subscribing service receives one copy. The topics are the four existing events, `CaseInitialized`, `DecisionScored`, `ShiftEnded`, and `DisciplinaryActionApplied`. Each replica declares the topics it consumes when it registers with Discovery, and the Broker derives `subscriptions` from those registrations. Events, deliveries, and subscriptions live in the Broker's own PostgreSQL, `broker-db`. The [queues and topics contract](contracts/queues.md) defines the targeted queues, topic delivery, subscriptions, and retries. Each delivery gets a bounded number of attempts. A rejected or exhausted delivery moves to the Broker's `dead_letters` table, which administrators list through `GET /api/v1/admin/broker/dead-letters`, as the [dead-letter contract](contracts/dead-letters.md) defines.
 
 ## Gateway authorization
 
