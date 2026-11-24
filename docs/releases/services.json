@@ -242,6 +242,28 @@
    },
    "publication_run": 43435788399,
    "repository_source_labels_verified": true
+  },
+  {
+   "service": "etl",
+   "submodule": "etl-service",
+   "repository": "ChillGuysStudio/etl-service",
+   "version": "5.0.0",
+   "source_sha": "b61e4d80952754114386bf807d7b600e6c5601a5",
+   "image": "maxnoragami/etl-service@sha256:1919487e9aea046f331baef963ed013c0883b5cf0512edcbd6e1e5cf0d9e6a2f",
+   "platforms": {
+    "amd64": "sha256:28260a8e7c76ead78b262695039b66e31a0c31540a30f08b73eb7332456b5ac4",
+    "arm64": "sha256:f9dc614942a6d1cef73ca6151d0874e78100f5a48949e1a81fc3304f3e08e601"
+   },
+   "configs": {
+    "amd64": "sha256:bcedbd23b742558d3c976710cb8cb99f69af138a07290029566736c007d23a70",
+    "arm64": "sha256:1c17c53437681ae133003f0cea3d9e56bbd5103ad92e2e13e1deed982cb06a73"
+   },
+   "revision_labels": {
+    "amd64": "b61e4d80952754114386bf807d7b600e6c5601a5",
+    "arm64": "b61e4d80952754114386bf807d7b600e6c5601a5"
+   },
+   "publication_run": 45488986770,
+   "repository_source_labels_verified": true
   }
  ]
 }

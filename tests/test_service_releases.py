@@ -12,9 +12,9 @@ DIGEST = r"sha256:[0-9a-f]{64}"
 IMAGE_KEYS = {"gateway": "GATEWAY", "discovery": "DISCOVERY", "player": "PLAYER", "session": "SESSION",
               "moderation": "MODERATION", "discord-dms": "DISCORD_DMS", "applicant": "APPLICANT",
               "credential": "CREDENTIAL", "rules": "SERVER_RULES", "university_record": "UNIVERSITY_RECORD",
-              "broker": "BROKER"}
-# Released services that Compose does not run.
-NOT_DEPLOYED = set()
+              "broker": "BROKER", "etl": "ETL"}
+# Released services that Compose does not run yet. The ETL joins when its warehouse job lands.
+NOT_DEPLOYED = {"etl"}
 
 
 class ServiceReleases(unittest.TestCase):
