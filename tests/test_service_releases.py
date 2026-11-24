@@ -13,8 +13,8 @@ IMAGE_KEYS = {"gateway": "GATEWAY", "discovery": "DISCOVERY", "player": "PLAYER"
               "moderation": "MODERATION", "discord-dms": "DISCORD_DMS", "applicant": "APPLICANT",
               "credential": "CREDENTIAL", "rules": "SERVER_RULES", "university_record": "UNIVERSITY_RECORD",
               "broker": "BROKER", "etl": "ETL"}
-# Released services that Compose does not run yet. The ETL joins when its warehouse job lands.
-NOT_DEPLOYED = {"etl"}
+# Released services that Compose does not run.
+NOT_DEPLOYED = set()
 
 
 class ServiceReleases(unittest.TestCase):

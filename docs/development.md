@@ -52,7 +52,15 @@ The stack runs one Discovery, one Gateway, and two replicas of each domain servi
 
 	The script registers a local seed player, stores its credentials in `.local/stack/seed-admin.json`, grants it admin for the import, and revokes admin afterwards. It prints the number of created, already present, and failed entries. Running it again is safe.
 
-7. Inspect container status:
+7. Create the read-only roles that the ETL uses. The services must have created their tables, so run the command after the stack is up:
+
+	```sh
+	python3 scripts/warehouse_roles.py
+	```
+
+	The script reads `WAREHOUSE_READER_PASSWORD` from `.env` and grants the columns of the [warehouse contract](contracts/warehouse.md). Running it again is safe.
+
+8. Inspect container status:
 
 	```sh
 	docker compose ps
@@ -67,6 +75,8 @@ Each bind mount ends in `:ro,z`. On an SELinux host such as Fedora, `z` makes Do
 Java services select their current gateway adapters. Moderation and DMs use `AUTH_MODE=gateway`. Session's peer clients default to gRPC, not mocks. The Message Broker keeps topic events, deliveries, and subscriptions in `broker-db`. It applies its schema at startup.
 
 Every domain service and Gateway has a health check, so `--wait` returns after their APIs answer. The Moderation outbox publisher has none and counts as ready once it runs. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
+
+The MongoDB of Applicant and Credential requires authentication. A `mongo-data` volume from an earlier release has no user, so the stack needs a new volume or a user that you create with MongoDB's localhost exception. An earlier `.env` also lacks `CASES_MONGO_PASSWORD`, `WAREHOUSE_DB_PASSWORD`, and `WAREHOUSE_READER_PASSWORD`. Use a fresh clone to generate them.
 
 Run `docker compose down` to stop the stack and keep its data. Add `--volumes` only for a disposable project whose stored data you intend to delete.
 

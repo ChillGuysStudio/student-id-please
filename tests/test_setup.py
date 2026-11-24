@@ -124,7 +124,7 @@ class SetupTests(unittest.TestCase):
     def test_compose_images_default_to_latest(self):
         compose = (ROOT / "compose.yaml").read_text()
         self.assertNotIn("_IMAGE:?", compose)
-        self.assertEqual(len(re.findall(r"image: \$\{[A-Z_]+_IMAGE:-[a-z0-9._-]+/[a-z0-9._-]+:latest\}", compose)), 12)
+        self.assertEqual(len(re.findall(r"image: \$\{[A-Z_]+_IMAGE:-[a-z0-9._-]+/[a-z0-9._-]+:latest\}", compose)), 13)
 
     def test_bind_mounts_carry_the_shared_selinux_label(self):
         # On SELinux hosts such as Fedora, a bind mount without `z` is unreadable inside the container.
