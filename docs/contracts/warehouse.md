@@ -51,7 +51,7 @@ Dimension and fact tables live in the `warehouse` schema. Keys are the source id
 | `fact_case_evidence` | `case_id`, `owner` | `session_id`, `state`, `item_count` |
 | `fact_university_catalogue` | `kind` | `entry_count` |
 
-Every row also has `loaded_at`, the time the ETL last changed it. Snapshot tables have `removed_at`, described in [load modes](#load-modes).
+Every row also has `loaded_at`, the time the ETL last changed it. Snapshot tables have `removed_at`, described in [load modes](#load-modes). `dim_date` holds the days that loaded facts refer to.
 
 ## Sources
 
@@ -89,9 +89,9 @@ The view computes `itemCount`, so evidence never reaches the ETL. A document wit
 
 ## Load modes
 
-**Snapshot.** The ETL reads every listed row in one read transaction and upserts it. A row that the source no longer returns gets `removed_at`. The ETL never deletes a warehouse row, except that it replaces the participants of a shift it loads. This mode is for tables whose rows change or that have no timestamp. Most source tables have no `updated_at` column, so a cursor would miss their changes.
+**Snapshot.** The ETL reads every listed row in one read transaction and upserts it. A row that the source no longer returns gets `removed_at`. The ETL never deletes a warehouse row. This mode is for tables whose rows change or that have no timestamp. Most source tables have no `updated_at` column, so a cursor would miss their changes.
 
-**Append.** The rows never change after insert, and the source has an insert timestamp. The ETL reads rows from the cursor minus ten minutes and upserts them by identifier. The overlap catches a transaction that committed after a later timestamp was read. For chat, the ETL truncates the start to the hour and replaces the counts of each hour it reads. The cursor is the greatest timestamp loaded.
+**Append.** The rows never change after insert, and the source has an insert timestamp. The ETL reads rows from the cursor minus ten minutes and upserts them by identifier. The overlap catches a transaction that committed after a later timestamp was read. For chat, the ETL truncates the start to the hour and sets the counts of each hour it reads. The cursor is the greatest timestamp loaded.
 
 A rerun changes no row whose values are equal, so it adds no duplicates and keeps `loaded_at`.
 
