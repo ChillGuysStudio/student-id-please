@@ -29,6 +29,14 @@ The diagram in [architecture](architecture.md) shows the replicated topology.
 
 	On a fresh stack the script prints `University catalog: 69 created, 0 already present, 0 failed (of 69)`. Later runs print `0 created, 69 already present`.
 
+5. Create the read-only roles that the ETL uses. Until you do, each ETL run reports every source as `failed` with `unauthorized`:
+
+	```sh
+	python3 scripts/warehouse_roles.py
+	```
+
+	The script prints one `ok` line for each of the seven databases. Running it again is safe.
+
 To stop the stack and keep its data, run `docker compose down`. Never add `--volumes` to a stack you want to keep.
 
 ## Scale a service
@@ -305,6 +313,50 @@ The Broker sends each request to the replica with the lowest load and reroutes a
 	```
 
 	The broker dashboard shows the reroutes by decision, the breaker trip, and the extra `removed` instance.
+
+## Load the warehouse
+
+The ETL service copies analytics data from the eight domain services into `warehouse-db`, as the [warehouse contract](contracts/warehouse.md) defines. It runs every `ETL_INTERVAL`, five minutes by default.
+
+1. Play a shift, for example with the guided demo in [Run the HTTP checks](#run-the-http-checks). Then run one load:
+
+	```sh
+	docker compose run --rm etl --once
+	```
+
+	Each `etl_source` record reports one service. The command exits with status 0 when all eight load, and with status 3 when the interval run holds the lock. Run it again to see `rows_written` at 0 for every source.
+
+2. Query the facts:
+
+	```sh
+	docker compose exec warehouse-db psql -U warehouse -c "
+		SELECT s.session_id, s.duration_seconds, f.processed_count, f.score, count(d.decision_id) AS decisions,
+			count(*) FILTER (WHERE d.correct) AS correct
+		FROM warehouse.fact_shift_score f JOIN warehouse.dim_shift s USING (session_id)
+		LEFT JOIN warehouse.fact_decision d USING (session_id) GROUP BY 1, 2, 3, 4"
+	```
+
+3. Read the history of runs:
+
+	```sh
+	docker compose exec warehouse-db psql -U warehouse -c "
+		SELECT source, outcome, rows_read, rows_written, error_kind, finished_at
+		FROM warehouse.etl_runs ORDER BY finished_at DESC LIMIT 8"
+	```
+
+4. Stop one source and run a load. That source reports `failed` with `unavailable`, and the other seven load:
+
+	```sh
+	docker compose stop dms-db
+	docker compose run --rm etl --once
+	docker compose start dms-db
+	```
+
+5. Show that the reader role cannot read a hidden column. The command fails with `permission denied for table players`:
+
+	```sh
+	docker compose exec player-db psql -U player -d player_db -c 'SET ROLE warehouse_reader' -c 'SELECT password_hash FROM players'
+	```
 
 ## Run the HTTP checks
 

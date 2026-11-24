@@ -1,6 +1,6 @@
 # Architecture
 
-The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database.
+The game separates player progression, shift coordination, evidence, admission policy, and chat. Each service owns its storage. Other services use its APIs or events instead of reading its database. The ETL service is the one exception. It reads the columns in the [warehouse contract](contracts/warehouse.md) as a read-only role.
 
 The diagram below shows the services, replicas, request paths, storage, event connections, and monitoring. The Message Broker carries both targeted requests and topic events, and keeps topic state in `broker-db`. Its source is [`docs/diagrams/architecture.mmd`](diagrams/architecture.mmd), and a test keeps this copy identical to it. [Game flows](flows.md) describe the request and event sequences. [Integration principles](integration.md) explain how mocks and real peers use these contracts.
 
