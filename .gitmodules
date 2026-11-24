@@ -31,3 +31,6 @@
 [submodule "message-broker-service"]
 	path = message-broker-service
 	url = git@github.com:ChillGuysStudio/message-broker-service.git
+[submodule "etl-service"]
+	path = etl-service
+	url = git@github.com:ChillGuysStudio/etl-service.git
