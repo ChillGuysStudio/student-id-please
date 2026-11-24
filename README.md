@@ -85,6 +85,7 @@ Rules introduced by updates to this README or the other project documentation ap
 - [Domain events](docs/contracts/events.md)
 - [Message Broker queues and topics](docs/contracts/queues.md)
 - [Durable delivery and dead letters](docs/contracts/dead-letters.md)
+- [Warehouse and ETL](docs/contracts/warehouse.md)
 - [Service-to-service gRPC](docs/contracts/grpc.md)
 - [Load routing and rerouting](docs/contracts/routing.md)
 - [Service metrics and monitoring](docs/contracts/metrics.md)
