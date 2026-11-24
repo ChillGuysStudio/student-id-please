@@ -89,7 +89,7 @@ The view computes `itemCount`, so evidence never reaches the ETL. A document wit
 
 ## Load modes
 
-**Snapshot.** The ETL reads every listed row in one read transaction and upserts it. A row that the source no longer returns gets `removed_at`. The ETL never deletes a warehouse row. This mode is for tables whose rows change or that have no timestamp. Most source tables have no `updated_at` column, so a cursor would miss their changes.
+**Snapshot.** The ETL reads every listed row and upserts it. The reads of one PostgreSQL service share one read-only transaction. Each MongoDB view is one majority read. A row that the source no longer returns gets `removed_at`. The ETL never deletes a warehouse row. A missing MongoDB view fails the source, because a read of a missing view returns no documents. This mode is for tables whose rows change or that have no timestamp. Most source tables have no `updated_at` column, so a cursor would miss their changes.
 
 **Append.** The rows never change after insert, and the source has an insert timestamp. The ETL reads rows from the cursor minus ten minutes and upserts them by identifier. The overlap catches a transaction that committed after a later timestamp was read. For chat, the ETL truncates the start to the hour and sets the counts of each hour it reads. The cursor is the greatest timestamp loaded.
 
@@ -120,4 +120,4 @@ Records follow the [logging contract](logging.md) with `service` set to `etl`. T
 - As `warehouse_reader`, selecting `players.password_hash`, `messages.text`, or `decisions.policy` fails with a permission error, and reading `applicant_cases` directly fails with an authorization error.
 - After a played shift, `etl --once` fills each fact table. A second run reports zero `rows_written`.
 - With one source stopped, the run reports that source as `failed` and loads the other seven.
-- A test compares the columns the ETL selects with the tables in this document.
+- `scripts/warehouse_roles.py` creates the roles and views. A test compares its columns with the tables in this document, and a test in the ETL repository compares the columns it selects with the same list.
