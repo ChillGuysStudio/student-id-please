@@ -94,6 +94,9 @@ def prepare(root, gateway_port=8080, dms_port=8009):
     config.update(GATEWAY_PORT=gateway_port, DMS_PORT=dms_port,
                   HTTP_TASK_TIMEOUT_SECONDS="30", HTTP_MAX_CONCURRENT_TASKS="100", JAVA_TASK_TIMEOUT="30s")
     save(root / ".env", env_text(config))
+    # The members of a MongoDB replica set share a key. The containers copy it with the owner that mongod requires.
+    for name in ("mongo-cases.key", "mongo-university.key"):
+        save(directory / name, base64.b64encode(secrets.token_bytes(750)).decode() + "\n", 0o444)
     # Prometheus runs as an unprivileged user, so it reads the token file like the mounted public keys.
     save(directory / "prometheus-control-token", config["PROMETHEUS_CONTROL_TOKEN"], 0o444)
     caller_names, credentials = {}, {}

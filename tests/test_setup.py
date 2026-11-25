@@ -194,7 +194,7 @@ class SetupTests(unittest.TestCase):
                 self.assertIn(f"    <<: *{name}\n    hostname: {node}\n", block)
                 self.assertNotIn("ports:", block)
             self.assertNotIn(f"\n  {name}:\n", compose)
-            self.assertIn(f'"{name}"', roles.split("REPLICATED = {", 1)[1].split("}", 1)[0])
+            self.assertIn(f'    "{name}": (', roles)
         config = (ROOT / "config/patroni/patroni.yml").read_text()
         for setting in ("synchronous_mode: true", "failsafe_mode: true", "ttl: 20"):
             self.assertIn(setting, config)
@@ -207,8 +207,26 @@ class SetupTests(unittest.TestCase):
         for name in ("applicant", "credential", "university-record", "server-rules"):
             block = compose.split(f"\n  {name}:\n", 1)[1].split("\n    healthcheck:\n", 1)[0]
             self.assertIn("      <<: [*registration, *java-memory]\n", block, name)
-        self.assertEqual(compose.count("--wiredTigerCacheSizeGB, '0.25'"), 2)
-        self.assertEqual(compose.count("      start_interval: 3s\n"), 2)
+        self.assertEqual(compose.count("--wiredTigerCacheSizeGB, '0.25'"), 1)
+        self.assertEqual(compose.count("  start_interval: 3s\n"), 1)
+
+    def test_mongodb_replica_sets_have_three_members_and_one_key(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        for name, key in (("mongodb", "mongo-cases.key"), ("university-mongodb", "mongo-university.key")):
+            for member in (f"{name}-1", f"{name}-2", f"{name}-3"):
+                block = compose.split(f"\n  {member}:\n", 1)[1].split(":/data/db\n", 1)[0]
+                self.assertIn(f"    <<: *{name}\n    hostname: {member}\n", block)
+                self.assertIn(f"./.local/stack/{key}:/run/replica-set.key:ro,z", block)
+                self.assertNotIn("ports:", block)
+            self.assertEqual(block.count("MONGO_INITDB_ROOT_USERNAME"), 0)
+            self.assertNotIn(f"\n  {name}:\n", compose)
+        self.assertNotIn("directConnection", compose)
+        self.assertEqual(compose.count("MONGO_INITDB_ROOT_USERNAME:"), 2)
+        setup.prepare(self.root)
+        keys = [(self.root / ".local/stack" / key).read_text() for key in ("mongo-cases.key", "mongo-university.key")]
+        self.assertNotEqual(*keys)
+        for key in keys:
+            self.assertRegex(key, r"^[A-Za-z0-9+/]{6,1024}\n$")
 
     def test_monitoring_services_bind_to_localhost_and_publish_no_metrics_port(self):
         compose = (ROOT / "compose.yaml").read_text()
