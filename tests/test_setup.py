@@ -218,7 +218,7 @@ class SetupTests(unittest.TestCase):
                 self.assertIn(f"    <<: *{name}\n    hostname: {member}\n", block)
                 self.assertIn(f"./.local/stack/{key}:/run/replica-set.key:ro,z", block)
                 self.assertNotIn("ports:", block)
-            self.assertEqual(block.count("MONGO_INITDB_ROOT_USERNAME"), 0)
+                self.assertEqual("MONGO_INITDB_ROOT_USERNAME" in block, member.endswith("-1"), member)
             self.assertNotIn(f"\n  {name}:\n", compose)
         self.assertNotIn("directConnection", compose)
         self.assertEqual(compose.count("MONGO_INITDB_ROOT_USERNAME:"), 2)
