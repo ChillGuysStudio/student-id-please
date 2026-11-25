@@ -206,9 +206,19 @@ class SetupTests(unittest.TestCase):
         self.assertIn("-Xmx128m", compose.split("x-java-memory: &java-memory\n", 1)[1].split("\n\n", 1)[0])
         for name in ("applicant", "credential", "university-record", "server-rules"):
             block = compose.split(f"\n  {name}:\n", 1)[1].split("\n    healthcheck:\n", 1)[0]
-            self.assertIn("      <<: [*registration, *java-memory]\n", block, name)
+            self.assertIn("      <<: [*registration, *java-memory, *cache]\n", block, name)
         self.assertEqual(compose.count("--wiredTigerCacheSizeGB, '0.25'"), 1)
         self.assertEqual(compose.count("  start_interval: 3s\n"), 1)
+
+    def test_cache_is_bounded_private_and_separate(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        block = compose.split("\n  cache-1:\n", 1)[1].split("\n  redis:\n", 1)[0]
+        for setting in ("--maxmemory, 48mb", "--maxmemory-policy, allkeys-lru", "--save, ''", "--appendonly, 'no'", "--requirepass"):
+            self.assertIn(setting, block)
+        self.assertNotIn("ports:", block)
+        self.assertNotIn("volumes:", block)
+        self.assertEqual(compose.count("*cache]"), 8)
+        self.assertNotIn("cache-1", compose.split("\n  redis:\n", 1)[1].split("\n  mongodb-1:\n", 1)[0])
 
     def test_mongodb_replica_sets_have_three_members_and_one_key(self):
         compose = (ROOT / "compose.yaml").read_text()
