@@ -185,6 +185,15 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(compose.count("replicas: 2"), 8)
         self.assertIn("GATEWAY_CHAT_WS_URL: ws://localhost:${DMS_PORT:-8009}", compose)
 
+    def test_java_services_and_mongodb_have_memory_limits(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        self.assertIn("-Xmx128m", compose.split("x-java-memory: &java-memory\n", 1)[1].split("\n\n", 1)[0])
+        for name in ("applicant", "credential", "university-record", "server-rules"):
+            block = compose.split(f"\n  {name}:\n", 1)[1].split("\n    healthcheck:\n", 1)[0]
+            self.assertIn("      <<: [*registration, *java-memory]\n", block, name)
+        self.assertEqual(compose.count("--wiredTigerCacheSizeGB, '0.25'"), 2)
+        self.assertEqual(compose.count("      start_interval: 3s\n"), 2)
+
     def test_monitoring_services_bind_to_localhost_and_publish_no_metrics_port(self):
         compose = (ROOT / "compose.yaml").read_text()
         self.assertRegex(compose, r"\n  prometheus:\n(    .*\n|      .*\n)*    image: prom/prometheus:v3\.1\.0\n")

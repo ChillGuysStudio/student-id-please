@@ -54,7 +54,7 @@ class WarehouseRoles(unittest.TestCase):
 
     def test_case_mongodb_requires_authentication(self):
         compose = (ROOT / "compose.yaml").read_text()
-        self.assertEqual(compose.count("command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key, --bind_ip_all]"), 2)
+        self.assertEqual(compose.count("command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key, --bind_ip_all, --wiredTigerCacheSizeGB, '0.25']"), 2)
         self.assertNotIn("mongodb://mongodb:27017", compose)
 
 
