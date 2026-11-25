@@ -31,6 +31,7 @@ One etcd node holds the leader keys of all five databases, each under its own sc
 | `failsafe_mode` | `true` | Without etcd, the primary continues while it reaches every other member. Without this setting, every database becomes read-only when etcd stops. |
 | `ttl`, `loop_wait`, `retry_timeout` | 20, 3, 3 seconds | 20 seconds is the smallest `ttl` that Patroni accepts. It bounds the time to notice a killed primary. |
 | Base backup checkpoint | `fast` | A lazy checkpoint delays a new standby by more than a minute. |
+| `max_slot_wal_keep_size` | 512 MB | A standby that stays down cannot fill the primary's disk. |
 | `shared_buffers` | 64 MB | The nodes of all databases share one laptop. |
 
 With `synchronous_mode`, a primary that runs alone has one copy of new writes until a standby returns.
@@ -60,7 +61,7 @@ A frozen node, such as a paused container, does not close its sockets. A standby
 
 Each deployment is a replica set with three data-bearing members and majority writes. An arbiter in place of the third member is not enough. With one data-bearing member lost, a majority write cannot complete, so a failover would not restore writes.
 
-Members of one set share a keyfile from a generated secret in `.local/stack`. A keyfile generated in each container would differ between members. Each member has its own volume and a 256 MB cache, and the health check rules of [development](../development.md) apply.
+Members of one set share a keyfile from a generated secret in `.local/stack`. A keyfile generated in each container would differ between members. Only the first member creates the replica set and its user, on empty volumes. The second and third members copy their data when they join. If the volume of the first member is lost while the others keep theirs, an operator must restore the member by hand. Each member has its own volume and a 256 MB cache, and the health check rules of [development](../development.md) apply.
 
 | Client | Connection setting |
 | --- | --- |
@@ -71,7 +72,7 @@ Members of one set share a keyfile from a generated secret in `.local/stack`. A 
 
 - Schema migrations use the same connection settings, so they run on the primary. Replicas of one service start together, so a migration holds its existing lock.
 - A service with no reachable primary reports unready. Discovery treats it as an unready instance, not as a removal. A failover must not leave an instance durably removed after the database returns, so services answer `STORAGE_UNAVAILABLE`, as [storage outages](resilience.md#storage-outages) defines.
-- The health check of a PostgreSQL node passes when the node is a running primary or a streaming standby.
+- The health check of a PostgreSQL node uses the Patroni `readiness` endpoint. It passes for the leader and for a running standby.
 - The role script of the [warehouse contract](warehouse.md) runs against the primary. The roles replicate to the standbys.
 
 ## Existing volumes
