@@ -162,16 +162,16 @@ docker run --rm --network student-id-please_default -e SERVICE_TOKEN -v "$PWD/pr
 
 Session answers with 422, and the listing shows the delivery with reason `rejected` after one attempt. Other topics keep delivering.
 
-Make one consumer fail on every attempt while it stays ready. Player's readiness check only reads, so a read-only database makes each delivery fail with a retryable 500:
+Make one consumer fail on every attempt while it stays ready. Without permission to insert into its ledger, Player answers each delivery with a retryable 500. An unavailable or read-only database would make Player unready instead, and the delivery would wait:
 
 ```sh
-docker compose exec player-db psql -U player -d player_db -c 'ALTER SYSTEM SET default_transaction_read_only = on' -c 'SELECT pg_reload_conf()'
+docker compose exec player-db-1 sh -c 'PGPASSWORD=$APP_PASSWORD psql "host=player-db-1,player-db-2,player-db-3 user=$APP_USER dbname=$APP_DB target_session_attrs=read-write" -c "REVOKE INSERT ON progression_ledger FROM player"'
 ```
 
-End a shift. After five attempts, about a minute, the `ShiftEnded` delivery to Player appears in the listing with reason `exhausted`. Restore the database:
+End a shift. After five attempts, about a minute, the `ShiftEnded` delivery to Player appears in the listing with reason `exhausted`. Restore the permission:
 
 ```sh
-docker compose exec player-db psql -U player -d player_db -c 'ALTER SYSTEM RESET default_transaction_read_only' -c 'SELECT pg_reload_conf()'
+docker compose exec player-db-1 sh -c 'PGPASSWORD=$APP_PASSWORD psql "host=player-db-1,player-db-2,player-db-3 user=$APP_USER dbname=$APP_DB target_session_attrs=read-write" -c "GRANT INSERT ON progression_ledger TO player"'
 ```
 
 Accepted events survive a Broker restart. Stop Credential, start a case, restart the Broker and its database, then start Credential again:
@@ -355,7 +355,39 @@ The ETL service copies analytics data from the eight domain services into `wareh
 5. Show that the reader role cannot read a hidden column. The command fails with `permission denied for table players`:
 
 	```sh
-	docker compose exec player-db psql -U player -d player_db -c 'SET ROLE warehouse_reader' -c 'SELECT password_hash FROM players'
+	docker compose exec player-db-1 psql -h /tmp -U postgres -d player_db -c 'SET ROLE warehouse_reader' -c 'SELECT password_hash FROM players'
+	```
+
+## Fail over a database
+
+Player and Session each have three PostgreSQL nodes, as the [replication contract](contracts/replication.md) defines.
+
+1. Show the nodes. One is the leader, one is the synchronous standby, and one is a replica:
+
+	```sh
+	docker compose exec player-db-1 patronictl -c /config/patroni.yml list
+	```
+
+2. Kill the leader that the list names, for example `player-db-2`:
+
+	```sh
+	docker compose kill player-db-2
+	docker compose exec player-db-1 patronictl -c /config/patroni.yml list
+	```
+
+	Requests that need Player answer `503` with `STORAGE_UNAVAILABLE` or `NO_HEALTHY_INSTANCES` for up to 25 seconds. Then another node leads, and requests succeed. Discovery removes no replica.
+
+3. Start the node again. It rejoins as a replica:
+
+	```sh
+	docker compose start player-db-2
+	```
+
+4. Stop etcd. Every database keeps accepting writes:
+
+	```sh
+	docker compose stop etcd
+	docker compose start etcd
 	```
 
 ## Run the HTTP checks

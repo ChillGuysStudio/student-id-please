@@ -185,6 +185,22 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(compose.count("replicas: 2"), 8)
         self.assertIn("GATEWAY_CHAT_WS_URL: ws://localhost:${DMS_PORT:-8009}", compose)
 
+    def test_replicated_databases_have_three_patroni_nodes(self):
+        compose = (ROOT / "compose.yaml").read_text()
+        roles = (ROOT / "scripts/warehouse_roles.py").read_text()
+        for name in ("player-db", "session-db"):
+            for node in (f"{name}-1", f"{name}-2", f"{name}-3"):
+                block = compose.split(f"\n  {node}:\n", 1)[1].split("/home/postgres/pgdata\n", 1)[0]
+                self.assertIn(f"    <<: *{name}\n    hostname: {node}\n", block)
+                self.assertNotIn("ports:", block)
+            self.assertNotIn(f"\n  {name}:\n", compose)
+            self.assertIn(f'"{name}"', roles.split("REPLICATED = {", 1)[1].split("}", 1)[0])
+        config = (ROOT / "config/patroni/patroni.yml").read_text()
+        for setting in ("synchronous_mode: true", "failsafe_mode: true", "ttl: 20"):
+            self.assertIn(setting, config)
+        for script in ("start.sh", "post_bootstrap.sh"):
+            self.assertTrue((ROOT / "config/patroni" / script).stat().st_mode & 0o111, script)
+
     def test_java_services_and_mongodb_have_memory_limits(self):
         compose = (ROOT / "compose.yaml").read_text()
         self.assertIn("-Xmx128m", compose.split("x-java-memory: &java-memory\n", 1)[1].split("\n\n", 1)[0])
@@ -208,7 +224,7 @@ class SetupTests(unittest.TestCase):
         self.assertIn("  prometheus-data:\n", compose)
         self.assertNotIn("grafana-data", compose)
         self.assertEqual(compose.count('"prometheus":"${PROMETHEUS_CONTROL_TOKEN:?'), 1)
-        discovery = compose.split("\n  discovery:\n", 1)[1].split("\n  player-db:", 1)[0]
+        discovery = compose.split("\n  discovery:\n", 1)[1].split("\n  etcd:", 1)[0]
         self.assertIn('"prometheus":"${PROMETHEUS_CONTROL_TOKEN:?', discovery)
         registration = compose.split("\nservices:", 1)[0]
         self.assertNotIn("PROMETHEUS_CONTROL_TOKEN", registration)
