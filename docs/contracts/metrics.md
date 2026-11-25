@@ -69,7 +69,7 @@ Every histogram uses these bucket bounds, in seconds: `0.005`, `0.01`, `0.025`, 
 
 | Name | Type | Labels | Meaning |
 | --- | --- | --- | --- |
-| `student_id_broker_dispatch_total` | Counter | `target_service`, `target_instance`, `attempt`, `outcome` | Targeted attempts, including policy reads. `attempt` is `first` or `reroute`. `outcome` is `ok`, `rejected`, `storage_unavailable`, `connection_error`, `timeout`, or `http_5xx`. |
+| `student_id_broker_dispatch_total` | Counter | `target_service`, `target_instance`, `attempt`, `outcome` | Targeted attempts, including policy reads. `attempt` is `first` or `reroute`. `outcome` is `ok`, `rejected`, `storage_unavailable`, `dependency_unavailable`, `connection_error`, `timeout`, or `http_5xx`. |
 | `student_id_broker_dispatch_duration_seconds` | Histogram | `target_service` | Duration of each targeted attempt |
 | `student_id_broker_backend_in_flight` | Gauge | `target_service`, `target_instance` | The Broker's unfinished targeted attempts to the generation, `in_flight` in the [load formula](routing.md#load) |
 | `student_id_broker_backend_load` | Gauge | `target_service`, `target_instance` | The load that selection uses. Only eligible generations have a series. |
