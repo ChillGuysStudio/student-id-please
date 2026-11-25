@@ -14,6 +14,48 @@ x-java-memory: &java-memory
     -XX:+UseSerialGC -Xms32m -Xmx128m -Xss512k -XX:+UseCompactObjectHeaders -XX:TieredStopAtLevel=1
   MALLOC_ARENA_MAX: '2'
 
+# One node of a replicated PostgreSQL database. docs/contracts/replication.md defines the settings.
+x-patroni: &patroni
+  image: ghcr.io/zalando/spilo-17:4.0-p3
+  entrypoint: [/usr/bin/dumb-init, /config/start.sh]
+  healthcheck:
+    test: [CMD, curl, -fsS, -o, /dev/null, 'http://127.0.0.1:8008/readiness']
+    interval: 5s
+    timeout: 3s
+    retries: 20
+    start_period: 30s
+  depends_on:
+    etcd:
+      condition: service_healthy
+  stop_grace_period: 30s
+  restart: unless-stopped
+x-patroni-environment: &patroni-environment
+  PATRONI_ETCD3_HOSTS: etcd:2379
+  PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+  PATRONI_RESTAPI_USERNAME: patroni
+  PATRONI_RESTAPI_PASSWORD: ${PATRONI_REST_PASSWORD:?Set PATRONI_REST_PASSWORD in .env}
+  PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+  PATRONI_SUPERUSER_USERNAME: postgres
+  PATRONI_SUPERUSER_PASSWORD: ${PATRONI_SUPERUSER_PASSWORD:?Set PATRONI_SUPERUSER_PASSWORD in .env}
+  PATRONI_REPLICATION_USERNAME: replicator
+  PATRONI_REPLICATION_PASSWORD: ${PATRONI_STANDBY_PASSWORD:?Set PATRONI_STANDBY_PASSWORD in .env}
+
+x-player-db: &player-db
+  <<: *patroni
+  environment:
+    <<: *patroni-environment
+    PATRONI_SCOPE: player
+    APP_USER: player
+    APP_DB: player_db
+    APP_PASSWORD: ${PLAYER_DB_PASSWORD:?Set PLAYER_DB_PASSWORD in .env}
+x-session-db: &session-db
+  <<: *patroni
+  environment:
+    <<: *patroni-environment
+    PATRONI_SCOPE: session
+    APP_USER: session
+    APP_DB: session_db
+    APP_PASSWORD: ${SESSION_DB_PASSWORD:?Set SESSION_DB_PASSWORD in .env}
 x-registration: &registration
   DISCOVERY_GRPC_URL: http://discovery:50051
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
@@ -126,32 +168,59 @@ services:
       retries: 5
       start_period: 5s
     restart: unless-stopped
-  player-db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: player_db
-      POSTGRES_USER: player
-      POSTGRES_PASSWORD: ${PLAYER_DB_PASSWORD:?Set PLAYER_DB_PASSWORD in .env}
+  etcd:
+    # Holds the leader key of each replicated PostgreSQL database. It is reachable only on the container network.
+    image: quay.io/coreos/etcd:v3.6.5
+    command:
+      - etcd
+      - --data-dir=/data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+      - --auto-compaction-retention=1
     volumes:
-      - player-data:/var/lib/postgresql/data
+      - etcd-data:/data
     healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U player -d player_db']
+      test: [CMD, etcdctl, endpoint, health]
       interval: 5s
       timeout: 3s
       retries: 20
-  session-db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: session_db
-      POSTGRES_USER: session
-      POSTGRES_PASSWORD: ${SESSION_DB_PASSWORD:?Set SESSION_DB_PASSWORD in .env}
+    restart: unless-stopped
+  player-db-1:
+    <<: *player-db
+    hostname: player-db-1
     volumes:
-      - session-data:/var/lib/postgresql/data
-    healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U session -d session_db']
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      - ./config/patroni:/config:ro,z
+      - player-data-1:/home/postgres/pgdata
+  player-db-2:
+    <<: *player-db
+    hostname: player-db-2
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - player-data-2:/home/postgres/pgdata
+  player-db-3:
+    <<: *player-db
+    hostname: player-db-3
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - player-data-3:/home/postgres/pgdata
+  session-db-1:
+    <<: *session-db
+    hostname: session-db-1
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - session-data-1:/home/postgres/pgdata
+  session-db-2:
+    <<: *session-db
+    hostname: session-db-2
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - session-data-2:/home/postgres/pgdata
+  session-db-3:
+    <<: *session-db
+    hostname: session-db-3
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - session-data-3:/home/postgres/pgdata
   moderation-db:
     image: postgres:17-alpine
     environment:
@@ -238,14 +307,18 @@ services:
       SERVICE_NAME: player
       CONTROL_PLANE_NAME: player
       CONTROL_PLANE_TOKEN: ${PLAYER_CONTROL_TOKEN:?Set PLAYER_CONTROL_TOKEN in .env}
-      DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db
+      DATABASE_URL: postgresql+psycopg://player:${PLAYER_DB_PASSWORD}@/player_db?host=player-db-1,player-db-2,player-db-3&port=5432,5432,5432
       JWT_PRIVATE_KEY_PATH: /keys/player-private.pem
     volumes:
       - ./.local/stack/player-private.pem:/keys/player-private.pem:ro,z
       - ./.local/stack/gateway-public.pem:/keys/gateway-public.pem:ro,z
       - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
     depends_on:
-      player-db:
+      player-db-1:
+        condition: service_healthy
+      player-db-2:
+        condition: service_healthy
+      player-db-3:
         condition: service_healthy
     restart: unless-stopped
   session:
@@ -260,7 +333,7 @@ services:
       SERVICE_NAME: session
       CONTROL_PLANE_NAME: session
       CONTROL_PLANE_TOKEN: ${SESSION_CONTROL_TOKEN:?Set SESSION_CONTROL_TOKEN in .env}
-      DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@session-db:5432/session_db
+      DATABASE_URL: postgresql+psycopg://session:${SESSION_DB_PASSWORD}@/session_db?host=session-db-1,session-db-2,session-db-3&port=5432,5432,5432
       BROKER_GRPC_URL: http://message-broker:50051
       BROKER_SERVICE_TOKEN: ${SESSION_SERVICE_TOKEN:?Set SESSION_SERVICE_TOKEN in .env}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -269,7 +342,11 @@ services:
       - ./.local/stack/broker-public.pem:/keys/broker-public.pem:ro,z
       - ./.local/stack/player-public.pem:/keys/player-public.pem:ro,z
     depends_on:
-      session-db:
+      session-db-1:
+        condition: service_healthy
+      session-db-2:
+        condition: service_healthy
+      session-db-3:
         condition: service_healthy
       player:
         condition: service_healthy
@@ -626,8 +703,8 @@ services:
     environment:
       WAREHOUSE_DATABASE_URL: postgres://warehouse:${WAREHOUSE_DB_PASSWORD}@warehouse-db:5432/warehouse?sslmode=disable
       ETL_INTERVAL: ${ETL_INTERVAL:-5m}
-      ETL_PLAYER_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD:?Set WAREHOUSE_READER_PASSWORD in .env}@player-db:5432/player_db?sslmode=disable
-      ETL_SESSION_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@session-db:5432/session_db?sslmode=disable
+      ETL_PLAYER_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD:?Set WAREHOUSE_READER_PASSWORD in .env}@player-db-1:5432,player-db-2:5432,player-db-3:5432/player_db?sslmode=disable&target_session_attrs=prefer-standby
+      ETL_SESSION_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@session-db-1:5432,session-db-2:5432,session-db-3:5432/session_db?sslmode=disable&target_session_attrs=prefer-standby
       ETL_MODERATION_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@moderation-db:5432/moderation?sslmode=disable
       ETL_DISCORD_DMS_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@dms-db:5432/discord_dms?sslmode=disable
       ETL_RULES_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@rules-db:5432/server_rules?sslmode=disable
@@ -640,9 +717,14 @@ services:
     restart: unless-stopped
 volumes:
   discovery-state:
+  etcd-data:
   moderation-publisher-logs:
-  player-data:
-  session-data:
+  player-data-1:
+  player-data-2:
+  player-data-3:
+  session-data-1:
+  session-data-2:
+  session-data-3:
   moderation-data:
   dms-data:
   broker-db-data:

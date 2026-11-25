@@ -12,6 +12,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 ROLE = "warehouse_reader"
 
+# Databases with three Patroni nodes, named <database>-1 to <database>-3.
+REPLICATED = {"player-db", "session-db"}
+
 # Compose service: (user, database, {table: columns}).
 POSTGRES = {
     "player-db": ("player", "player_db", {
@@ -110,6 +113,16 @@ def reader_password(text):
     raise ValueError("Set WAREHOUSE_READER_PASSWORD in .env")
 
 
+def primary(service):
+    """Return the node that leads a replicated database."""
+    for node in (f"{service}-{n}" for n in (1, 2, 3)):
+        result = subprocess.run(["docker", "compose", "exec", "-T", node, "curl", "-fs", "-o", "/dev/null",
+                                 "http://127.0.0.1:8008/primary"], cwd=ROOT, capture_output=True)
+        if result.returncode == 0:
+            return node
+    raise RuntimeError(f"{service}: no node is the primary")
+
+
 def execute(service, command, script):
     """Run a script in a container. It goes through stdin, so no password is in an argument list."""
     result = subprocess.run(["docker", "compose", "exec", "-T", service, "sh", "-c", command],
@@ -128,7 +141,9 @@ def main():
         sys.exit(f"Warehouse roles failed: {error}")
     failed = False
     for service, (user, database, tables) in POSTGRES.items():
-        failed |= not report(service, f"psql -q -U {user} -d {database}", postgres_script(database, tables, password))
+        # Replicated nodes trust their own socket, where the superuser can create roles.
+        command = f"psql -q -h /tmp -U postgres -d {database}" if service in REPLICATED else f"psql -q -U {user} -d {database}"
+        failed |= not report(service, command, postgres_script(database, tables, password))
     for service, databases in MONGO.items():
         failed |= not report(service, 'mongosh --quiet --host 127.0.0.1 -u "$MONGO_INITDB_ROOT_USERNAME" '
                              '-p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --file /dev/stdin',
@@ -138,7 +153,7 @@ def main():
 
 def report(service, command, script):
     try:
-        execute(service, command, script)
+        execute(primary(service) if service in REPLICATED else service, command, script)
     except RuntimeError as error:
         print(f"failed  {error}")
         return False
