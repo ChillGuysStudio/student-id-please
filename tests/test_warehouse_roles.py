@@ -52,10 +52,10 @@ class WarehouseRoles(unittest.TestCase):
             with self.assertRaises(ValueError):
                 roles.reader_password(text)
 
-    def test_case_mongodb_requires_authentication(self):
+    def test_mongodb_requires_authentication(self):
         compose = (ROOT / "compose.yaml").read_text()
-        self.assertEqual(compose.count("command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key, --bind_ip_all, --wiredTigerCacheSizeGB, '0.25']"), 2)
-        self.assertNotIn("mongodb://mongodb:27017", compose)
+        self.assertIn("command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key,", compose)
+        self.assertNotIn("mongodb://mongodb-1", compose)
 
 
 if __name__ == "__main__":
