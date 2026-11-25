@@ -188,7 +188,7 @@ class SetupTests(unittest.TestCase):
     def test_replicated_databases_have_three_patroni_nodes(self):
         compose = (ROOT / "compose.yaml").read_text()
         roles = (ROOT / "scripts/warehouse_roles.py").read_text()
-        for name in ("player-db", "session-db"):
+        for name in ("player-db", "session-db", "moderation-db", "dms-db", "rules-db"):
             for node in (f"{name}-1", f"{name}-2", f"{name}-3"):
                 block = compose.split(f"\n  {node}:\n", 1)[1].split("/home/postgres/pgdata\n", 1)[0]
                 self.assertIn(f"    <<: *{name}\n    hostname: {node}\n", block)

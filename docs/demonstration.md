@@ -347,9 +347,9 @@ The ETL service copies analytics data from the eight domain services into `wareh
 4. Stop one source and run a load. That source reports `failed` with `unavailable`, and the other seven load:
 
 	```sh
-	docker compose stop dms-db
+	docker compose stop dms-db-1 dms-db-2 dms-db-3
 	docker compose run --rm etl --once
-	docker compose start dms-db
+	docker compose start dms-db-1 dms-db-2 dms-db-3
 	```
 
 5. Show that the reader role cannot read a hidden column. The command fails with `permission denied for table players`:
@@ -360,7 +360,7 @@ The ETL service copies analytics data from the eight domain services into `wareh
 
 ## Fail over a database
 
-Player and Session each have three PostgreSQL nodes, as the [replication contract](contracts/replication.md) defines.
+Player, Session, Moderation, Discord DMs, and Server Rules each have three PostgreSQL nodes, as the [replication contract](contracts/replication.md) defines.
 
 1. Show the nodes. One is the leader, one is the synchronous standby, and one is a replica:
 
