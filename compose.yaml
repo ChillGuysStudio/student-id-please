@@ -56,6 +56,30 @@ x-session-db: &session-db
     APP_USER: session
     APP_DB: session_db
     APP_PASSWORD: ${SESSION_DB_PASSWORD:?Set SESSION_DB_PASSWORD in .env}
+x-moderation-db: &moderation-db
+  <<: *patroni
+  environment:
+    <<: *patroni-environment
+    PATRONI_SCOPE: moderation
+    APP_USER: moderation
+    APP_DB: moderation
+    APP_PASSWORD: ${MODERATION_DB_PASSWORD:?Set MODERATION_DB_PASSWORD in .env}
+x-dms-db: &dms-db
+  <<: *patroni
+  environment:
+    <<: *patroni-environment
+    PATRONI_SCOPE: discord-dms
+    APP_USER: discord_dms
+    APP_DB: discord_dms
+    APP_PASSWORD: ${DMS_DB_PASSWORD:?Set DMS_DB_PASSWORD in .env}
+x-rules-db: &rules-db
+  <<: *patroni
+  environment:
+    <<: *patroni-environment
+    PATRONI_SCOPE: rules
+    APP_USER: server_rules
+    APP_DB: server_rules
+    APP_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
 x-registration: &registration
   DISCOVERY_GRPC_URL: http://discovery:50051
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
@@ -221,32 +245,42 @@ services:
     volumes:
       - ./config/patroni:/config:ro,z
       - session-data-3:/home/postgres/pgdata
-  moderation-db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: moderation
-      POSTGRES_USER: moderation
-      POSTGRES_PASSWORD: ${MODERATION_DB_PASSWORD:?Set MODERATION_DB_PASSWORD in .env}
+  moderation-db-1:
+    <<: *moderation-db
+    hostname: moderation-db-1
     volumes:
-      - moderation-data:/var/lib/postgresql/data
-    healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U moderation -d moderation']
-      interval: 5s
-      timeout: 3s
-      retries: 20
-  dms-db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: discord_dms
-      POSTGRES_USER: discord_dms
-      POSTGRES_PASSWORD: ${DMS_DB_PASSWORD:?Set DMS_DB_PASSWORD in .env}
+      - ./config/patroni:/config:ro,z
+      - moderation-data-1:/home/postgres/pgdata
+  moderation-db-2:
+    <<: *moderation-db
+    hostname: moderation-db-2
     volumes:
-      - dms-data:/var/lib/postgresql/data
-    healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U discord_dms -d discord_dms']
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      - ./config/patroni:/config:ro,z
+      - moderation-data-2:/home/postgres/pgdata
+  moderation-db-3:
+    <<: *moderation-db
+    hostname: moderation-db-3
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - moderation-data-3:/home/postgres/pgdata
+  dms-db-1:
+    <<: *dms-db
+    hostname: dms-db-1
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - dms-data-1:/home/postgres/pgdata
+  dms-db-2:
+    <<: *dms-db
+    hostname: dms-db-2
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - dms-data-2:/home/postgres/pgdata
+  dms-db-3:
+    <<: *dms-db
+    hostname: dms-db-3
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - dms-data-3:/home/postgres/pgdata
   redis:
     image: redis:7.4-alpine
     command: [redis-server, --requirepass, '${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}']
@@ -364,7 +398,7 @@ services:
       SERVICE_NAME: moderation
       CONTROL_PLANE_NAME: moderation
       CONTROL_PLANE_TOKEN: ${MODERATION_CONTROL_TOKEN:?Set MODERATION_CONTROL_TOKEN in .env}
-      DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
+      DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@/moderation?host=moderation-db-1,moderation-db-2,moderation-db-3&port=5432,5432,5432
       BROKER_GRPC_URL: http://message-broker:50051
       BROKER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
     volumes:
@@ -378,7 +412,11 @@ services:
       retries: 5
       start_period: 10s
     depends_on:
-      moderation-db:
+      moderation-db-1:
+        condition: service_healthy
+      moderation-db-2:
+        condition: service_healthy
+      moderation-db-3:
         condition: service_healthy
       message-broker:
         condition: service_healthy
@@ -388,7 +426,7 @@ services:
     logging: *json-logging
     command: [python, -m, moderation.publisher]
     environment:
-      DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@moderation-db:5432/moderation
+      DATABASE_URL: postgresql+psycopg://moderation:${MODERATION_DB_PASSWORD}@/moderation?host=moderation-db-1,moderation-db-2,moderation-db-3&port=5432,5432,5432
       BROKER_GRPC_URL: http://message-broker:50051
       BROKER_SERVICE_TOKEN: ${MODERATION_SERVICE_TOKEN:?Set MODERATION_SERVICE_TOKEN in .env}
     volumes:
@@ -412,7 +450,7 @@ services:
       CONTROL_PLANE_NAME: discord-dms
       CONTROL_PLANE_TOKEN: ${DISCORD_DMS_CONTROL_TOKEN:?Set DISCORD_DMS_CONTROL_TOKEN in .env}
       DISCOVERY_LEASE_SECONDS: '15'
-      DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@dms-db:5432/discord_dms
+      DATABASE_URL: postgresql+asyncpg://discord_dms:${DMS_DB_PASSWORD}@/discord_dms?host=dms-db-1:5432&host=dms-db-2:5432&host=dms-db-3:5432
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHAT_TICKET_SECRET: ${CHAT_TICKET_SECRET:?Set CHAT_TICKET_SECRET in .env}
       BROKER_GRPC_URL: http://message-broker:50051
@@ -427,7 +465,11 @@ services:
       retries: 5
       start_period: 10s
     depends_on:
-      dms-db:
+      dms-db-1:
+        condition: service_healthy
+      dms-db-2:
+        condition: service_healthy
+      dms-db-3:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -563,20 +605,24 @@ services:
       university-mongodb:
         condition: service_healthy
     restart: unless-stopped
-  rules-db:
-    image: postgres:18-alpine
-    environment:
-      POSTGRES_DB: server_rules
-      POSTGRES_USER: server_rules
-      POSTGRES_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
+  rules-db-1:
+    <<: *rules-db
+    hostname: rules-db-1
     volumes:
-      - rules-data:/var/lib/postgresql
-    healthcheck:
-      test: [CMD-SHELL, 'pg_isready --username "$${POSTGRES_USER}" --dbname "$${POSTGRES_DB}"']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+      - ./config/patroni:/config:ro,z
+      - rules-data-1:/home/postgres/pgdata
+  rules-db-2:
+    <<: *rules-db
+    hostname: rules-db-2
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - rules-data-2:/home/postgres/pgdata
+  rules-db-3:
+    <<: *rules-db
+    hostname: rules-db-3
+    volumes:
+      - ./config/patroni:/config:ro,z
+      - rules-data-3:/home/postgres/pgdata
   server-rules:
     deploy:
       replicas: 2
@@ -589,7 +635,7 @@ services:
       CONTROL_PLANE_NAME: rules
       CONTROL_PLANE_TOKEN: ${SERVER_RULES_CONTROL_TOKEN:?Set SERVER_RULES_CONTROL_TOKEN in .env}
       SPRING_PROFILES_ACTIVE: gateway
-      DATABASE_URL: jdbc:postgresql://rules-db:5432/server_rules
+      DATABASE_URL: jdbc:postgresql://rules-db-1:5432,rules-db-2:5432,rules-db-3:5432/server_rules?targetServerType=primary
       POSTGRES_USER: server_rules
       POSTGRES_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
       SERVER_PORT: 8005
@@ -606,7 +652,11 @@ services:
       retries: 12
       start_period: 30s
     depends_on:
-      rules-db:
+      rules-db-1:
+        condition: service_healthy
+      rules-db-2:
+        condition: service_healthy
+      rules-db-3:
         condition: service_healthy
     restart: unless-stopped
   prometheus:
@@ -705,9 +755,9 @@ services:
       ETL_INTERVAL: ${ETL_INTERVAL:-5m}
       ETL_PLAYER_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD:?Set WAREHOUSE_READER_PASSWORD in .env}@player-db-1:5432,player-db-2:5432,player-db-3:5432/player_db?sslmode=disable&target_session_attrs=prefer-standby
       ETL_SESSION_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@session-db-1:5432,session-db-2:5432,session-db-3:5432/session_db?sslmode=disable&target_session_attrs=prefer-standby
-      ETL_MODERATION_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@moderation-db:5432/moderation?sslmode=disable
-      ETL_DISCORD_DMS_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@dms-db:5432/discord_dms?sslmode=disable
-      ETL_RULES_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@rules-db:5432/server_rules?sslmode=disable
+      ETL_MODERATION_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@moderation-db-1:5432,moderation-db-2:5432,moderation-db-3:5432/moderation?sslmode=disable&target_session_attrs=prefer-standby
+      ETL_DISCORD_DMS_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@dms-db-1:5432,dms-db-2:5432,dms-db-3:5432/discord_dms?sslmode=disable&target_session_attrs=prefer-standby
+      ETL_RULES_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@rules-db-1:5432,rules-db-2:5432,rules-db-3:5432/server_rules?sslmode=disable&target_session_attrs=prefer-standby
       ETL_APPLICANT_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@mongodb:27017/applicant?authSource=applicant&directConnection=true
       ETL_CREDENTIAL_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@mongodb:27017/credential?authSource=credential&directConnection=true
       ETL_UNIVERSITY_RECORD_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@university-mongodb:27017/university_records?authSource=university_records&directConnection=true
@@ -725,12 +775,18 @@ volumes:
   session-data-1:
   session-data-2:
   session-data-3:
-  moderation-data:
-  dms-data:
+  moderation-data-1:
+  moderation-data-2:
+  moderation-data-3:
+  dms-data-1:
+  dms-data-2:
+  dms-data-3:
   broker-db-data:
   mongo-data:
   university-mongo-data:
-  rules-data:
+  rules-data-1:
+  rules-data-2:
+  rules-data-3:
   warehouse-data:
   prometheus-data:
   loki-data:
