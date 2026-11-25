@@ -70,7 +70,7 @@ Members of one set share a keyfile from a generated secret in `.local/stack`. A 
 ## Migrations, health, and registration
 
 - Schema migrations use the same connection settings, so they run on the primary. Replicas of one service start together, so a migration holds its existing lock.
-- A service with no reachable primary reports unready. Discovery treats it as an unready instance, not as a removal. A failover must not leave an instance durably removed after the database returns.
+- A service with no reachable primary reports unready. Discovery treats it as an unready instance, not as a removal. A failover must not leave an instance durably removed after the database returns, so services answer `STORAGE_UNAVAILABLE`, as [storage outages](resilience.md#storage-outages) defines.
 - The health check of a PostgreSQL node passes when the node is a running primary or a streaming standby.
 - The role script of the [warehouse contract](warehouse.md) runs against the primary. The roles replicate to the standbys.
 

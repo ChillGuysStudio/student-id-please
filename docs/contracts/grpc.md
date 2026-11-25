@@ -222,7 +222,8 @@ A caller classifies each attempt for its breaker as [bounded calls](resilience.m
 
 - `UNAVAILABLE` without an `ErrorDetail` is `connection_error`.
 - `DEADLINE_EXCEEDED` from the caller's own deadline is `timeout`.
-- A status with an `ErrorDetail` and `http_status` from 500 to 599 is `http_5xx` with that `status_code`.
+- For the Broker's backend attempts, a status with an `ErrorDetail` whose `code` is `STORAGE_UNAVAILABLE` and whose `http_status` is 503 is `storage_unavailable` and does not qualify. See [storage outages](resilience.md#storage-outages).
+- Any other status with an `ErrorDetail` and `http_status` from 500 to 599 is `http_5xx` with that `status_code`.
 - `INTERNAL`, `UNKNOWN`, or `DATA_LOSS` without an `ErrorDetail` is `http_5xx` with `status_code` 500.
 - Every other status does not qualify. This includes `CANCELLED`, `UNIMPLEMENTED`, and a `RESOURCE_EXHAUSTED` from a message size limit.
 
