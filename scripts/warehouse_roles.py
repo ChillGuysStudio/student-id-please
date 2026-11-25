@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ROLE = "warehouse_reader"
 
 # Databases with three Patroni nodes, named <database>-1 to <database>-3.
-REPLICATED = {"player-db", "session-db"}
+REPLICATED = {"player-db", "session-db", "moderation-db", "dms-db", "rules-db"}
 
 # Compose service: (user, database, {table: columns}).
 POSTGRES = {
