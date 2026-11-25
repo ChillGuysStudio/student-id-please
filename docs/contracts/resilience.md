@@ -193,9 +193,11 @@ A service that cannot reach a writable datastore answers `503` with the code `ST
 
 Query errors, constraint errors, statement timeouts, and programming errors keep their existing results. The result of a write whose connection was lost is uncertain. The caller retries it with the same `Idempotency-Key`.
 
-Each service bounds its wait for a datastore connection and for server selection to at most 1 second where its driver allows it, and reports unready while the datastore is unavailable. A wait that exceeds the caller's attempt timeout is still a `timeout` and counts.
+Each service bounds its wait for a datastore connection to at most 1 second, and for MongoDB server selection to 600 milliseconds, because a commit can wait twice, and reports unready while the datastore is unavailable. A wait that exceeds the caller's attempt timeout is still a `timeout` and counts.
 
-The Broker recognizes the code only with status 503, from the instance that it dispatched to. It records the attempt with the kind `storage_unavailable`, which neither counts as a failure nor clears earlier failures. It does not reroute the attempt, because the other replicas use the same datastore. An event delivery with this result is retried on the normal schedule. Discovery excludes the replicas through their status probes, and they return when a probe is ready. Every other `5xx`, connection error, and timeout trips the breaker and removes the replica as before.
+The Broker recognizes the code only with status 503, from the instance that it dispatched to. It records the attempt with the kind `storage_unavailable`, which neither counts as a failure nor clears earlier failures. It does not reroute the attempt, because the other replicas use the same datastore. An event delivery with this result is retried on the normal schedule. Discovery excludes the replicas through their status probes, and they return when a probe is ready. A service that calls a peer fails when the peer has no storage or no eligible replica. It answers with its own error, such as `503 DEPENDENCY_UNAVAILABLE`, and must not use `STORAGE_UNAVAILABLE` for a peer. The Broker attributes the failure, because the nested call passes through it with the `request_id` of its parent. When the Broker saw a storage outage or no eligible replica on a call that the service made under that `request_id` during the attempt, a `5xx` of the attempt has the kind `dependency_unavailable`. It does not count and is not rerouted. A service cannot claim an outage, because only the Broker's own observation counts.
+
+Every other `5xx`, connection error, and timeout trips the breaker and removes the replica as before.
 
 ### Attribution through the Broker
 
