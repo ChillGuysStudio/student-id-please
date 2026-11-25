@@ -58,7 +58,7 @@ Each label has a fixed set of values. A value outside its set is recorded as `un
 | --- | --- | --- | --- |
 | `student_id_requests_total` | Counter | `transport`, `route`, `status_class` | Completed requests that the process served. Liveness paths and `/metrics` are not counted. |
 | `student_id_request_duration_seconds` | Histogram | `transport`, `route` | Duration of the same requests, from receipt to the last response byte |
-| `student_id_dependency_calls_total` | Counter | `target_service`, `outcome` | Outbound calls by result: `ok`, `rejected` for a non-qualifying error, `connection_error`, `timeout`, or `http_5xx`. The Broker counts its backend attempts in `student_id_broker_dispatch_total` instead. |
+| `student_id_dependency_calls_total` | Counter | `target_service`, `outcome` | Outbound calls by result: `ok`, `rejected` for a non-qualifying error, `storage_unavailable`, `connection_error`, `timeout`, or `http_5xx`. The Broker counts its backend attempts in `student_id_broker_dispatch_total` instead. |
 | `student_id_active_tasks` | Gauge | None | The `active_tasks` value of the [status snapshot](resilience.md#status-and-load). The Broker reports the sum over both gates. |
 | `student_id_max_concurrent_tasks` | Gauge | None | The `max_concurrent_tasks` value of the same snapshot |
 | `student_id_build_info` | Gauge | `version`, `revision` | Always 1. `version` is the image version without `v`, and `revision` is the source commit. |
@@ -69,7 +69,7 @@ Every histogram uses these bucket bounds, in seconds: `0.005`, `0.01`, `0.025`, 
 
 | Name | Type | Labels | Meaning |
 | --- | --- | --- | --- |
-| `student_id_broker_dispatch_total` | Counter | `target_service`, `target_instance`, `attempt`, `outcome` | Targeted attempts, including policy reads. `attempt` is `first` or `reroute`. `outcome` is `ok`, `rejected`, `connection_error`, `timeout`, or `http_5xx`. |
+| `student_id_broker_dispatch_total` | Counter | `target_service`, `target_instance`, `attempt`, `outcome` | Targeted attempts, including policy reads. `attempt` is `first` or `reroute`. `outcome` is `ok`, `rejected`, `storage_unavailable`, `connection_error`, `timeout`, or `http_5xx`. |
 | `student_id_broker_dispatch_duration_seconds` | Histogram | `target_service` | Duration of each targeted attempt |
 | `student_id_broker_backend_in_flight` | Gauge | `target_service`, `target_instance` | The Broker's unfinished targeted attempts to the generation, `in_flight` in the [load formula](routing.md#load) |
 | `student_id_broker_backend_load` | Gauge | `target_service`, `target_instance` | The load that selection uses. Only eligible generations have a series. |

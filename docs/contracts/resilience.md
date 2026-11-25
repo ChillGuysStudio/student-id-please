@@ -173,13 +173,29 @@ Each caller process owns a counter keyed by destination `instance_id` and `regis
 
 The failure window is `W = 3.5 * T`, or 7 seconds with the default `T = 2 seconds`. At attempt completion, the caller records its monotonic completion time and discards failures older than `now - W`. Three distinct qualifying attempts within that inclusive window trip the breaker. Successes do not reset the rolling window. Two failures do not trip it. Three failures at 0, 2, and 7 seconds trip it. Failures at 0, 2, and 7.001 seconds do not. Logs and reports use corresponding UTC timestamps, but local counting does not depend on wall-clock adjustments.
 
-Qualifying failures are connection errors, connection resets during consumed response bodies, caller attempt timeouts, and HTTP status 500 through 599. HTTP `503 TASK_LIMIT_EXCEEDED` and `504 TASK_TIMEOUT` count. Expected `4xx`, including `409` and `429`, do not count. Local validation, a pre-dispatch rejection, an open-breaker rejection, no eligible destination, and cancellation by the upstream caller do not count as backend attempts. Invalid or oversized successful responses produce diagnostics and fail the operation, but do not become an invented HTTP `5xx` from that destination.
+Qualifying failures are connection errors, connection resets during consumed response bodies, caller attempt timeouts, and HTTP status 500 through 599. HTTP `503 TASK_LIMIT_EXCEEDED` and `504 TASK_TIMEOUT` count. `503 STORAGE_UNAVAILABLE` does not count, as [storage outages](#storage-outages) explains. Expected `4xx`, including `409` and `429`, do not count. Local validation, a pre-dispatch rejection, an open-breaker rejection, no eligible destination, and cancellation by the upstream caller do not count as backend attempts. Invalid or oversized successful responses produce diagnostics and fail the operation, but do not become an invented HTTP `5xx` from that destination.
 
 One physical attempt has one caller-generated UUID `attempt_id` and at most one outcome. A `5xx` followed by a body timeout counts once, as `http_5xx`. A transport timeout with no status counts once, as `timeout`, not also as a connection error. Retry attempts receive new attempt IDs. Outer middleware must not record the same attempt again. Counters shared by proxy and specialized clients use the same outcome recorder. A returned `5xx` from a service that failed on its own dependency is a separate HTTP attempt, not the dependency attempt itself.
 
 At the third failure, the caller excludes that generation locally, logs `circuit_open`, and submits one removal operation. `failures` contains exactly three distinct attempt IDs from that caller and generation within `W`. `task_timeout_ms` equals configured `T` in milliseconds. `endpoint` is a method-independent route template without query values, player IDs, tickets, or tokens. `status_code` is 500 through 599 only for `http_5xx`, otherwise `null`. Discovery validates the reporter's service and instance, generation, configured timeout, evidence count, and timestamp span before accepting `reason: "circuit_open"`. It does not need to receive every error in real time.
 
 If Discovery cannot accept the report, the caller keeps the local exclusion and retains one pending removal per destination generation. It retries the same `operation_id` under the bounded control-call policy. A duplicate removal for an already removed generation returns its removed record without another transition or notification. `409 STALE_REGISTRATION` discards the old report. For operator or shutdown removal, `failures` is empty and `task_timeout_ms` still declares `T`. Operator uses its authenticated role rather than a registered caller instance. No local exclusion is cleared merely because a refresh still shows an old ready record.
+
+### Storage outages
+
+A database failover makes every replica of one service fail for a short time. Removing the replicas would not help, and removal is durable, so the service would stay unavailable after its database returned.
+
+A service that cannot reach a writable datastore answers `503` with the code `STORAGE_UNAVAILABLE`. On gRPC it returns `UNAVAILABLE` with an `ErrorDetail` that has this code and `http_status` 503. The service returns it only when one of these is true:
+
+- It cannot open a datastore connection, or no member accepts writes.
+- The datastore closed or reset the connection during the operation.
+- The datastore refused the operation because the member is not the primary, is starting, or is shutting down.
+
+Query errors, constraint errors, statement timeouts, and programming errors keep their existing results. The result of a write whose connection was lost is uncertain. The caller retries it with the same `Idempotency-Key`.
+
+Each service bounds its wait for a datastore connection and for server selection to at most 1 second where its driver allows it, and reports unready while the datastore is unavailable. A wait that exceeds the caller's attempt timeout is still a `timeout` and counts.
+
+The Broker recognizes the code only with status 503, from the instance that it dispatched to. It records the attempt with the kind `storage_unavailable`, which neither counts as a failure nor clears earlier failures. It does not reroute the attempt, because the other replicas use the same datastore. An event delivery with this result is retried on the normal schedule. Discovery excludes the replicas through their status probes, and they return when a probe is ready. Every other `5xx`, connection error, and timeout trips the breaker and removes the replica as before.
 
 ### Attribution through the Broker
 
