@@ -5,154 +5,154 @@
    "service": "player",
    "submodule": "player-service",
    "repository": "Tirppy/student-id-player-service",
-   "version": "5.0.1",
-   "source_sha": "cd0e276f4ccf335f2a531ae34221d9458c15a851",
-   "image": "tirppy/student-id-player-service@sha256:2c844212559b5c63b6dc96d64372a9f2bf1b62ed0b7a1f4deb743ae4cc409bbf",
+   "version": "5.0.2",
+   "source_sha": "06d8810d6e8b862363d47f0747a9242548b13326",
+   "image": "tirppy/student-id-player-service@sha256:2e88f1a0713d040bc6a2d3a52d48685d7ff5021a10fb8441fe07795efb2fce16",
    "platforms": {
-    "amd64": "sha256:3c34c3c1332c3265b36fccc879fcc82a2404a1434817ca83b56b72fe1b10c043",
-    "arm64": "sha256:133ae675394012ded70251d44d9ba65f2b1008f4b6f7a5a74fa1b710a719e88e"
+    "amd64": "sha256:fddb73f798165654e8e33a3666c7b9b3a504fee4bfe68df01ea83ddbf35c0b92",
+    "arm64": "sha256:9c85c218922545d8671c22131a8460a4bd25cbd02bca9d78ce82172e72d44aba"
    },
    "configs": {
-    "amd64": "sha256:0fefc79ce546059cab09abf516705151f9441a64f8810cabf638fc25568a7901",
-    "arm64": "sha256:9673658bccd76e80a0400b59d2df7257e8880274a13b3dd704f0d3610c324cf8"
+    "amd64": "sha256:3f5698fcb1c11e97f173917d54b0110849c1dfd53f094c56e99c80e0efd1095c",
+    "arm64": "sha256:6f060ea8f8080692adafdb08aafdd0468f7013fb046677c47ddf6009e243a87f"
    },
    "revision_labels": {
-    "amd64": "cd0e276f4ccf335f2a531ae34221d9458c15a851",
-    "arm64": "cd0e276f4ccf335f2a531ae34221d9458c15a851"
+    "amd64": "06d8810d6e8b862363d47f0747a9242548b13326",
+    "arm64": "06d8810d6e8b862363d47f0747a9242548b13326"
    },
-   "publication_run": 45618038042,
+   "publication_run": 45706263489,
    "repository_source_labels_verified": true
   },
   {
    "service": "session",
    "submodule": "session-service",
    "repository": "Tirppy/student-id-session-service",
-   "version": "5.0.1",
-   "source_sha": "d938f1579023b8e0019fde6ae27504cb9c1d1019",
-   "image": "tirppy/student-id-session-service@sha256:8ad29cbc7c7634cf3784f81d47e4f99fbc4bb4755cf09096ac1d96635646411e",
+   "version": "5.0.2",
+   "source_sha": "6ff5ef1c48ce1bc20108e04c132c183f3504106b",
+   "image": "tirppy/student-id-session-service@sha256:9eed64a2cbad1f26d4924dc3aa9f5619ada9080ca7465d01f750d37d16bf331b",
    "platforms": {
-    "amd64": "sha256:994bd030a81aafed0b4eb63f855ea4b73362750a4d47f7ead6aed2695b44c2ab",
-    "arm64": "sha256:3a16caa05202cf13113a8daf7fc84400d697d9541378f8684c014effd2ff45ae"
+    "amd64": "sha256:6ebd20529c4eed85be872fd76bf88252a81fc0759494ef150066ba01ebadf058",
+    "arm64": "sha256:b3d9e59eef49fea9924145e5141be6c9a3a178ebf4c0e84259a841128e8354c9"
    },
    "configs": {
-    "amd64": "sha256:e5d638ace3d5f6efb0e33d1177be6472940d22df85f4980f9ee187d582588c4f",
-    "arm64": "sha256:3c581f1e7689f3d3e147f588f9c29d760a589760565916569474f20200e7f47b"
+    "amd64": "sha256:45d6b3b064e8d9effedfb48419530197297057653c1c7372a3985d2fb509b04d",
+    "arm64": "sha256:53bbcc086978c5729f1364c0075fff16ba19ee1e956ef6df8a6b64ceb36a7d48"
    },
    "revision_labels": {
-    "amd64": "d938f1579023b8e0019fde6ae27504cb9c1d1019",
-    "arm64": "d938f1579023b8e0019fde6ae27504cb9c1d1019"
+    "amd64": "6ff5ef1c48ce1bc20108e04c132c183f3504106b",
+    "arm64": "6ff5ef1c48ce1bc20108e04c132c183f3504106b"
    },
-   "publication_run": 45620362853,
+   "publication_run": 45706462500,
    "repository_source_labels_verified": true
   },
   {
    "service": "moderation",
    "submodule": "moderation-service",
    "repository": "andyp1xe1/pad-moderation-service",
-   "version": "5.0.0",
-   "source_sha": "984d146c694fe8b57726349a7900a1b08e0f662e",
-   "image": "sentientmoss/pad-moderation-service@sha256:f4490b10d2456abe02e63785780d269d55b8fc0d6f8c8ea8ac31d7267f2747dc",
+   "version": "5.0.1",
+   "source_sha": "c53939a07ab61b76b971b58fb7a4b2e581b09fd1",
+   "image": "sentientmoss/pad-moderation-service@sha256:ac31f142836d08b169bb8ea8ecc251bb0f1c6395cfd10438b105e356ea5f885f",
    "platforms": {
-    "amd64": "sha256:c6ad49892f10fbff1fd0be9b4181312001cf43e6761f7752c0609e83927e99a1",
-    "arm64": "sha256:a7e483136ade278dea3b2fb5366a1c0b20983b4b41b33d677f4e06cbe6c3d31a"
+    "amd64": "sha256:3786923cad88f7685f6ee9204cfa71ea7a011684b21aefc366ab9c9b776137ac",
+    "arm64": "sha256:173bc4bd8aa67f453d3542c1a1671cc5cd70f38bced690029614a9dc78dd7fe6"
    },
    "configs": {
-    "amd64": "sha256:cd556a62b77bbd309b0dd144e43103bb1d1a2218363492e354f6b0ce51c11845",
-    "arm64": "sha256:80533b339c7217b42d4bb966b32130f7c953037bd126c86b83df165b9b5f894a"
+    "amd64": "sha256:095664e2dcdd9ede8e1a0f6b4b5aff2a6a4f5ffebd75242851e9f089f2f98cb5",
+    "arm64": "sha256:15f9cd99acb1879c7b1a209e8a3e54e4b450743bfd6af4fc9af7faccfe9df5ac"
    },
    "revision_labels": {
-    "amd64": "984d146c694fe8b57726349a7900a1b08e0f662e",
-    "arm64": "984d146c694fe8b57726349a7900a1b08e0f662e"
+    "amd64": "c53939a07ab61b76b971b58fb7a4b2e581b09fd1",
+    "arm64": "c53939a07ab61b76b971b58fb7a4b2e581b09fd1"
    },
-   "publication_run": 45611748745,
+   "publication_run": 45666803999,
    "repository_source_labels_verified": true
   },
   {
    "service": "applicant",
    "submodule": "applicant-service",
    "repository": "mcittkmims/applicant-service",
-   "version": "5.0.0",
-   "source_sha": "727fe6f69f0c7fb9198d46baefa7192561f7594a",
-   "image": "mcittkmims/applicant-service@sha256:63dcc029086479f591830b281a808f17e4b70c6b4af9d1275e3149f039972315",
+   "version": "5.0.2",
+   "source_sha": "9796be60a69e08d49e96131c3c07bde4091a130c",
+   "image": "mcittkmims/applicant-service@sha256:b96e51d02fc39c62822fa50e1ca25e814a071cdd3f489da0d3e05f61d4c7e932",
    "platforms": {
-    "amd64": "sha256:b27746791c3325046a1effc299e9b10b6b048bee48b9035c46006d28226ade70",
-    "arm64": "sha256:bc2d77fccf377785e83929bdc1e975115fce54a410ff088549872021fd7350b8"
+    "amd64": "sha256:e5c4abc3826017d93470da9a9fa193d564feb8ee1b18f5d8a88082b90b2dde4d",
+    "arm64": "sha256:e71ab07a5e81577090f2f2b3a089b4a0b22ddfcf80a7181de4214e3c50cab809"
    },
    "configs": {
-    "amd64": "sha256:a9f28e0c024d72d31536788b9aae8f4cfce73eb75c377168842497889b6eee65",
-    "arm64": "sha256:63e89f2582154cf874b31eb957d8991895995a8823893ada9a0251acee91943b"
+    "amd64": "sha256:18565cc487ef2f53c0196f4a8502e82058f19ba5743efb06fedf14fe2ac79cc4",
+    "arm64": "sha256:77cc6b46e86c8cbaa31aed833a1d5c6c00fc51c99ba4dc1c8ee7ca62ebd782c1"
    },
    "revision_labels": {
-    "amd64": "727fe6f69f0c7fb9198d46baefa7192561f7594a",
-    "arm64": "727fe6f69f0c7fb9198d46baefa7192561f7594a"
+    "amd64": "9796be60a69e08d49e96131c3c07bde4091a130c",
+    "arm64": "9796be60a69e08d49e96131c3c07bde4091a130c"
    },
-   "publication_run": 45611903567,
+   "publication_run": 45659227655,
    "repository_source_labels_verified": true
   },
   {
    "service": "credential",
    "submodule": "credential-service",
    "repository": "mcittkmims/credential-service",
-   "version": "5.0.0",
-   "source_sha": "be302e4e8590f84259d68e0517048fca7150b3d5",
-   "image": "mcittkmims/credential-service@sha256:2da6732273821d84bc3e188502fd9be36d5e41b5f76547113d9189e056767f4f",
+   "version": "5.0.1",
+   "source_sha": "10cb89845d22e0f714c9dcb00ab884570f069bd0",
+   "image": "mcittkmims/credential-service@sha256:6a06ba3369e6091e28f29322f395a6d682bdda45db4e0be8271cc0b2cab84f3c",
    "platforms": {
-    "amd64": "sha256:95d2ad1692571781926832edd0317c68d4920809a2ea07ddf270c930d83d27e8",
-    "arm64": "sha256:1d1c6c356a6485442e6acf9d494a14fbe69dbb84fb325652d32a3461a8390f40"
+    "amd64": "sha256:1be7ebaf00e9a76dec26e6843dcad644bb6523939b5add5b5e60f409e2d441c9",
+    "arm64": "sha256:9452de9719c8a9752a4bf96937b615f0faac63e4939f71444574e6251f309f4b"
    },
    "configs": {
-    "amd64": "sha256:8c4eafbf51bea56b5b9d5bbc1557fb8d710e5680b25b0a2e18d87dd43ef364df",
-    "arm64": "sha256:07823a2c51d3f1c310f57bdfc3bde8801a223259c46c0cd43cd8ee2306e7e0e3"
+    "amd64": "sha256:5d4fa8e74bc04d9343163b6233e2252618d63a8163e399b1db6f84981509e333",
+    "arm64": "sha256:85a45e494576982e2e28020d46ee3df0d2ec0541e5938b2350ddae7f104d8f3e"
    },
    "revision_labels": {
-    "amd64": "be302e4e8590f84259d68e0517048fca7150b3d5",
-    "arm64": "be302e4e8590f84259d68e0517048fca7150b3d5"
+    "amd64": "10cb89845d22e0f714c9dcb00ab884570f069bd0",
+    "arm64": "10cb89845d22e0f714c9dcb00ab884570f069bd0"
    },
-   "publication_run": 45611933334,
+   "publication_run": 45659247302,
    "repository_source_labels_verified": true
   },
   {
    "service": "rules",
    "submodule": "server-rules-service",
    "repository": "MaxNoragami/server-rules-service",
-   "version": "5.0.0",
-   "source_sha": "adb6e076e913789e9c75d631b60e380fce2aa948",
-   "image": "maxnoragami/server-rules-service@sha256:c3d69509e6ff8fb1d7a4bc1ddca25d5b9e8daf618b092a140a3c384ecc39982c",
+   "version": "5.0.1",
+   "source_sha": "c4be93b0b2f9f4f8c855571f97c9e5ac746abde4",
+   "image": "maxnoragami/server-rules-service@sha256:28a28c12d81f5e962bed96d6bf51e1231622992e7012ff948f8e4c5d47216552",
    "platforms": {
-    "amd64": "sha256:bbbb9e9d3cd2c6dd65971ee0dfe984604e98d75113a56ebbaf09ca5cc9c96bc6",
-    "arm64": "sha256:af4ddf2addc19e3a70760d61f2584861e7cad1a516586fdae07407e28de741bc"
+    "amd64": "sha256:e3e0591ad76f70bb2ce9a741c625a3626022e56253897b8dcd986a3267caf954",
+    "arm64": "sha256:854b17c0f5234ad0862b800f4ebee43d7b902c25d93af31b496ec99f6e7a904b"
    },
    "configs": {
-    "amd64": "sha256:30d9e9a8c22f12e3d7b1285623fc98a02aac4fcf2cea32071ed42581c27f03e8",
-    "arm64": "sha256:b17d326cfe4b0cdc135123a71bf6835fd5222c8f740759829dc85e5f42b7f8b3"
+    "amd64": "sha256:967e90adfcebc3d166c57cd3e793a9bf54ec50d8c0cd121a8eb25c2c3131a87a",
+    "arm64": "sha256:3a1d8039d4ba68624a0011f2d311ef849a4628fed69a349d913ddaac4f82ccf2"
    },
    "revision_labels": {
-    "amd64": "adb6e076e913789e9c75d631b60e380fce2aa948",
-    "arm64": "adb6e076e913789e9c75d631b60e380fce2aa948"
+    "amd64": "c4be93b0b2f9f4f8c855571f97c9e5ac746abde4",
+    "arm64": "c4be93b0b2f9f4f8c855571f97c9e5ac746abde4"
    },
-   "publication_run": 45611591082,
+   "publication_run": 45665083135,
    "repository_source_labels_verified": true
   },
   {
    "service": "university_record",
    "submodule": "university-record-service",
    "repository": "MaxNoragami/university-record-service",
-   "version": "5.0.0",
-   "source_sha": "6dbe37c378b3858c2905020943ea738122ee7af3",
-   "image": "maxnoragami/university-record-service@sha256:470c02ea2f8b6204d5c1bb23391a9f138891923005778d846bf81ea98471d669",
+   "version": "5.0.1",
+   "source_sha": "80dfdf606e3e0aa2caace8eb561015e3b4771a33",
+   "image": "maxnoragami/university-record-service@sha256:23271808ee4e4352134a1f8221e0e2f5d241cd5741c1190a70af7babd96fcc8d",
    "platforms": {
-    "amd64": "sha256:ee0fb87a2c3134e097004eed981408e5511e559e12c33af0c695cebf33174ff8",
-    "arm64": "sha256:f4b750a9e378bc9cf882505a7c1fc5cf8fe059f79db8822af19262b8c08f4ee9"
+    "amd64": "sha256:3f87f8b2d9edd83b691467c7b91bd2a4fb7c0e3370f51a6843e37bdbc34d401c",
+    "arm64": "sha256:620d616b4581569cd07abe863bdac4a68d547f1c21eba5021688f3dcb5814908"
    },
    "configs": {
-    "amd64": "sha256:af167c43700054b6744ddf5c8dcb09126fbc4aa057660e70b8efdf78c310785b",
-    "arm64": "sha256:e3248d8686c9d640a884240819198ba8be10980a7c3f411c1373c36b79e257e2"
+    "amd64": "sha256:984dea80a5f9656a0dd45a28d5740aca3e27a8e3879050c06d0926cb314c53a8",
+    "arm64": "sha256:8b99b3065488971d4a2135a1c6697f44bb467a0fa3f53a979ad5f876bd35c012"
    },
    "revision_labels": {
-    "amd64": "6dbe37c378b3858c2905020943ea738122ee7af3",
-    "arm64": "6dbe37c378b3858c2905020943ea738122ee7af3"
+    "amd64": "80dfdf606e3e0aa2caace8eb561015e3b4771a33",
+    "arm64": "80dfdf606e3e0aa2caace8eb561015e3b4771a33"
    },
-   "publication_run": 45621234184,
+   "publication_run": 45652695630,
    "repository_source_labels_verified": true
   },
   {
@@ -203,22 +203,22 @@
    "service": "discord-dms",
    "submodule": "discord-dms-service",
    "repository": "andyp1xe1/pad-discord-dms-service",
-   "version": "5.0.0",
-   "source_sha": "bd6ecfbb4b9f89df087e60600870d8c1601c6c66",
-   "image": "sentientmoss/pad-discord-dms-service@sha256:47c129eb3e528f5e1459939141e032b397e9b92a609d84e820324f1a67c4c46f",
+   "version": "5.0.1",
+   "source_sha": "e73395f70ffe66da73bbe827a06f04305d5603e7",
+   "image": "sentientmoss/pad-discord-dms-service@sha256:4174a2701b3314538cd3c6bce2c08652213a640f00118e7a2308f57d4518b153",
    "platforms": {
-    "amd64": "sha256:d17fa75fd13a9c3e23f05d3ff290a2b6bb505c5b0f5bf9cd18c4becf8642b078",
-    "arm64": "sha256:dd03d8a75746d9de95d52e57a8a0e4b842c31a91a9bb5d4e8360bc452036a32a"
+    "amd64": "sha256:4f7c27dd3bf662bcde20848ea78c55d62fe73394ae6b95c59ec49f4751f91707",
+    "arm64": "sha256:37ba4138d5834d45fa17bc0e918378009783330e7765a2a13cf174f11e9cf4a5"
    },
    "configs": {
-    "amd64": "sha256:ae89f2ed33524db803475f4796d107ebca69843ba644f2a507de3e3987e6b363",
-    "arm64": "sha256:1bf8a428d7af2179e1dcc0a0bc6d904922238f9c51642f5b9893ca0a21c847f1"
+    "amd64": "sha256:699ace3926c8f2720102f928bc75d5bda4ca296859ba7cf2a571dbf87f9db220",
+    "arm64": "sha256:b5d88dcf7dc503f5d129b9e28d4c0710f114b45acc3da8baeddd71a54940ed4b"
    },
    "revision_labels": {
-    "amd64": "bd6ecfbb4b9f89df087e60600870d8c1601c6c66",
-    "arm64": "bd6ecfbb4b9f89df087e60600870d8c1601c6c66"
+    "amd64": "e73395f70ffe66da73bbe827a06f04305d5603e7",
+    "arm64": "e73395f70ffe66da73bbe827a06f04305d5603e7"
    },
-   "publication_run": 45612168529,
+   "publication_run": 45669747581,
    "repository_source_labels_verified": true
   },
   {
