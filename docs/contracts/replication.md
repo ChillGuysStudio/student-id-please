@@ -47,8 +47,8 @@ Clients list every node and ask for the primary. There is no proxy.
 
 | Client | Driver | Connection setting |
 | --- | --- | --- |
-| Player, Session, Moderation | psycopg through SQLAlchemy | `?host=a,b,c&port=5432,5432,5432&target_session_attrs=read-write&connect_timeout=3` |
-| Discord DMs | asyncpg through SQLAlchemy | `?host=a:5432&host=b:5432&host=c:5432&target_session_attrs=read-write` |
+| Player, Session, Moderation | psycopg through SQLAlchemy | `?host=a,b,c&port=5432,5432,5432`. The services try the hosts in parallel for at most 1 second and require a writable one. |
+| Discord DMs | asyncpg through SQLAlchemy | `?host=a:5432&host=b:5432&host=c:5432`. The service requires a writable host. |
 | Server Rules | JDBC | `jdbc:postgresql://a:5432,b:5432,c:5432/db?targetServerType=primary&connectTimeout=3` |
 | ETL | pgx | `postgres://a:5432,b:5432,c:5432/db?target_session_attrs=prefer-standby` |
 
@@ -64,7 +64,7 @@ Members of one set share a keyfile from a generated secret in `.local/stack`. A 
 
 | Client | Connection setting |
 | --- | --- |
-| Applicant, Credential, University Record | `mongodb://a,b,c/db?replicaSet=rs0&w=majority&retryWrites=true` without `directConnection` |
+| Applicant, Credential, University Record | `mongodb://a,b,c/db?replicaSet=rs0&w=majority&retryWrites=true&serverSelectionTimeoutMS=600&connectTimeoutMS=500&heartbeatFrequencyMS=500&waitQueueTimeoutMS=600&socketTimeoutMS=5000` without `directConnection` |
 | ETL | The same hosts with `readPreference=secondaryPreferred` |
 
 ## Migrations, health, and registration
@@ -105,6 +105,6 @@ Measured on 2026-11-25 on the demonstration laptop, with a client that inserted 
 
 With three PostgreSQL nodes, all nodes were stopped and then all were killed. The 1,000 rows were present both times, and the database was writable after 4 and 6 seconds.
 
-Idle PostgreSQL nodes used 64 MB for the primary and 50 MB for each standby, and etcd used 17 MB. Fifteen nodes need about 0.85 GB, compared with 0.2 GB for the five single databases. MongoDB members used 90 to 200 MB after load. The four additional members need about 0.5 GB.
+Idle PostgreSQL nodes used 64 MB for the primary and 50 MB for each standby, and etcd used 17 MB. Fifteen nodes need about 0.85 GB, compared with 0.2 GB for the five single databases. MongoDB members used 90 to 200 MB after load. The four additional members need about 0.5 GB. With the default heartbeat of 2 seconds, one of three killed primaries left majority writes slow for 3 seconds after the election. With `heartbeatIntervalMillis` at 500, none of eight did, so the replica sets use 500.
 
 The connection settings were tested with the published Player, Session, Moderation, and Discord DMs images, the JDBC driver of the Server Rules image, and the pgx version of the ETL.
