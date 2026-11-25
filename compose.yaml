@@ -80,6 +80,39 @@ x-rules-db: &rules-db
     APP_USER: server_rules
     APP_DB: server_rules
     APP_PASSWORD: ${RULES_DB_PASSWORD:?Set RULES_DB_PASSWORD in .env}
+# One member of a MongoDB replica set. The members of a set share the key file that scripts/setup.py creates.
+x-mongo-healthcheck: &mongo-healthcheck
+  test: [CMD, mongosh, --quiet, --host, 127.0.0.1, --eval, 'const h = db.hello(); quit(h.isWritablePrimary || h.secondary ? 0 : 1)']
+  # Each probe starts mongosh, which needs about 270 MB, so a healthy server is probed less often.
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+  start_interval: 3s
+x-mongo: &mongo
+  # MongoDB 8.x refuses to start on Linux kernel 6.19+.
+  image: mongo:7.0
+  entrypoint:
+    - bash
+    - -c
+    - |
+      install -o mongodb -g mongodb -m 0400 /run/replica-set.key /data/configdb/replica-set.key
+      exec /usr/local/bin/docker-entrypoint.sh "$$@"
+    - --
+  command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key, --bind_ip_all, --wiredTigerCacheSizeGB, '0.25', --setParameter, transactionLifetimeLimitSeconds=5]
+  healthcheck: *mongo-healthcheck
+  restart: unless-stopped
+
+x-mongodb: &mongodb
+  <<: *mongo
+  environment: &mongodb-environment
+    MONGO_ADMIN_USERNAME: case_services
+    MONGO_ADMIN_PASSWORD: ${CASES_MONGO_PASSWORD:?Set CASES_MONGO_PASSWORD in .env}
+x-university-mongodb: &university-mongodb
+  <<: *mongo
+  environment: &university-mongodb-environment
+    MONGO_ADMIN_USERNAME: university_record_service
+    MONGO_ADMIN_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
 x-registration: &registration
   DISCOVERY_GRPC_URL: http://discovery:50051
   CONTROL_PLANE_TOKENS: '{"discovery":"${DISCOVERY_CONTROL_TOKEN:?Set DISCOVERY_CONTROL_TOKEN in .env}","gateway":"${GATEWAY_CONTROL_TOKEN:?Set GATEWAY_CONTROL_TOKEN in .env}","operator":"${OPERATOR_CONTROL_TOKEN:?Set OPERATOR_CONTROL_TOKEN in .env}"}'
@@ -291,44 +324,41 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-  mongodb:
-    # MongoDB 8.x refuses to start on Linux kernel 6.19+.
-    image: mongo:7.0
-    entrypoint:
-      - bash
-      - -c
-      - |
-        keyfile=/data/configdb/replica-set.key
-        if [ ! -f "$$keyfile" ]; then
-          openssl rand -base64 756 > "$$keyfile"
-          chown mongodb:mongodb "$$keyfile"
-          chmod 400 "$$keyfile"
-        fi
-        exec /usr/local/bin/docker-entrypoint.sh "$$@"
-      - --
-    command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key, --bind_ip_all, --wiredTigerCacheSizeGB, '0.25']
+  mongodb-1:
+    <<: *mongodb
+    hostname: mongodb-1
     environment:
+      <<: *mongodb-environment
+      # Only the first member creates the user. The other members copy it when they join.
       MONGO_INITDB_ROOT_USERNAME: case_services
-      MONGO_INITDB_ROOT_PASSWORD: ${CASES_MONGO_PASSWORD:?Set CASES_MONGO_PASSWORD in .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${CASES_MONGO_PASSWORD}
     volumes:
-      - mongo-data:/data/db
+      - ./.local/stack/mongo-cases.key:/run/replica-set.key:ro,z
+      - mongo-data-1:/data/db
     healthcheck:
+      <<: *mongo-healthcheck
       test:
         - CMD-SHELL
         - >-
           mongosh --quiet --host 127.0.0.1
-          --username "$${MONGO_INITDB_ROOT_USERNAME}"
-          --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin
-          --eval '
-          try { rs.status(); }
-          catch (e) { if (e.codeName === "NotYetInitialized") { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongodb:27017"}]}); } else { throw e; } }
-          if (!db.hello().isWritablePrimary) quit(1);'
-      # Each probe starts mongosh, which needs about 270 MB, so a healthy server is probed less often.
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-      start_interval: 3s
+          --username "$${MONGO_ADMIN_USERNAME}" --password "$${MONGO_ADMIN_PASSWORD}" --authenticationDatabase admin
+          --eval 'try { rs.status(); }
+          catch (e) { if (e.codeName !== "NotYetInitialized") throw e;
+          rs.initiate({_id: "rs0", settings: {heartbeatIntervalMillis: 500},
+          members: [1, 2, 3].map(n => ({_id: n, host: "mongodb-" + n + ":27017"}))}); }
+          const h = db.hello(); quit(h.isWritablePrimary || h.secondary ? 0 : 1);'
+  mongodb-2:
+    <<: *mongodb
+    hostname: mongodb-2
+    volumes:
+      - ./.local/stack/mongo-cases.key:/run/replica-set.key:ro,z
+      - mongo-data-2:/data/db
+  mongodb-3:
+    <<: *mongodb
+    hostname: mongodb-3
+    volumes:
+      - ./.local/stack/mongo-cases.key:/run/replica-set.key:ro,z
+      - mongo-data-3:/data/db
   player:
     deploy:
       replicas: 2
@@ -505,7 +535,7 @@ services:
       CONTROL_PLANE_NAME: applicant
       CONTROL_PLANE_TOKEN: ${APPLICANT_CONTROL_TOKEN:?Set APPLICANT_CONTROL_TOKEN in .env}
       SERVER_ADDRESS: 0.0.0.0
-      MONGODB_URI: mongodb://case_services:${CASES_MONGO_PASSWORD}@mongodb:27017/applicant?authSource=admin&replicaSet=rs0&directConnection=true
+      MONGODB_URI: mongodb://case_services:${CASES_MONGO_PASSWORD}@mongodb-1:27017,mongodb-2:27017,mongodb-3:27017/applicant?authSource=admin&replicaSet=rs0&w=majority&retryWrites=true&serverSelectionTimeoutMS=600&connectTimeoutMS=500&heartbeatFrequencyMS=500&waitQueueTimeoutMS=600&socketTimeoutMS=5000
     healthcheck:
       test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8081 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
       interval: 10s
@@ -513,7 +543,11 @@ services:
       retries: 12
       start_period: 30s
     depends_on:
-      mongodb:
+      mongodb-1:
+        condition: service_healthy
+      mongodb-2:
+        condition: service_healthy
+      mongodb-3:
         condition: service_healthy
     restart: unless-stopped
   credential:
@@ -527,7 +561,7 @@ services:
       SERVICE_NAME: credential
       CONTROL_PLANE_NAME: credential
       CONTROL_PLANE_TOKEN: ${CREDENTIAL_CONTROL_TOKEN:?Set CREDENTIAL_CONTROL_TOKEN in .env}
-      MONGODB_URI: mongodb://case_services:${CASES_MONGO_PASSWORD}@mongodb:27017/credential?authSource=admin&replicaSet=rs0&directConnection=true
+      MONGODB_URI: mongodb://case_services:${CASES_MONGO_PASSWORD}@mongodb-1:27017,mongodb-2:27017,mongodb-3:27017/credential?authSource=admin&replicaSet=rs0&w=majority&retryWrites=true&serverSelectionTimeoutMS=600&connectTimeoutMS=500&heartbeatFrequencyMS=500&waitQueueTimeoutMS=600&socketTimeoutMS=5000
     healthcheck:
       test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8082 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200"']
       interval: 10s
@@ -535,44 +569,48 @@ services:
       retries: 12
       start_period: 30s
     depends_on:
-      mongodb:
+      mongodb-1:
+        condition: service_healthy
+      mongodb-2:
+        condition: service_healthy
+      mongodb-3:
         condition: service_healthy
     restart: unless-stopped
-  university-mongodb:
-    image: mongo:7.0
-    restart: unless-stopped
-    entrypoint:
-      - bash
-      - -c
-      - |
-        keyfile=/data/configdb/replica-set.key
-        if [ ! -f "$$keyfile" ]; then
-          openssl rand -base64 756 > "$$keyfile"
-          chown mongodb:mongodb "$$keyfile"
-          chmod 400 "$$keyfile"
-        fi
-        exec /usr/local/bin/docker-entrypoint.sh "$$@"
-      - --
-    command: [mongod, --replSet, rs0, --keyFile, /data/configdb/replica-set.key, --bind_ip_all, --wiredTigerCacheSizeGB, '0.25']
+  university-mongodb-1:
+    <<: *university-mongodb
+    hostname: university-mongodb-1
     environment:
+      <<: *university-mongodb-environment
+      # Only the first member creates the user. The other members copy it when they join.
       MONGO_INITDB_ROOT_USERNAME: university_record_service
-      MONGO_INITDB_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD}
     volumes:
-      - university-mongo-data:/data/db
+      - ./.local/stack/mongo-university.key:/run/replica-set.key:ro,z
+      - university-mongo-data-1:/data/db
     healthcheck:
+      <<: *mongo-healthcheck
       test:
         - CMD-SHELL
         - >-
           mongosh --quiet --host 127.0.0.1
-          --username "$${MONGO_INITDB_ROOT_USERNAME}"
-          --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin
-          --eval 'try { quit(rs.status().ok === 1 ? 0 : 1) } catch (error) { quit(rs.initiate({_id:"rs0",members:[{_id:0,host:"university-mongodb:27017"}]}).ok === 1 ? 0 : 1) }'
-      # Each probe starts mongosh, which needs about 270 MB, so a healthy server is probed less often.
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-      start_interval: 3s
+          --username "$${MONGO_ADMIN_USERNAME}" --password "$${MONGO_ADMIN_PASSWORD}" --authenticationDatabase admin
+          --eval 'try { rs.status(); }
+          catch (e) { if (e.codeName !== "NotYetInitialized") throw e;
+          rs.initiate({_id: "rs0", settings: {heartbeatIntervalMillis: 500},
+          members: [1, 2, 3].map(n => ({_id: n, host: "university-mongodb-" + n + ":27017"}))}); }
+          const h = db.hello(); quit(h.isWritablePrimary || h.secondary ? 0 : 1);'
+  university-mongodb-2:
+    <<: *university-mongodb
+    hostname: university-mongodb-2
+    volumes:
+      - ./.local/stack/mongo-university.key:/run/replica-set.key:ro,z
+      - university-mongo-data-2:/data/db
+  university-mongodb-3:
+    <<: *university-mongodb
+    hostname: university-mongodb-3
+    volumes:
+      - ./.local/stack/mongo-university.key:/run/replica-set.key:ro,z
+      - university-mongo-data-3:/data/db
   university-record:
     deploy:
       replicas: 2
@@ -585,7 +623,7 @@ services:
       CONTROL_PLANE_NAME: university_record
       CONTROL_PLANE_TOKEN: ${UNIVERSITY_RECORD_CONTROL_TOKEN:?Set UNIVERSITY_RECORD_CONTROL_TOKEN in .env}
       SPRING_PROFILES_ACTIVE: gateway
-      MONGO_HOST: university-mongodb
+      MONGO_HOST: university-mongodb-1,university-mongodb-2,university-mongodb-3
       MONGO_DATABASE: university_records
       MONGO_ROOT_USERNAME: university_record_service
       MONGO_ROOT_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
@@ -602,7 +640,11 @@ services:
       retries: 12
       start_period: 30s
     depends_on:
-      university-mongodb:
+      university-mongodb-1:
+        condition: service_healthy
+      university-mongodb-2:
+        condition: service_healthy
+      university-mongodb-3:
         condition: service_healthy
     restart: unless-stopped
   rules-db-1:
@@ -758,9 +800,9 @@ services:
       ETL_MODERATION_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@moderation-db-1:5432,moderation-db-2:5432,moderation-db-3:5432/moderation?sslmode=disable&target_session_attrs=prefer-standby
       ETL_DISCORD_DMS_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@dms-db-1:5432,dms-db-2:5432,dms-db-3:5432/discord_dms?sslmode=disable&target_session_attrs=prefer-standby
       ETL_RULES_DATABASE_URL: postgres://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@rules-db-1:5432,rules-db-2:5432,rules-db-3:5432/server_rules?sslmode=disable&target_session_attrs=prefer-standby
-      ETL_APPLICANT_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@mongodb:27017/applicant?authSource=applicant&directConnection=true
-      ETL_CREDENTIAL_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@mongodb:27017/credential?authSource=credential&directConnection=true
-      ETL_UNIVERSITY_RECORD_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@university-mongodb:27017/university_records?authSource=university_records&directConnection=true
+      ETL_APPLICANT_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@mongodb-1:27017,mongodb-2:27017,mongodb-3:27017/applicant?authSource=applicant&replicaSet=rs0&readPreference=secondaryPreferred
+      ETL_CREDENTIAL_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@mongodb-1:27017,mongodb-2:27017,mongodb-3:27017/credential?authSource=credential&replicaSet=rs0&readPreference=secondaryPreferred
+      ETL_UNIVERSITY_RECORD_URI: mongodb://warehouse_reader:${WAREHOUSE_READER_PASSWORD}@university-mongodb-1:27017,university-mongodb-2:27017,university-mongodb-3:27017/university_records?authSource=university_records&replicaSet=rs0&readPreference=secondaryPreferred
     depends_on:
       warehouse-db:
         condition: service_healthy
@@ -782,8 +824,12 @@ volumes:
   dms-data-2:
   dms-data-3:
   broker-db-data:
-  mongo-data:
-  university-mongo-data:
+  mongo-data-1:
+  mongo-data-2:
+  mongo-data-3:
+  university-mongo-data-1:
+  university-mongo-data-2:
+  university-mongo-data-3:
   rules-data-1:
   rules-data-2:
   rules-data-3:

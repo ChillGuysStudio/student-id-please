@@ -390,6 +390,14 @@ Player, Session, Moderation, Discord DMs, and Server Rules each have three Postg
 	docker compose start etcd
 	```
 
+Applicant and Credential share a MongoDB replica set with three members, and University Record has its own. Kill the primary of the first one, and see another member take over within about 15 seconds:
+
+```sh
+docker compose exec mongodb-2 sh -c 'mongosh --quiet -u "$MONGO_ADMIN_USERNAME" -p "$MONGO_ADMIN_PASSWORD" --authenticationDatabase admin --eval "rs.status().members.forEach(m => print(m.name, m.stateStr))"'
+docker compose kill mongodb-1
+docker compose start mongodb-1
+```
+
 ## Run the HTTP checks
 
 The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the log download, in Postman or with Newman:

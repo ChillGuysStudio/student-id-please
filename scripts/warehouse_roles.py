@@ -12,10 +12,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 ROLE = "warehouse_reader"
 
-# Databases with three Patroni nodes, named <database>-1 to <database>-3.
-REPLICATED = {"player-db", "session-db", "moderation-db", "dms-db", "rules-db"}
-
-# Compose service: (user, database, {table: columns}).
+# Database with three Patroni nodes, named <database>-1 to <database>-3: (user, database, {table: columns}).
 POSTGRES = {
     "player-db": ("player", "player_db", {
         "players": "id, display_name, is_admin, xp, created_at",
@@ -123,6 +120,15 @@ def primary(service):
     raise RuntimeError(f"{service}: no node is the primary")
 
 
+def running(service):
+    """Return a running member of a replica set. The connection string finds the primary."""
+    for member in (f"{service}-{n}" for n in (1, 2, 3)):
+        result = subprocess.run(["docker", "compose", "exec", "-T", member, "true"], cwd=ROOT, capture_output=True)
+        if result.returncode == 0:
+            return member
+    raise RuntimeError(f"{service}: no member is running")
+
+
 def execute(service, command, script):
     """Run a script in a container. It goes through stdin, so no password is in an argument list."""
     result = subprocess.run(["docker", "compose", "exec", "-T", service, "sh", "-c", command],
@@ -140,20 +146,20 @@ def main():
     except (OSError, ValueError) as error:
         sys.exit(f"Warehouse roles failed: {error}")
     failed = False
-    for service, (user, database, tables) in POSTGRES.items():
-        # Replicated nodes trust their own socket, where the superuser can create roles.
-        command = f"psql -q -h /tmp -U postgres -d {database}" if service in REPLICATED else f"psql -q -U {user} -d {database}"
+    for service, (_, database, tables) in POSTGRES.items():
+        # The nodes trust their own socket, where the superuser can create roles.
+        command = f"psql -q -h /tmp -U postgres -d {database}"
         failed |= not report(service, command, postgres_script(database, tables, password))
     for service, databases in MONGO.items():
-        failed |= not report(service, 'mongosh --quiet --host 127.0.0.1 -u "$MONGO_INITDB_ROOT_USERNAME" '
-                             '-p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --file /dev/stdin',
-                             mongo_script(databases, password))
+        hosts = ",".join(f"{service}-{n}:27017" for n in (1, 2, 3))
+        failed |= not report(service, f'mongosh --quiet "mongodb://$MONGO_ADMIN_USERNAME:$MONGO_ADMIN_PASSWORD@{hosts}/'
+                             '?authSource=admin&replicaSet=rs0" --file /dev/stdin', mongo_script(databases, password))
     sys.exit(1 if failed else 0)
 
 
 def report(service, command, script):
     try:
-        execute(primary(service) if service in REPLICATED else service, command, script)
+        execute(primary(service) if service in POSTGRES else running(service), command, script)
     except RuntimeError as error:
         print(f"failed  {error}")
         return False
