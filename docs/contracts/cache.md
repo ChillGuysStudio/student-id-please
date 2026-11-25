@@ -12,9 +12,9 @@ Request counts of a complete regression and gameplay run chose these reads. Sess
 | --- | --- | --- | --- |
 | Session | The session record behind the context | `GetSessionContext` | 5 s |
 | Session | Session views | `GET /api/v1/sessions/{session_id}` | 30 s |
-| Player | Player account, without email and password hash | `GET /api/v1/players/{player_id}`, `GetPlayer`, and the profile part of `GET /api/v1/players/me` | 30 s |
+| Player | Player account, without email and password hash | `GET /api/v1/players/{player_id}` and `GetPlayer` | 30 s |
 | Player | Team and its members | `GET /api/v1/teams/{team_id}`, `GetTeam` | 30 s |
-| Player | A refresh token hash that is used or revoked | `POST /api/v1/auth/refresh` | Until the token expires, at most 7 days |
+| Player | The hash of a revoked refresh token | `POST /api/v1/auth/refresh` | Until the token expires, at most 7 days |
 | University Record | The permission record of a session | `GetRecordPermission`, `GET /api/v1/sessions/{session_id}/record-permissions/me` | 5 s |
 | University Record | Reference data of the kinds `program`, `course`, `academic_year`, and `schedule` | `GET /api/v1/admin/university-data/{reference_id}` | 30 s |
 | Server Rules | A published rule version | `GET /api/v1/rule-versions/{rule_version}` | 1 h |
@@ -25,7 +25,7 @@ Request counts of a complete regression and gameplay run chose these reads. Sess
 
 Values with a time to live of 1 hour never change after they exist. An authorization input has at most 5 seconds.
 
-A refresh token is cached only when the database has refused it, because a used or revoked token never becomes valid again. A cached entry refuses the token with the same result as the database. A missing entry proves nothing, so every accepted refresh uses the database.
+A refresh token is cached only when the database has revoked it, because a revoked token never becomes valid again. A used token is not cached. A retry with its original key returns the stored result, and any other reuse must revoke the token family in the database. A cached entry refuses the token with the same result as the database. A missing entry proves nothing, so every accepted refresh uses the database.
 
 ## What is never cached
 
@@ -54,6 +54,14 @@ After the datastore commits, the service writes a tombstone with `SET key "" EX 
 If the tombstone cannot be written, readers see the old value until its time to live ends. This is the bound on staleness, so an authorization input has 5 seconds.
 
 A list has a generation, which is a random identifier under its own key. The key of each page contains the generation. A write to a member writes one tombstone on the generation key, which makes every page of the old generation unreachable. A reader gets the generation before it reads the datastore, and caches no page while the tombstone exists.
+
+### Versioned values
+
+An active shift changes its session more often than every 10 seconds, so a tombstone would keep the session out of the cache. Session stores `context` and `view` with the `revision` of the row instead. Every change of a cached field increments the revision in the same transaction.
+
+After the commit, the writer stores the new value. Readers store what they loaded. Both use one script, which refuses a lower revision, refuses to replace a tombstone, and refuses a value that arrives more than 2 seconds after its read or commit began. The time to live is longer than that limit, so a value that was loaded before a commit cannot outlive the value that the commit stored. The script measures the age with the clock of the node, because a frozen node still runs a command that its client gave up.
+
+A deleted session, a commit with an unknown result, and a commit whose new value is not available get a tombstone.
 
 ## Failures
 
