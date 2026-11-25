@@ -76,6 +76,8 @@ Java services select their current gateway adapters. Moderation and DMs use `AUT
 
 Every domain service and Gateway has a health check, so `--wait` returns after their APIs answer. The Moderation outbox publisher has none and counts as ready once it runs. Do not dump `docker compose config`, service environments, or unsanitized logs into evidence. Use `docker compose config --quiet`.
 
+The Java services share one set of JVM limits in `compose.yaml`, `x-java-memory`. Without them each JVM sizes its heap for the whole host. The two MongoDB servers limit their cache to 256 MB each. Their health checks run every 30 seconds after startup, because each probe starts `mongosh`. `start_interval` needs Docker Engine 25 or later.
+
 The MongoDB of Applicant and Credential requires authentication. A `mongo-data` volume from an earlier release has no user, so the stack needs a new volume or a user that you create with MongoDB's localhost exception. An earlier `.env` also lacks `CASES_MONGO_PASSWORD`, `WAREHOUSE_DB_PASSWORD`, and `WAREHOUSE_READER_PASSWORD`. Use a fresh clone to generate them.
 
 Run `docker compose down` to stop the stack and keep its data. Add `--volumes` only for a disposable project whose stored data you intend to delete.
