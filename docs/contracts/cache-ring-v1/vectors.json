@@ -1,0 +1,878 @@
+{
+ "version": 1,
+ "points_per_node": 160,
+ "hash": "sha256, first 8 bytes, unsigned big-endian",
+ "point_text": "<node>#<index>",
+ "rings": {
+  "three": [
+   "cache-1:6379",
+   "cache-2:6379",
+   "cache-3:6379"
+  ],
+  "two": [
+   "cache-1:6379",
+   "cache-2:6379"
+  ],
+  "four": [
+   "cache-1:6379",
+   "cache-2:6379",
+   "cache-3:6379",
+   "cache-4:6379"
+  ],
+  "one": [
+   "cache-1:6379"
+  ]
+ },
+ "positions": [
+  {
+   "text": "",
+   "position": "16406829232824261652"
+  },
+  {
+   "text": "cache-1:6379#0",
+   "position": "5248294341224919239"
+  },
+  {
+   "text": "v1:player:account:x",
+   "position": "13464870359046826191"
+  },
+  {
+   "text": "é",
+   "position": "5375421630974772051"
+  }
+ ],
+ "keys": [
+  {
+   "key": "v1:player:account:00000000-0000-4000-8000-000000000000",
+   "position": "6682248853087820823",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:00000001-0000-4000-8000-000000000001",
+   "position": "2244035654913075078",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000002-0000-4000-8000-000000000002",
+   "position": "15503619762548118062",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000003-0000-4000-8000-000000000003:20:first",
+   "position": "11309862030789475712",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:00000004-0000-4000-8000-000000000004",
+   "position": "15354400063566424835",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:00000005-0000-4000-8000-000000000005",
+   "position": "10422514972570564383",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000006-0000-4000-8000-000000000006",
+   "position": "4737411697505147752",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000007-0000-4000-8000-000000000007:20:first",
+   "position": "11110689827670757572",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:player:account:00000008-0000-4000-8000-000000000008",
+   "position": "1861539906846316506",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:00000009-0000-4000-8000-000000000009",
+   "position": "12377204505583560673",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000000a-0000-4000-8000-00000000000a",
+   "position": "7230075681633296376",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000000b-0000-4000-8000-00000000000b:20:first",
+   "position": "3392378848411310365",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:player:account:0000000c-0000-4000-8000-00000000000c",
+   "position": "10336195341838956600",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:0000000d-0000-4000-8000-00000000000d",
+   "position": "1864172098711516566",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000000e-0000-4000-8000-00000000000e",
+   "position": "2116707930333500896",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000000f-0000-4000-8000-00000000000f:20:first",
+   "position": "16872203414305692016",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:player:account:00000010-0000-4000-8000-000000000010",
+   "position": "4261038635855833041",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:00000011-0000-4000-8000-000000000011",
+   "position": "469294405535442593",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000012-0000-4000-8000-000000000012",
+   "position": "3963543778414985761",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000013-0000-4000-8000-000000000013:20:first",
+   "position": "2979543625695880845",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:00000014-0000-4000-8000-000000000014",
+   "position": "17623551646094228681",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:00000015-0000-4000-8000-000000000015",
+   "position": "11259174269352032945",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000016-0000-4000-8000-000000000016",
+   "position": "13845254111823914975",
+   "order": [
+    "cache-3:6379",
+    "cache-1:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000017-0000-4000-8000-000000000017:20:first",
+   "position": "2234378667192977645",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:player:account:00000018-0000-4000-8000-000000000018",
+   "position": "1081508038764907498",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:00000019-0000-4000-8000-000000000019",
+   "position": "5674649389666762587",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000001a-0000-4000-8000-00000000001a",
+   "position": "14052663607675303454",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000001b-0000-4000-8000-00000000001b:20:first",
+   "position": "7421767517721305697",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:0000001c-0000-4000-8000-00000000001c",
+   "position": "12011667480289252885",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:0000001d-0000-4000-8000-00000000001d",
+   "position": "6794480904704135676",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000001e-0000-4000-8000-00000000001e",
+   "position": "12838299064277362182",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000001f-0000-4000-8000-00000000001f:20:first",
+   "position": "15208925538495715610",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:00000020-0000-4000-8000-000000000020",
+   "position": "7683142955698295263",
+   "order": [
+    "cache-3:6379",
+    "cache-1:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:00000021-0000-4000-8000-000000000021",
+   "position": "10362124916763506857",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000022-0000-4000-8000-000000000022",
+   "position": "6056548056869007961",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000023-0000-4000-8000-000000000023:20:first",
+   "position": "15826723087891334493",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:00000024-0000-4000-8000-000000000024",
+   "position": "10863599309877938232",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:00000025-0000-4000-8000-000000000025",
+   "position": "2335567612948334506",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000026-0000-4000-8000-000000000026",
+   "position": "20224093018027888",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000027-0000-4000-8000-000000000027:20:first",
+   "position": "2359643267235538198",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:00000028-0000-4000-8000-000000000028",
+   "position": "10674325704971218439",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:session:context:00000029-0000-4000-8000-000000000029",
+   "position": "8107814970851305844",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000002a-0000-4000-8000-00000000002a",
+   "position": "5422188371052704155",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000002b-0000-4000-8000-00000000002b:20:first",
+   "position": "5243238377443409702",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:player:account:0000002c-0000-4000-8000-00000000002c",
+   "position": "4164284845000399613",
+   "order": [
+    "cache-3:6379",
+    "cache-1:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:0000002d-0000-4000-8000-00000000002d",
+   "position": "13751355289453867802",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000002e-0000-4000-8000-00000000002e",
+   "position": "3176521143716862573",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000002f-0000-4000-8000-00000000002f:20:first",
+   "position": "125665863961447588",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:00000030-0000-4000-8000-000000000030",
+   "position": "7502755271990925699",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:00000031-0000-4000-8000-000000000031",
+   "position": "4473493697799291805",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000032-0000-4000-8000-000000000032",
+   "position": "2212775330883856451",
+   "order": [
+    "cache-2:6379",
+    "cache-1:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000033-0000-4000-8000-000000000033:20:first",
+   "position": "15517525202523911747",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:player:account:00000034-0000-4000-8000-000000000034",
+   "position": "9479151097342328542",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:00000035-0000-4000-8000-000000000035",
+   "position": "9288580278765160505",
+   "order": [
+    "cache-3:6379",
+    "cache-1:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:00000036-0000-4000-8000-000000000036",
+   "position": "5724725598297220869",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:00000037-0000-4000-8000-000000000037:20:first",
+   "position": "230508140161335633",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:player:account:00000038-0000-4000-8000-000000000038",
+   "position": "5438305650357611631",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-4:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:00000039-0000-4000-8000-000000000039",
+   "position": "13503590648303587623",
+   "order": [
+    "cache-3:6379",
+    "cache-1:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000003a-0000-4000-8000-00000000003a",
+   "position": "7623044018354866091",
+   "order": [
+    "cache-2:6379",
+    "cache-3:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-2:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000003b-0000-4000-8000-00000000003b:20:first",
+   "position": "937190361395809975",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:player:account:0000003c-0000-4000-8000-00000000003c",
+   "position": "16675682472589204306",
+   "order": [
+    "cache-3:6379",
+    "cache-2:6379",
+    "cache-1:6379"
+   ],
+   "node_two": "cache-2:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  },
+  {
+   "key": "v1:session:context:0000003d-0000-4000-8000-00000000003d",
+   "position": "14610782914619598616",
+   "order": [
+    "cache-1:6379",
+    "cache-2:6379",
+    "cache-3:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:rules:rule_version:0000003e-0000-4000-8000-00000000003e",
+   "position": "5221292415331000556",
+   "order": [
+    "cache-1:6379",
+    "cache-3:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-1:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-1:6379"
+  },
+  {
+   "key": "v1:applicant:preset-list:0000003f-0000-4000-8000-00000000003f:20:first",
+   "position": "7697971741162511306",
+   "order": [
+    "cache-3:6379",
+    "cache-1:6379",
+    "cache-2:6379"
+   ],
+   "node_two": "cache-1:6379",
+   "node_four": "cache-3:6379",
+   "node_one": "cache-1:6379",
+   "node_without_cache_2": "cache-3:6379"
+  }
+ ]
+}

@@ -71,7 +71,7 @@ A cache operation has a timeout of 100 milliseconds for connect and for each com
 
 | Variable | Meaning |
 | --- | --- |
-| `CACHE_NODES` | Comma-separated `host:port` list. Empty turns the cache off. |
+| `CACHE_NODES` | Comma-separated `host:port` list. Empty turns the cache off. Several nodes share the keys as the [sharding contract](cache-sharding.md) defines. |
 | `CACHE_PASSWORD` | Password of every node |
 
 Each node runs Redis with `maxmemory` 48 MB, `allkeys-lru`, and no persistence. It publishes no host port.

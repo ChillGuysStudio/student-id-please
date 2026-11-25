@@ -88,6 +88,7 @@ Rules introduced by updates to this README or the other project documentation ap
 - [Warehouse and ETL](docs/contracts/warehouse.md)
 - [Database replication](docs/contracts/replication.md)
 - [Cache](docs/contracts/cache.md)
+- [Cache sharding](docs/contracts/cache-sharding.md)
 - [Service-to-service gRPC](docs/contracts/grpc.md)
 - [Load routing and rerouting](docs/contracts/routing.md)
 - [Service metrics and monitoring](docs/contracts/metrics.md)
