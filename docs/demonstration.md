@@ -390,10 +390,22 @@ Player, Session, Moderation, Discord DMs, and Server Rules each have three Postg
 	docker compose start etcd
 	```
 
-Applicant and Credential share a MongoDB replica set with three members, and University Record has its own. Kill the primary of the first one, and see another member take over within about 15 seconds:
+To check every database, run the failover check. It writes a marker, kills the primary, waits until another member accepts a second marker, starts the killed member, and reads both markers from it. It takes about four minutes:
+
+```sh
+python3 scripts/check_failover.py
+python3 scripts/check_failover.py player-db
+```
+
+Applicant and Credential share a MongoDB replica set with three members, and University Record has its own. List the members of the first one:
 
 ```sh
 docker compose exec mongodb-2 sh -c 'mongosh --quiet -u "$MONGO_ADMIN_USERNAME" -p "$MONGO_ADMIN_PASSWORD" --authenticationDatabase admin --eval "rs.status().members.forEach(m => print(m.name, m.stateStr))"'
+```
+
+Kill the member that the list shows as `PRIMARY`, for example `mongodb-1`. List the members again on one that still runs. Within about 15 seconds another member is `PRIMARY`. Then start the killed member:
+
+```sh
 docker compose kill mongodb-1
 docker compose start mongodb-1
 ```
