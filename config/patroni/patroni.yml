@@ -1,0 +1,40 @@
+# Shared by every replicated PostgreSQL node. Compose and start.sh set the values that differ.
+bootstrap:
+  dcs:
+    ttl: 20
+    loop_wait: 3
+    retry_timeout: 3
+    maximum_lag_on_failover: 1048576
+    synchronous_mode: true
+    # Without etcd, a primary that reaches every other member keeps accepting writes.
+    failsafe_mode: true
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        max_connections: 100
+        shared_buffers: 64MB
+        max_wal_size: 256MB
+        wal_keep_size: 128MB
+        # A standby that stays down must not fill the primary's disk. Patroni copies it again when it returns.
+        max_slot_wal_keep_size: 512MB
+        wal_log_hints: 'on'
+  initdb:
+    - encoding: UTF8
+    - locale: C.UTF-8
+    - data-checksums
+  post_bootstrap: /config/post_bootstrap.sh
+postgresql:
+  bin_dir: /usr/lib/postgresql/17/bin
+  data_dir: /home/postgres/pgdata/data
+  pgpass: /tmp/pgpass
+  create_replica_methods: [basebackup]
+  # A lazy checkpoint delays a new standby by more than a minute.
+  basebackup:
+    - checkpoint: fast
+  parameters:
+    unix_socket_directories: /tmp
+  pg_hba:
+    - local all all trust
+    - host replication replicator all scram-sha-256
+    - host all all all scram-sha-256
