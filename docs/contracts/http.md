@@ -72,7 +72,7 @@ Common error shape: `Error = {code: string, message: string, request_id: Id, det
 | `409` | State/key conflict |
 | `422` | Invalid field values |
 | `429` | Rate limit |
-| `503` | Unavailable dependency or `TASK_LIMIT_EXCEEDED` |
+| `503` | Unavailable dependency, `TASK_LIMIT_EXCEEDED`, or `STORAGE_UNAVAILABLE` |
 | `504` | `TASK_TIMEOUT` |
 
 The deployment requires finite task deadlines and concurrent task limits on every service and the gateway. Capacity exhaustion returns `503 TASK_LIMIT_EXCEEDED`. An HTTP task deadline returns `504 TASK_TIMEOUT`. Current Moderation and Discord DMs implementations use the shared error shape and `Retry-After: 1` for both errors. A timeout does not prove rollback. Retry a write with its original idempotency key to recover a committed result.
