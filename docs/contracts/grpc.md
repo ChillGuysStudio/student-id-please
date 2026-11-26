@@ -37,6 +37,7 @@ Each area has one package, `student_id.<area>.v1`, in `proto/student_id/<area>/v
 | `student_id.discovery.v1` | `DiscoveryService` | Discovery |
 | `student_id.broker.v1` | `BrokerService` | Message Broker |
 | `student_id.events.v1` | `EventConsumerService` and `EventEnvelope` | Applicant, Credential, University Record, Session, Player |
+| `student_id.transactions.v1` | `TransactionCoordinatorService`<br>`TransactionParticipantService` | Message Broker<br>Session, Player |
 | `student_id.player.v1` | `PlayerService` | Player |
 | `student_id.session.v1` | `SessionService` | Session |
 | `student_id.cases.v1` | `CaseOwnerService` | Applicant, Credential, University Record |
@@ -309,6 +310,8 @@ These RPCs do not go through the forwarding table:
 | `BrokerService/PublishEvent` | A topic producer, service credential | The Broker |
 | `BrokerService/ListTopics` | `gateway` or `operator`, control credential | The Broker |
 | `EventConsumerService/DeliverEvent` | The Broker, hop credential and workload assertion | The selected subscriber replica |
+| `TransactionCoordinatorService/RunTransaction` | A flow's initiator, service credential | The Broker. See [distributed transactions](transactions.md). |
+| `TransactionParticipantService/*` | The Broker, hop credential and workload assertion | The selected participant replica |
 | `DiscoveryService/*` | Registrants, registry readers, `operator`, control credential | Discovery |
 | `ControlService/GetStatus` | `discovery` or `operator`, control credential | Each instance directly |
 | `ControlService/ExportLogs` | `gateway` or `operator`, control credential | Each instance directly |
