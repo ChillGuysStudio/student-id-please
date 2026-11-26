@@ -114,7 +114,7 @@ x-university-mongodb: &university-mongodb
     MONGO_ADMIN_USERNAME: university_record_service
     MONGO_ADMIN_PASSWORD: ${UNIVERSITY_MONGO_PASSWORD:?Set UNIVERSITY_MONGO_PASSWORD in .env}
 x-cache: &cache
-  CACHE_NODES: cache-1:6379
+  CACHE_NODES: cache-1:6379,cache-2:6379,cache-3:6379
   CACHE_PASSWORD: ${CACHE_PASSWORD}
 
 x-registration: &registration

@@ -410,6 +410,34 @@ docker compose kill mongodb-1
 docker compose start mongodb-1
 ```
 
+## Shard the cache
+
+The services spread cached values over three Redis nodes with a consistent-hash ring, as the [cache sharding contract](contracts/cache-sharding.md) defines. Losing a node costs only the keys it owns.
+
+1. Play a shift, for example with the guided demo in [Run the HTTP checks](#run-the-http-checks). Then count the keys on each node:
+
+	```sh
+	for n in 1 2 3; do echo "cache-$n $(docker compose exec -T cache-$n redis-cli dbsize)"; done
+	```
+
+	Each node holds a share of the keys. `redis-cli --scan` on one node lists only the keys it owns.
+
+2. Stop one node, and play again:
+
+	```sh
+	docker compose stop cache-2
+	```
+
+	Requests keep their status and body. Keys that `cache-2` owned are loaded from the datastore once and stored on the next node. The other nodes keep serving their own keys. Grafana's Prometheus data source shows the change with `sum by (node, result) (rate(student_id_cache_requests_total[1m]))`.
+
+3. Start the node again:
+
+	```sh
+	docker compose start cache-2
+	```
+
+	After one second, the services use it again. Its old values expire within their time to live.
+
 ## Run the HTTP checks
 
 The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the log download, in Postman or with Newman:

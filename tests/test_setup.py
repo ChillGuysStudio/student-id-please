@@ -220,6 +220,7 @@ class SetupTests(unittest.TestCase):
         self.assertNotIn("ports:", block)
         self.assertNotIn("volumes:", block)
         self.assertEqual(compose.count("*cache]"), 8)
+        self.assertIn("  CACHE_NODES: cache-1:6379,cache-2:6379,cache-3:6379\n", compose)
         for name in ("cache-2", "cache-3"):
             node = re.split(r"\n  [a-z]", compose.split(f"\n  {name}:\n", 1)[1], maxsplit=1)[0]
             self.assertIn("--maxmemory, 48mb", node)
