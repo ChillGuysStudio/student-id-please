@@ -438,6 +438,33 @@ The services spread cached values over three Redis nodes with a consistent-hash 
 
 	After one second, the services use it again. Its old values expire within their time to live.
 
+## Commit across two databases
+
+Ending a shift changes the Session and Player databases in one [two-phase commit](contracts/transactions.md) that the Message Broker coordinates. Both commit, or neither does.
+
+1. Run the check. It stops and starts Player, the Broker, and one Player database node, so run nothing else that does at the same time:
+
+	```sh
+	python3 scripts/check_transactions.py
+	```
+
+	It prints one line per case: a normal commit, Player stopped at prepare, a Broker restart between the phases, a Player and database restart after prepare, and a repeated end. Each case compares the session status, the Player ledger, the Broker's transaction state, and the prepared transactions in both databases. No credentials are printed.
+
+2. Read the Broker's decisions:
+
+	```sh
+	docker compose logs --no-log-prefix message-broker | grep -E '"transaction_(decided|completed)"'
+	docker compose exec broker-db psql -U broker -d broker -c "SELECT state, count(*) FROM transactions GROUP BY state"
+	```
+
+3. Confirm that nothing stays prepared:
+
+	```sh
+	docker compose exec player-db-1 psql -h /tmp -U postgres -c "SELECT gid, prepared FROM pg_prepared_xacts"
+	```
+
+	Run it on the primary of each Session and Player database. An empty result means every transaction ended. Grafana's Prometheus data source shows `student_id_broker_transactions_total` by outcome and `student_id_broker_transactions_unresolved` by state.
+
 ## Run the HTTP checks
 
 The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the log download, in Postman or with Newman:
