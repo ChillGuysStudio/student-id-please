@@ -57,28 +57,28 @@ The Broker calls a participant as it [pushes an event](grpc.md#push-delivery). T
 
 ### Transaction ID
 
-The initiator chooses the `transaction_id` and keeps it until the transaction ends. Session stores one ID per end-shift idempotency identity, in its own short transaction, before it calls the Broker. A retry of the same request, for example after the Broker cut off the first forwarded attempt, joins the same transaction. After an abort, the next retry stores a new ID and starts a new transaction. Session holds no database lock while it waits for the Broker, because the Broker prepares Session on its own connection.
+The initiator chooses the `transaction_id` and keeps it until the transaction ends. Session stores one ID per end-shift idempotency identity, with the exact participant requests that it sends, in its own short transaction before it calls the Broker. A retry of the same request, for example after the Broker cut off the first forwarded attempt, resends the stored requests unchanged and joins the same transaction, even if the session changed in between. When `RunTransaction` returns `aborted`, Session replaces the stored ID and requests in the same step that builds its error response. A retry after a crash in between joins the aborted transaction again, gets `aborted` again, and then replaces it. Session holds no database lock while it waits for the Broker, because the Broker prepares Session on its own connection.
 
 ### Phase one
 
-1. The Broker inserts the transaction with state `preparing` and its participants into `broker-db`. Its prepare deadline is the earlier of 1 second after the insert and 250 ms before the caller's gRPC deadline. When the transaction already exists with an equal request, the call joins it and waits for its decision instead.
+1. The Broker inserts the transaction with state `preparing` and its participants into `broker-db`. Its prepare deadline is the earlier of 1 second after the insert and 250 ms before the caller's gRPC deadline. A caller deadline that leaves less than 250 ms for the prepare is refused before the insert with `DEADLINE_EXCEEDED TASK_TIMEOUT` (504), as the Broker refuses other calls without a task budget. When the transaction already exists with an equal request, the call joins it and waits for its decision instead.
 2. The Broker sends `Prepare` to every participant at once, with that deadline. It sends each `Prepare` once. A failed prepare is not retried.
-3. A participant applies the operation in one database transaction, as if it would commit. It sets `lock_timeout` to the time that remains before the deadline. Instead of committing, it inserts its `transaction_log` row and runs `PREPARE TRANSACTION 'student-id:<transaction_id>:<service>'`. It answers `prepared` once `PREPARE TRANSACTION` returns. With synchronous replication, the prepared transaction is then on two nodes.
+3. A participant applies the operation in one database transaction, as if it would commit. It sets `lock_timeout` to the time that remains before the deadline. Its advisory locks are transaction-level (`pg_advisory_xact_lock`), because PostgreSQL refuses to prepare a transaction that holds a session-level advisory lock. Instead of committing, it inserts its `transaction_log` row and runs `PREPARE TRANSACTION 'student-id:<transaction_id>:<service>'`. It answers `prepared` once `PREPARE TRANSACTION` returns. With synchronous replication, the prepared transaction is then on two nodes.
 4. If the operation had already been applied, the participant rolls back and answers `read_only`. Nothing waits for phase two on that participant.
 5. If the operation fails a business rule, the participant rolls back and returns the error with its `ErrorDetail` and a `4xx` `http_status`. That is a no vote.
 
 ### Decision
 
-The decision is the commit point. The Broker writes it to `broker-db` before it sends any phase-two call:
+The decision is the commit point. The Broker writes it to `broker-db` before it sends any phase-two call, in one transaction with every vote that it received:
 
 - When every participant answered `prepared` or `read_only` before the deadline, the state becomes `committing`.
 - When any participant rejected the operation, failed, timed out, or had no eligible replica, the state becomes `aborting` with the cause. The Broker does not wait for the remaining votes.
 
-The write changes the state only while it is still `preparing`, so a concurrent decision by [recovery](#recovery) cannot be overwritten. If `broker-db` refuses the write, no decision exists, and `RunTransaction` returns `STORE_UNAVAILABLE`. Recovery then aborts the transaction.
+The write changes the state only while it is still `preparing`, so a concurrent decision by [recovery](#recovery) cannot be overwritten. A request whose write finds another decision adopts the stored one. If `broker-db` refuses the write, no decision exists, and `RunTransaction` returns `STORE_UNAVAILABLE`. Recovery then aborts the transaction.
 
 ### Phase two
 
-The Broker sends `Commit` or `Abort` to every participant that did not answer `read_only`. That includes a participant whose `Prepare` timed out, because it may have prepared. A participant that rejected the operation prepared nothing, and `Abort` returns OK for it.
+The Broker sends `Commit` or `Abort` to every participant whose stored vote is not `read_only`. That includes a participant whose `Prepare` timed out, because it may have prepared. A `read_only` participant has nothing to commit, and it is never sent `Commit`, by the request or by recovery. A participant that rejected the operation prepared nothing, and `Abort` returns OK for it.
 
 The Broker retries a phase-two call until the participant answers `OK`: first within the request, then from recovery after 1, 5, and 30 seconds, then every 30 seconds without limit. When every participant has answered, the state becomes `committed` or `aborted`.
 
@@ -98,11 +98,13 @@ transaction_log(transaction_id uuid primary key, state text, created_at timestam
 | --- | --- | --- | --- | --- |
 | `Prepare` | Waits for the key, then rejects | `read_only` | Rejects with `409 TRANSACTION_CLOSED` | Prepares |
 | `Commit` | `COMMIT PREPARED`, then `OK` | `OK` | `FAILED_PRECONDITION TRANSACTION_NOT_PREPARED` (412) | `FAILED_PRECONDITION TRANSACTION_NOT_PREPARED` (412) |
-| `Abort` | `ROLLBACK PREPARED`, then `OK` | `FAILED_PRECONDITION TRANSACTION_COMMITTED` (412) | `OK` | Inserts `aborted`, then `OK` |
+| `Abort` | `ROLLBACK PREPARED`, then inserts `aborted`, then `OK` | `FAILED_PRECONDITION TRANSACTION_COMMITTED` (412) | `OK` | Inserts `aborted`, then `OK` |
 
-A `Prepare` that arrives after its `Abort` therefore finds the `aborted` row and prepares nothing. An `Abort` that arrives while a `Prepare` is still running waits on the key, up to its `lock_timeout`, and returns `UNAVAILABLE` if the wait runs out. The Broker retries it and then finds the prepared transaction. A participant refuses to start a `Prepare` after its deadline, and rejects it with `409 TRANSACTION_CLOSED`. When its `lock_timeout` runs out, for example behind another prepared transaction, it rejects with `409 PARTICIPANT_BUSY`. Contention is expected, so it counts toward no breaker.
+`ROLLBACK PREPARED` also rolls back the `prepared` row, so `Abort` inserts the `aborted` row in a second short transaction, with `ON CONFLICT DO NOTHING`. If the participant stops in between, the retried `Abort` finds no prepared transaction and no row, and inserts it. A `Prepare` that arrives after its `Abort` therefore always finds the `aborted` row and prepares nothing. An `Abort` or `Commit` that arrives while a `Prepare` is still running waits on the key, up to its `lock_timeout`, and returns `ABORTED PARTICIPANT_BUSY` (409) if the wait runs out. The Broker retries it and then finds the prepared transaction. A participant refuses to start a `Prepare` after its deadline, and rejects it with `409 TRANSACTION_CLOSED`. It also rejects with `409 PARTICIPANT_BUSY` when its `lock_timeout` runs out, for example behind another prepared transaction, when PostgreSQL detects a deadlock, and when every prepared-transaction slot is in use. Contention is expected, so it counts toward no breaker. Only a participant's own failure, a connection error, or a timeout of the call counts, as for any other call.
 
 `Commit` and `Abort` work on any connection to the primary, because a prepared transaction belongs to the database, not to the connection that prepared it. `Commit` and `Abort` also run after a participant restart or a PostgreSQL failover.
+
+Rows older than 7 days may be deleted. That is far longer than any prepare deadline, so a deleted `aborted` row cannot let a late `Prepare` through.
 
 The two `FAILED_PRECONDITION` results mean that the coordinator and a participant disagree. That is an operational fault, not a business result. The Broker logs it at `ERROR`, keeps the transaction unresolved, and keeps retrying, so it stays visible until an operator acts.
 
@@ -118,7 +120,7 @@ The two `FAILED_PRECONDITION` results mean that the coordinator and a participan
 | The session is not active | `409 INVALID_SESSION_STATE` |
 | `revision` differs from the session's revision | `409 SESSION_CHANGED` |
 
-`award-shift` in Player uses the existing progression ledger and the business receipt `shift:<session_id>` under the same advisory locks. It inserts one `progression_ledger` row of kind `shift` with `delta = max(0, score)` for each participant and recomputes each player's XP.
+`award-shift` in Player uses the existing progression ledger and the business receipt `shift:<session_id>` under the same advisory locks. It inserts one `progression_ledger` row of kind `shift` with `delta = max(0, score)` for each participant and recomputes each player's XP. It locks the players in ascending ID order, so two transactions never wait on each other.
 
 | Condition | Player's answer |
 | --- | --- |
@@ -133,7 +135,7 @@ The two `FAILED_PRECONDITION` results mean that the coordinator and a participan
 
 | Result of `RunTransaction` | Response |
 | --- | --- |
-| `committed` | Session commits its own prepared part if that is still pending, then returns the stored `200` response. |
+| `committed` | If Session's own part is still prepared, the handler runs the same idempotent `Commit` logic that the participant RPC uses. It then returns the stored `200` response. |
 | `aborted`, Session rejected | Session's own error from the table above. The shift stays as it was. |
 | `aborted`, Player rejected | `409 PROGRESSION_REJECTED`, with Player's `code` in `details`. The shift stays active. |
 | `aborted` for `busy`, `timeout`, `unavailable`, or `deadline` | `503 TRANSACTION_ABORTED` with `Retry-After: 1`. The shift stays active. |
@@ -149,7 +151,7 @@ The synchronous end still does not enter `ending`. A shift whose transaction is 
 
 A Broker task resolves transactions that their requests did not finish. It runs when the Broker starts and then every second. It claims rows with `FOR UPDATE SKIP LOCKED`, so two Broker instances never resolve the same transaction at once.
 
-- A `preparing` transaction whose prepare deadline passed more than 1 second ago gets the decision `aborting`. Its votes are lost if the Broker restarted, so the transaction is presumed aborted. No participant prepares after that deadline.
+- A `preparing` transaction whose prepare deadline passed more than 1 second ago gets the decision `aborting`. Its votes are lost if the Broker restarted, so the transaction is presumed aborted, and every participant is sent `Abort`. No participant prepares after that deadline.
 - A `committing` or `aborting` transaction gets its pending phase-two calls on the retry schedule.
 
 A participant never decides alone. After a participant restart or a PostgreSQL failover, the prepared transaction is still in the database, and the next `Commit` or `Abort` finds it.
@@ -160,11 +162,14 @@ Two-phase commit blocks by design. Between `PREPARE TRANSACTION` and the decisio
 
 - Other writes to that session or those players wait. Each request waits only within its own deadline and then fails as it does today for a slow store. Reads are not blocked.
 - When the Broker or `broker-db` is down after a prepare, the locks stay held until the Broker resolves the transaction. Nothing else can release them safely, because only the Broker knows whether it decided to commit.
+- A participant cluster whose primary runs without a synchronous standby confirms a `PREPARE TRANSACTION` on one node only. If that primary is lost before a standby copies it, the new primary has no prepared transaction, and `Commit` returns `TRANSACTION_NOT_PREPARED` until an operator acts. With `synchronous_mode`, that happens only after a standby was already lost.
 - `broker-db` is a single PostgreSQL instance, not a replicated cluster. A lost `broker-db` loses the decisions of unfinished transactions. Recovery then needs an operator, who reads the prepared transactions with `SELECT gid FROM pg_prepared_xacts` in each participant database and ends them with `COMMIT PREPARED` or `ROLLBACK PREPARED`.
 
 ## Configuration
 
-PostgreSQL refuses `PREPARE TRANSACTION` while `max_prepared_transactions` is 0, its default. The Session and Player clusters set it to 16. That is more than the end-shift transactions that can be prepared at once in this stack. Patroni keeps the setting in its cluster configuration, so the standbys get the same value, which PostgreSQL requires. A new cluster takes it from `config/patroni/patroni.yml` at bootstrap. An existing cluster needs `patronictl edit-config --set postgresql.parameters.max_prepared_transactions=16` and a restart.
+PostgreSQL refuses `PREPARE TRANSACTION` while `max_prepared_transactions` is 0, its default. The clusters set it to 100, equal to `max_connections`, as the PostgreSQL documentation advises for prepared transactions, so every connection can leave one prepared transaction pending. Each slot costs a few hundred bytes of shared memory and enlarges the shared lock table. A participant that finds every slot in use rejects with `PARTICIPANT_BUSY`, as above.
+
+Patroni keeps the setting in its cluster configuration, so the standbys get the same value, which PostgreSQL requires of a standby. The setting needs a server restart. A new cluster takes it from `config/patroni/patroni.yml` at bootstrap. An existing cluster needs `patronictl edit-config --set postgresql.parameters.max_prepared_transactions=100` and then `patronictl restart --pending`, which restarts the members that need it.
 
 ## Broker storage
 
