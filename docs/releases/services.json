@@ -203,22 +203,22 @@
    "service": "discord-dms",
    "submodule": "discord-dms-service",
    "repository": "andyp1xe1/pad-discord-dms-service",
-   "version": "5.0.2",
-   "source_sha": "8c5c5a1fd49671de6ef7155ff1cc87ce07b794f1",
-   "image": "sentientmoss/pad-discord-dms-service@sha256:42d2998b9281321fb6d43e5071135f366bd74a56641f9fcd28196180ce62267a",
+   "version": "5.0.3",
+   "source_sha": "4db098ca64ff050ebee109c6de47019af4a5ee57",
+   "image": "sentientmoss/pad-discord-dms-service@sha256:1e0fa659ffb9e0d41d587e63c9e9101c8e19f2105af2b1af4e84c0f5d76a58b8",
    "platforms": {
-    "amd64": "sha256:d5cb838c6b568a343ae346df2099e0b74f432e6ac3660fbf62739c8cd7ecb6fa",
-    "arm64": "sha256:476d2c44834f8260b2e5afc5f8ebd1b3123ebf92ec92e383a49356b0e57fb58a"
+    "amd64": "sha256:229cf516a4dfa0851c211acc7bb2b3d0a0a06eea3e0009a0de6b144e5df7183f",
+    "arm64": "sha256:efd53058e43e9d1d863cfdd39cf036732b6cbff50c43ad0350874e985f1bf6f2"
    },
    "configs": {
-    "amd64": "sha256:613d36f7a1c94e84a2638912735c10ca60a3e964788b0029727c50551367fdda",
-    "arm64": "sha256:e1cc11fee2f4f557a8668ede1246ef380d6e9962691333d0b2492b364c30f43a"
+    "amd64": "sha256:8a273c4ee2d035ac44af34fdb41e65604ea0c66bd53c27555b365975e422e431",
+    "arm64": "sha256:648af6553c40aaae606581ec023c71bd37dc224fe39c3d035267c1547709ab33"
    },
    "revision_labels": {
-    "amd64": "8c5c5a1fd49671de6ef7155ff1cc87ce07b794f1",
-    "arm64": "8c5c5a1fd49671de6ef7155ff1cc87ce07b794f1"
+    "amd64": "4db098ca64ff050ebee109c6de47019af4a5ee57",
+    "arm64": "4db098ca64ff050ebee109c6de47019af4a5ee57"
    },
-   "publication_run": 45722164902,
+   "publication_run": 45728828500,
    "repository_source_labels_verified": true
   },
   {
