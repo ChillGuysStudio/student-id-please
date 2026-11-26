@@ -49,7 +49,7 @@ AwardShiftPayload = {session_id: Id, participant_ids: Id[], score: Int}
 | A transaction with this ID either does not exist or has an equal request | `ABORTED TRANSACTION_ID_CONFLICT` (409) |
 | `broker-db` accepts the write | `UNAVAILABLE STORE_UNAVAILABLE` (503) |
 
-Two requests are equal when their flow and every participant's service, operation, and payload are equal, with payloads compared as `jsonb` values.
+Two requests are equal when their flow and every participant's service, operation, and payload are equal, with payloads compared as `jsonb` values. The Broker stores each payload as `jsonb` and sends that normalized text as `Prepare.payload_json`, so a participant compares parsed values, never the bytes.
 
 The Broker calls a participant as it [pushes an event](grpc.md#push-delivery). The metadata is the receiver's hop credential, a Broker workload assertion with `azp` set to the initiator, and `idempotency-key` set to the `transaction_id`. `x-request-id` is the request ID of the `RunTransaction` call, or the `transaction_id` for calls that recovery makes. The participant accepts the call when the hop and assertion verify, `azp` is the flow's initiator, and it serves the flow and operation. Each call goes to one ready replica that the [load rule](routing.md#load) selects. It counts toward that replica's breaker like a dispatch, and it is never rerouted.
 
@@ -82,7 +82,7 @@ The Broker sends `Commit` or `Abort` to every participant whose stored vote is n
 
 The Broker retries a phase-two call until the participant answers `OK`: first within the request, then from recovery after 1, 5, and 30 seconds, then every 30 seconds without limit. When every participant has answered, the state becomes `committed` or `aborted`.
 
-`RunTransaction` returns when phase two has finished or the caller's deadline is near. `outcome` is the decision. `completed` is true when every participant acknowledged phase two. `cause` names the participant and `kind` of an abort: `rejected` with the participant's `code` and `http_status`, `busy` for `PARTICIPANT_BUSY`, `timeout`, `unavailable`, or `deadline` when the prepare deadline passed first.
+`RunTransaction` returns after the decision and one bounded round of phase two. The request gives each of its own phase-two calls at most 250 ms, and starts the round only while at least 250 ms of its budget remain. A participant that answers later is finished by recovery. A call cut off this way is the Broker's own doing and counts toward no breaker. A call that joins a transaction returns as soon as the transaction is decided, because the deciding request or recovery runs phase two. A call whose own deadline arrives before the decision returns `DEADLINE_EXCEEDED TASK_TIMEOUT` (504), and a retry joins the transaction. `outcome` is the decision. `completed` is true when every participant acknowledged phase two. `cause` names the participant and `kind` of an abort: `rejected` with the participant's `code` and `http_status`, `busy` for `PARTICIPANT_BUSY`, `timeout` when the `Prepare` call itself timed out, `unavailable`, or `deadline`. `deadline` covers a vote that arrived after the prepare deadline, a call that could not be sent before it, and a presumed abort by recovery, which names no participant.
 
 ### Participant rules
 
@@ -100,7 +100,9 @@ transaction_log(transaction_id uuid primary key, state text, created_at timestam
 | `Commit` | `COMMIT PREPARED`, then `OK` | `OK` | `FAILED_PRECONDITION TRANSACTION_NOT_PREPARED` (412) | `FAILED_PRECONDITION TRANSACTION_NOT_PREPARED` (412) |
 | `Abort` | `ROLLBACK PREPARED`, then inserts `aborted`, then `OK` | `FAILED_PRECONDITION TRANSACTION_COMMITTED` (412) | `OK` | Inserts `aborted`, then `OK` |
 
-`ROLLBACK PREPARED` also rolls back the `prepared` row, so `Abort` inserts the `aborted` row in a second short transaction, with `ON CONFLICT DO NOTHING`. If the participant stops in between, the retried `Abort` finds no prepared transaction and no row, and inserts it. A `Prepare` that arrives after its `Abort` therefore always finds the `aborted` row and prepares nothing. An `Abort` or `Commit` that arrives while a `Prepare` is still running waits on the key, up to its `lock_timeout`, and returns `ABORTED PARTICIPANT_BUSY` (409) if the wait runs out. The Broker retries it and then finds the prepared transaction. A participant refuses to start a `Prepare` after its deadline, and rejects it with `409 TRANSACTION_CLOSED`. It also rejects with `409 PARTICIPANT_BUSY` when its `lock_timeout` runs out, for example behind another prepared transaction, when PostgreSQL detects a deadlock, and when every prepared-transaction slot is in use. Contention is expected, so it counts toward no breaker. Only a participant's own failure, a connection error, or a timeout of the call counts, as for any other call.
+`ROLLBACK PREPARED` also rolls back the `prepared` row, so `Abort` inserts the `aborted` row in a second short transaction, with `ON CONFLICT DO NOTHING`. If the participant stops in between, the retried `Abort` finds no prepared transaction and no row, and inserts it. A `Prepare` that arrives after its `Abort` therefore always finds the `aborted` row and prepares nothing. An `Abort` or `Commit` that arrives while a `Prepare` is still running waits for it. Until shortly before its deadline, it checks again for the prepared transaction, and it tries the key with a short `lock_timeout` in between. Once the `Prepare` has prepared, the call ends that prepared transaction at once. It returns `ABORTED PARTICIPANT_BUSY` (409) only if its deadline passes first, and the Broker then retries it.
+
+When `RunTransaction` returns `aborted`, Session replaces its stored transaction ID only if it gets the request lock within about 100 ms. Its own prepared part may still hold that lock. Otherwise it returns its error response without the replacement, and a later retry replaces the ID. A participant refuses to start a `Prepare` after its deadline, and rejects it with `409 TRANSACTION_CLOSED`. It also rejects with `409 PARTICIPANT_BUSY` when its `lock_timeout` runs out, for example behind another prepared transaction, when PostgreSQL detects a deadlock, and when every prepared-transaction slot is in use. Contention is expected, so it counts toward no breaker. Only a participant's own failure, a connection error, or a timeout of the call counts, as for any other call.
 
 `Commit` and `Abort` work on any connection to the primary, because a prepared transaction belongs to the database, not to the connection that prepared it. `Commit` and `Abort` also run after a participant restart or a PostgreSQL failover.
 
@@ -139,17 +141,17 @@ The two `FAILED_PRECONDITION` results mean that the coordinator and a participan
 | `aborted`, Session rejected | Session's own error from the table above. The shift stays as it was. |
 | `aborted`, Player rejected | `409 PROGRESSION_REJECTED`, with Player's `code` in `details`. The shift stays active. |
 | `aborted` for `busy`, `timeout`, `unavailable`, or `deadline` | `503 TRANSACTION_ABORTED` with `Retry-After: 1`. The shift stays active. |
-| `STORE_UNAVAILABLE`, or the Broker cannot be reached | `503 COORDINATOR_UNAVAILABLE` with `Retry-After: 1`. A retry with the same key joins the transaction. |
+| `STORE_UNAVAILABLE`, `TASK_TIMEOUT`, or the Broker cannot be reached | `503 COORDINATOR_UNAVAILABLE` with `Retry-After: 1`. A retry with the same key joins the transaction. |
 
 A committed transaction never returns an error to the caller, even if Player's phase two is still retrying. Player's XP becomes visible when its `Commit` succeeds.
 
-The Broker records every phase-one failure as a [nested outage](resilience.md#storage-outages) of the `RunTransaction` request ID. Session's resulting `503` therefore has the kind `dependency_unavailable` and does not count toward Session's breaker. The `409` results do not count toward any breaker.
+The Broker records every phase-one failure, and a `STORE_UNAVAILABLE` result, as a [nested outage](resilience.md#storage-outages) of the `RunTransaction` request ID. Session's resulting `503` therefore has the kind `dependency_unavailable` and does not count toward Session's breaker. The `409` results do not count toward any breaker.
 
 The synchronous end still does not enter `ending`. A shift whose transaction is undecided stays `active` to every reader, because the prepared change is not visible.
 
 ## Recovery
 
-A Broker task resolves transactions that their requests did not finish. It runs when the Broker starts and then every second. It claims rows with `FOR UPDATE SKIP LOCKED`, so two Broker instances never resolve the same transaction at once.
+A Broker task resolves transactions that their requests did not finish. It runs when the Broker starts and then every second. It claims rows with `FOR UPDATE SKIP LOCKED` and leases each claimed row, and each new decision, for `T` plus 1 second, so two Broker instances never resolve the same transaction at once. After a Broker crash right after a decision, recovery's first phase-two call therefore comes about 3 seconds after the decision.
 
 - A `preparing` transaction whose prepare deadline passed more than 1 second ago gets the decision `aborting`. Its votes are lost if the Broker restarted, so the transaction is presumed aborted, and every participant is sent `Abort`. No participant prepares after that deadline.
 - A `committing` or `aborting` transaction gets its pending phase-two calls on the retry schedule.
