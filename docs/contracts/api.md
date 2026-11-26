@@ -38,7 +38,7 @@ Friendship = {friendship_id: Id, requester_id: Id, recipient_id: Id,
 
 The event endpoint receives [push delivery](queues.md#push-delivery) from the Message Broker. The authenticated producer must match the event type. A duplicate returns `200` with `applied: false`.
 
-The Player Service consumes progression events. It does not accept client commands that change XP. Each participant receives `max(0, score)` XP when a shift ends. The service stores shift awards and separate disciplinary `xp_penalty` deductions in a progression ledger. Total XP is `max(0, sum(awards) - sum(deductions))`.
+The Player Service does not accept client commands that change XP. Each participant receives `max(0, score)` XP when a shift ends, in the same [two-phase commit](transactions.md) that ends the shift. Disciplinary deductions arrive as events. The service stores shift awards and separate disciplinary `xp_penalty` deductions in a progression ledger. Total XP is `max(0, sum(awards) - sum(deductions))`.
 
 The service recalculates XP from the ledger so event delivery order cannot change the result. A player's level is `1 + floor(xp / 100)`. The final shift score already includes decision penalties, so the Player Service does not deduct them again.
 
@@ -66,7 +66,7 @@ SessionContext = {session: Session, player: Participant}
 | `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>Pins the current published rules and a university snapshot; freezes roster and roles. |
 | `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>Calls the selected initializer with internal scenario `random` and reserves the current-case slot. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant, including Moderation on behalf of the assigned Moderator | None | `200 CaseStatus`<br>The service queries all three case owners and records aggregate readiness before returning. Moderation and Rules use gRPC `SessionService.GetCaseStatus`. |
-| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. An unfinished case returns `409`. |
+| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. An unfinished case returns `409`. The end and the XP award commit together, or the shift stays active with `409 PROGRESSION_REJECTED`, `409 SESSION_CHANGED`, `503 TRANSACTION_ABORTED`, or `503 COORDINATOR_UNAVAILABLE`. |
 | `DELETE /api/v1/sessions/{session_id}` | Session owner, lobby only | None | `204`, no body |
 | `GET /internal/v1/sessions/{session_id}/context`<br>gRPC `SessionService.GetSessionContext` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
 | `POST /internal/v1/events/{topic}`<br>gRPC `EventConsumerService.DeliverEvent` | Message Broker delivery of `DecisionScored` | Event | `200 {event_id: Id, applied: Bool}` |
@@ -85,7 +85,7 @@ Normal gameplay requests the internal `random` scenario. Fixed scenarios are int
 
 Only one case can be current. The Server Moderation Session Service allows a new case after it applies `DecisionScored` for the current case. It accepts one event for that case and rejects events for other cases. The service then increments `processed_count`, adds `score_delta`, and accumulates `penalty`.
 
-Ending a shift with a pending or undecided case returns `409`. A scoring event still in transit also returns `409`. The owner can retry after Session applies the event. Session commits the final result and its `ShiftEnded` outbox entry together, then returns `200`. The worker publishes the event after commit. Case-start and new decision requests reject ended shifts. This synchronous end operation does not enter `ending`.
+Ending a shift with a pending or undecided case returns `409`. A scoring event still in transit also returns `409`. The owner can retry after Session applies the event. Session ends the shift and Player awards XP in one [two-phase commit](transactions.md) that the Message Broker coordinates, then Session returns `200`. Session no longer publishes `ShiftEnded`. Case-start and new decision requests reject ended shifts. This synchronous end operation does not enter `ending`.
 
 ## Applicant Service endpoints
 ```text
