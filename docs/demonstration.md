@@ -168,7 +168,7 @@ Make one consumer fail on every attempt while it stays ready. Without permission
 docker compose exec player-db-1 sh -c 'PGPASSWORD=$APP_PASSWORD psql "host=player-db-1,player-db-2,player-db-3 user=$APP_USER dbname=$APP_DB target_session_attrs=read-write" -c "REVOKE INSERT ON progression_ledger FROM player"'
 ```
 
-End a shift. After five attempts, about a minute, the `ShiftEnded` delivery to Player appears in the listing with reason `exhausted`. Restore the permission:
+Apply a disciplinary action as the global administrator with `POST /api/v1/disciplinary-actions`. After five attempts, about a minute, the `DisciplinaryActionApplied` delivery to Player appears in the listing with reason `exhausted`. Restore the permission:
 
 ```sh
 docker compose exec player-db-1 sh -c 'PGPASSWORD=$APP_PASSWORD psql "host=player-db-1,player-db-2,player-db-3 user=$APP_USER dbname=$APP_DB target_session_attrs=read-write" -c "GRANT INSERT ON progression_ledger TO player"'
