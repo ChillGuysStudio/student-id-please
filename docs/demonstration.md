@@ -438,32 +438,32 @@ The services spread cached values over three Redis nodes with a consistent-hash 
 
 	After one second, the services use it again. Its old values expire within their time to live.
 
-## Commit across two databases
+## Run a saga across two databases
 
-Ending a shift changes the Session and Player databases in one [two-phase commit](contracts/transactions.md) that the Message Broker coordinates. Both commit, or neither does.
+Ending a shift runs as a [saga](contracts/transactions.md) that the Message Broker coordinates. Session sets the shift to `ending`, Player awards the XP, and Session sets the shift to `ended`. Each step commits in its own database. When a step fails for good, compensations undo the earlier steps in reverse order.
 
-1. Run the check. It stops and starts Player, the Broker, and one Player database node, so run nothing else that does at the same time:
-
-	```sh
-	python3 scripts/check_transactions.py
-	```
-
-	It prints one line per case: a normal commit, Player stopped at prepare, a Broker restart between the phases, a Player and database restart after prepare, and a repeated end. Each case compares the session status, the Player ledger, the Broker's transaction state, and the prepared transactions in both databases. No credentials are printed.
-
-2. Read the Broker's decisions:
+1. Run the check. It stops and starts Player and the Broker, so run nothing else that does at the same time:
 
 	```sh
-	docker compose logs --no-log-prefix message-broker | grep -E '"transaction_(decided|completed)"'
-	docker compose exec broker-db psql -U broker -d broker -c "SELECT state, count(*) FROM transactions GROUP BY state"
+	python3 scripts/check_sagas.py
 	```
 
-3. Confirm that nothing stays prepared:
+	It prints one line per case: a normal run, a Player outage that delays the saga, a permanent failure that compensates, a Broker restart mid-saga, and a repeated step. Each case compares the saga state, the session status, and the Player ledger, and prints the saga from the listing. No credentials are printed. To run one case, name it: `normal`, `player-outage`, `compensation`, `broker-restart`, or `repeated-step`.
+
+2. List the sagas as an administrator, with the token from [List topics](#list-topics):
 
 	```sh
-	docker compose exec player-db-1 psql -h /tmp -U postgres -c "SELECT gid, prepared FROM pg_prepared_xacts"
+	curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" 'http://127.0.0.1:8080/api/v1/admin/broker/sagas?limit=20&flow=end-shift'
 	```
 
-	Run it on the primary of each Session and Player database. An empty result means every transaction ended. Grafana's Prometheus data source shows `student_id_broker_transactions_total` by outcome and `student_id_broker_transactions_unresolved` by state.
+	Each item shows the saga's state, its cause after a compensation, and each step's state and attempts. It never shows a payload. Filter with `state=running`, `compensating`, `completed`, or `compensated`. Grafana's Prometheus data source shows `student_id_broker_sagas_total` by outcome and `student_id_broker_sagas_unresolved` by state.
+
+3. Watch a Player outage. Stop Player and end a shift: the end returns `202` with the shift `ending`, and the listing shows the saga `running` with a growing `attempts` count on `award-shift`. Start Player again, and the saga completes:
+
+	```sh
+	docker compose stop player
+	docker compose start player
+	```
 
 ## Run the HTTP checks
 
