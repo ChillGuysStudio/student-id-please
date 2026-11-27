@@ -1,222 +1,262 @@
 # Distributed transactions
 
-Ending a shift changes two databases: Session marks the shift ended, and Player awards XP to every participant. Until now Session committed its change with a `ShiftEnded` outbox entry, and Player applied the event later. The two changes were eventually consistent: for a while, a shift could be ended without its XP.
+Ending a shift changes two databases: Session ends the shift, and Player awards XP to every participant. This contract runs that change as a long-running saga that the Message Broker coordinates. Each step commits in one service's own database. When a step fails for good, compensations undo the steps that already committed, in reverse order. No service holds a lock while another service works.
 
-This contract makes that flow atomic with two-phase commit. The Message Broker coordinates. Session and Player are the participants, and each holds its change in a PostgreSQL prepared transaction until the Broker's decision arrives. Both databases commit, or neither does.
+Two-phase commit ran this flow up to release v5.0.5. The saga replaces it. Its coordinator, participant calls, tables, and the `max_prepared_transactions` setting are removed.
 
 ## Flow catalogue
 
-The Broker knows each flow by name, like a topic. A flow names its initiator and its participants in a fixed order.
+The Broker knows each flow by name, like a topic. A flow names its initiator and its steps in a fixed order. Each step names the service that runs it and the compensation that undoes it.
 
-| Flow | Initiator | Participants, in order |
-| --- | --- | --- |
-| `end-shift` | `session` | `session` with operation `end-shift`, `player` with operation `award-shift` |
+| Flow | Initiator | Steps, in order | Compensation |
+| --- | --- | --- | --- |
+| `end-shift` | `session` | 1. `session` `hold-shift`: the shift becomes `ending` | `session` reopens the shift |
+|  |  | 2. `player` `award-shift`: XP for each participant | `player` reverses the award |
+|  |  | 3. `session` `finish-end`: the shift becomes `ended` | None. It is the last step. |
 
-The initiator can also be a participant. Session starts the transaction from its end-shift request, and the Broker then prepares Session like any other participant.
+Session applies `hold-shift` itself, in the same local transaction as its end request, before it starts the saga. The Broker records that step as done when the saga starts. Every other step and every compensation runs through the Broker.
 
 ### Payloads
 
-Each payload is a UTF-8 JSON object of at most 64 KiB. The participant validates its own payload. An invalid payload is a rejection with `422 INVALID_TRANSACTION`.
+Each step and its compensation receive the same payload: a UTF-8 JSON object of at most 64 KiB. The participant validates it, and an invalid payload is a rejection with `422 INVALID_STEP`. The Broker stores payloads as `jsonb`, so a participant compares parsed values, never bytes.
 
 ```text
-EndShiftPayload = {session_id: Id, actor_id: Id, revision: Int,
-  idempotency_identity: string, request_sha256: string}
-
+HoldShiftPayload = {session_id: Id, actor_id: Id, idempotency_identity: string, request_sha256: string}
 AwardShiftPayload = {session_id: Id, participant_ids: Id[], score: Int}
+FinishEndPayload = {session_id: Id, idempotency_identity: string, request_sha256: string}
 ```
 
-- `revision` is the session revision that the initiator read. Session rejects the prepare if the session changed after that.
-- `idempotency_identity` and `request_sha256` let Session store the end-shift response in the prepared transaction, so a retry with the same `Idempotency-Key` returns it.
-- `participant_ids` and `score` come from the same session read. Player awards `max(0, score)` XP to each participant once per shift, as before.
+`participant_ids` and `score` come from the session as `hold-shift` froze it. Player awards `max(0, score)` XP to each participant once per shift, as before.
 
 ## Roles and calls
 
-[`transactions.proto`](../../proto/student_id/transactions/v1/transactions.proto) defines two services.
+[`sagas.proto`](../../proto/student_id/sagas/v1/sagas.proto) defines two services. `BrokerService/ListSagas` in [`broker.proto`](../../proto/student_id/broker/v1/broker.proto) serves the [listing](#saga-listing).
 
 | RPC | Caller and credential | Served by |
 | --- | --- | --- |
-| `TransactionCoordinatorService/RunTransaction` | The flow's initiator, service credential | The Message Broker |
-| `TransactionParticipantService/Prepare`, `Commit`, `Abort` | The Broker, hop credential and workload assertion | One ready replica of the participant |
+| `SagaCoordinatorService/StartSaga` | The flow's initiator, service credential | The Message Broker |
+| `SagaParticipantService/RunStep`, `Compensate` | The Broker, hop credential and workload assertion | One ready replica of the step's service |
+| `BrokerService/ListSagas` | `gateway` or `operator`, control credential | The Message Broker |
 
-`RunTransaction` takes the same authentication as `BrokerService/PublishEvent`: `x-service-name` and `x-service-token`, checked against `BROKER_SERVICE_TOKENS`. Gateway is refused. The Broker checks, in order:
+`StartSaga` takes the same authentication as `BrokerService/PublishEvent`. Gateway is refused. The Broker checks, in order:
 
 | Check | Error |
 | --- | --- |
 | The caller authenticates | `UNAUTHENTICATED UNAUTHORIZED` (401) |
-| `transaction_id` is a UUID, and `participants` matches the flow's services and operations in order, with payloads that parse as JSON objects | `INVALID_ARGUMENT INVALID_TRANSACTION` (422) |
+| `saga_id` is a UUID, and `steps` matches the flow's services and operations in order, with payloads that parse as JSON objects of at most 64 KiB | `INVALID_ARGUMENT INVALID_SAGA` (422) |
 | The flow is in the catalogue | `NOT_FOUND UNKNOWN_FLOW` (404) |
 | The caller is the flow's initiator | `PERMISSION_DENIED FLOW_FORBIDDEN` (403) |
-| A transaction with this ID either does not exist or has an equal request | `ABORTED TRANSACTION_ID_CONFLICT` (409) |
+| A saga with this ID either does not exist or has an equal request | `ABORTED SAGA_ID_CONFLICT` (409) |
 | `broker-db` accepts the write | `UNAVAILABLE STORE_UNAVAILABLE` (503) |
 
-Two requests are equal when their flow and every participant's service, operation, and payload are equal, with payloads compared as `jsonb` values. The Broker stores each payload as `jsonb` and sends that normalized text as `Prepare.payload_json`, so a participant compares parsed values, never the bytes.
+Two requests are equal when their flow and every step's service, operation, and payload are equal, with payloads compared as `jsonb` values.
 
-The Broker calls a participant as it [pushes an event](grpc.md#push-delivery). The metadata is the receiver's hop credential, a Broker workload assertion with `azp` set to the initiator, and `idempotency-key` set to the `transaction_id`. `x-request-id` is the request ID of the `RunTransaction` call, or the `transaction_id` for calls that recovery makes. The participant accepts the call when the hop and assertion verify, `azp` is the flow's initiator, and it serves the flow and operation. Each call goes to one ready replica that the [load rule](routing.md#load) selects. It counts toward that replica's breaker like a dispatch, and it is never rerouted.
+The Broker calls a participant as it [pushes an event](grpc.md#push-delivery). The metadata is the receiver's hop credential, a Broker workload assertion with `azp` set to the initiator, and `idempotency-key` set to `<saga_id>:<operation>`. `x-request-id` is the `StartSaga` request ID for calls within that request, and the `saga_id` for calls that recovery makes. The participant accepts the call when the hop and assertion verify, `azp` is the flow's initiator, and it serves the flow and operation. Each call goes to one ready replica that the [load rule](routing.md#load) selects, counts toward that replica's breaker like a dispatch, and is never rerouted.
 
-## Protocol
+## State machine
 
-### Transaction ID
+A saga is `running` until its last step is done, and then `completed`. When a step fails for good, the saga becomes `compensating`, and then `compensated` once every compensation has succeeded. `completed` and `compensated` are final.
 
-The initiator chooses the `transaction_id` and keeps it until the transaction ends. Session stores one ID per end-shift idempotency identity, with the exact participant requests that it sends, in its own short transaction before it calls the Broker. A retry of the same request, for example after the Broker cut off the first forwarded attempt, resends the stored requests unchanged and joins the same transaction, even if the session changed in between. When `RunTransaction` returns `aborted`, Session replaces the stored ID and requests in the same step that builds its error response. A retry after a crash in between joins the aborted transaction again, gets `aborted` again, and then replaces it. Session holds no database lock while it waits for the Broker, because the Broker prepares Session on its own connection.
+| Step state | Meaning |
+| --- | --- |
+| `pending` | Not run yet, or its last attempt failed and it waits for a retry |
+| `done` | The participant answered `OK` |
+| `failed` | The step failed for good. It caused the compensation. |
+| `compensated` | Its compensation answered `OK` |
+| `skipped` | The saga compensated before this step ran |
 
-### Phase one
+The Broker runs one step at a time, in order. It writes each result to `broker-db` before it sends the next call, so a restart never repeats a step that it recorded as done. A participant still handles a repeated call safely, because a call can succeed while its answer is lost.
 
-1. The Broker inserts the transaction with state `preparing` and its participants into `broker-db`. Its prepare deadline is the earlier of 1 second after the insert and 250 ms before the caller's gRPC deadline. A caller deadline that leaves less than 250 ms for the prepare is refused before the insert with `DEADLINE_EXCEEDED TASK_TIMEOUT` (504), as the Broker refuses other calls without a task budget. When the transaction already exists with an equal request, the call joins it and waits for its decision instead.
-2. The Broker sends `Prepare` to every participant at once, with that deadline. It sends each `Prepare` once. A failed prepare is not retried.
-3. A participant applies the operation in one database transaction, as if it would commit. It sets `lock_timeout` to the time that remains before the deadline. Its advisory locks are transaction-level (`pg_advisory_xact_lock`), because PostgreSQL refuses to prepare a transaction that holds a session-level advisory lock. Instead of committing, it inserts its `transaction_log` row and runs `PREPARE TRANSACTION 'student-id:<transaction_id>:<service>'`. It answers `prepared` once `PREPARE TRANSACTION` returns. With synchronous replication, the prepared transaction is then on two nodes.
-4. If the operation had already been applied, the participant rolls back and answers `read_only`. Nothing waits for phase two on that participant.
-5. If the operation fails a business rule, the participant rolls back and returns the error with its `ErrorDetail` and a `4xx` `http_status`. That is a no vote.
+### Forward retries
 
-### Decision
+A step result is one of three kinds:
 
-The decision is the commit point. The Broker writes it to `broker-db` before it sends any phase-two call, in one transaction with every vote that it received:
+- `OK`: the step is done, and the next step runs.
+- A rejection, an error with an `ErrorDetail` whose `http_status` is `4xx`, except `409 PARTICIPANT_BUSY` and `429`: the step failed for good, and the saga compensates.
+- Anything else, including `5xx`, `STORAGE_UNAVAILABLE`, `PARTICIPANT_BUSY`, a timeout, a connection error, or no eligible replica: the step stays `pending` and is retried after 1, 5, and 30 seconds, then every 30 seconds.
 
-- When every participant answered `prepared` or `read_only` before the deadline, the state becomes `committing`.
-- When any participant rejected the operation, failed, timed out, or had no eligible replica, the state becomes `aborting` with the cause. The Broker does not wait for the remaining votes.
+A Player outage therefore delays the saga. Session keeps the shift `ending`, and the saga completes once Player answers. The retries stop at whichever comes first: 25 attempts of one step, or the saga's deadline 10 minutes after it started. The saga then compensates with the cause `attempts` or `deadline`.
 
-The write changes the state only while it is still `preparing`, so a concurrent decision by [recovery](#recovery) cannot be overwritten. A request whose write finds another decision adopts the stored one. If `broker-db` refuses the write, no decision exists, and `RunTransaction` returns `STORE_UNAVAILABLE`. Recovery then aborts the transaction.
+### Compensation
 
-### Phase two
+Compensation runs in reverse order, for every step that is `done`, and for the step that failed when its outcome is unknown. A step that timed out may have committed, so its compensation runs too. A step that was rejected committed nothing, and its compensation runs only to block a late duplicate, as the participant rules below require. Steps that never ran become `skipped`.
 
-The Broker sends `Commit` or `Abort` to every participant whose stored vote is not `read_only`. That includes a participant whose `Prepare` timed out, because it may have prepared. A `read_only` participant has nothing to commit, and it is never sent `Commit`, by the request or by recovery. A participant that rejected the operation prepared nothing, and `Abort` returns OK for it.
-
-The Broker retries a phase-two call until the participant answers `OK`: first within the request, then from recovery after 1, 5, and 30 seconds, then every 30 seconds without limit. When every participant has answered, the state becomes `committed` or `aborted`.
-
-`RunTransaction` returns after the decision and one bounded round of phase two. The request gives each of its own phase-two calls at most 250 ms, and starts the round only while at least 250 ms of its budget remain. A participant that answers later is finished by recovery. A call cut off this way is the Broker's own doing and counts toward no breaker. A call that joins a transaction returns as soon as the transaction is decided, because the deciding request or recovery runs phase two. A call whose own deadline arrives before the decision returns `DEADLINE_EXCEEDED TASK_TIMEOUT` (504), and a retry joins the transaction. `outcome` is the decision. `completed` is true when every participant acknowledged phase two. `cause` names the participant and `kind` of an abort: `rejected` with the participant's `code` and `http_status`, `busy` for `PARTICIPANT_BUSY`, `timeout` when the `Prepare` call itself timed out, `unavailable`, or `deadline`. `deadline` covers a vote that arrived after the prepare deadline, a call that could not be sent before it, and a presumed abort by recovery, which names no participant.
+A compensation is retried on the same schedule until it answers `OK`, with no attempt limit and no deadline. It must not fail for good. A compensation that is rejected means that the coordinator and the participant disagree. The Broker logs it at `ERROR` as `saga_conflict` and keeps retrying, so the saga stays `compensating` and visible until an operator acts.
 
 ### Participant rules
 
 Each participant keeps one table in its own database:
 
 ```text
-transaction_log(transaction_id uuid primary key, state text, created_at timestamptz)
+saga_log(saga_id uuid, operation text, state text, created_at timestamptz, primary key (saga_id, operation))
 ```
 
-`Prepare` inserts the row with state `prepared` inside the prepared transaction, so the row commits with the operation. `Abort` inserts it with state `aborted` when nothing is prepared. The primary key turns every race into a defined result.
+A step and its compensation take the transaction-level advisory lock `saga:<saga_id>:<operation>`, so they never run at the same time.
 
-| Call | Prepared transaction exists | Row `prepared` (already committed) | Row `aborted` | No row |
-| --- | --- | --- | --- | --- |
-| `Prepare` | Waits for the key, then rejects | `read_only` | Rejects with `409 TRANSACTION_CLOSED` | Prepares |
-| `Commit` | `COMMIT PREPARED`, then `OK` | `OK` | `FAILED_PRECONDITION TRANSACTION_NOT_PREPARED` (412) | `FAILED_PRECONDITION TRANSACTION_NOT_PREPARED` (412) |
-| `Abort` | `ROLLBACK PREPARED`, then inserts `aborted`, then `OK` | `FAILED_PRECONDITION TRANSACTION_COMMITTED` (412) | `OK` | Inserts `aborted`, then `OK` |
+| Call | Row `applied` | Row `compensated` | No row |
+| --- | --- | --- | --- |
+| `RunStep` | `OK`, `applied` false | Rejects with `409 SAGA_COMPENSATED` | Applies the step and inserts `applied` in one transaction, then `OK`, `applied` true |
+| `Compensate` | Undoes the step and sets `compensated` in one transaction, then `OK`, `applied` true | `OK`, `applied` false | Inserts `compensated`, then `OK`, `applied` false |
 
-`ROLLBACK PREPARED` also rolls back the `prepared` row, so `Abort` inserts the `aborted` row in a second short transaction, with `ON CONFLICT DO NOTHING`. If the participant stops in between, the retried `Abort` finds no prepared transaction and no row, and inserts it. A `Prepare` that arrives after its `Abort` therefore always finds the `aborted` row and prepares nothing. An `Abort` or `Commit` that arrives while a `Prepare` is still running waits for it. Until shortly before its deadline, it checks again for the prepared transaction, and it tries the key with a short `lock_timeout` in between. Once the `Prepare` has prepared, the call ends that prepared transaction at once. It returns `ABORTED PARTICIPANT_BUSY` (409) only if its deadline passes first, and the Broker then retries it.
+A step that arrives after its compensation therefore finds the `compensated` row and changes nothing. A compensation that arrives before its step leaves the row behind, so that the step never runs. A step that cannot get its lock or row in time answers `409 PARTICIPANT_BUSY`, which is retried.
 
-When `RunTransaction` returns `aborted`, Session replaces its stored transaction ID only if it gets the request lock within about 100 ms. Its own prepared part may still hold that lock. Otherwise it returns its error response without the replacement, and a later retry replaces the ID. A participant refuses to start a `Prepare` after its deadline, and rejects it with `409 TRANSACTION_CLOSED`. It also rejects with `409 PARTICIPANT_BUSY` when its `lock_timeout` runs out, for example behind another prepared transaction, when PostgreSQL detects a deadlock, and when every prepared-transaction slot is in use. Contention is expected, so it counts toward no breaker. Only a participant's own failure, a connection error, or a timeout of the call counts, as for any other call.
+### End-shift steps
 
-`Commit` and `Abort` work on any connection to the primary, because a prepared transaction belongs to the database, not to the connection that prepared it. `Commit` and `Abort` also run after a participant restart or a PostgreSQL failover.
+`hold-shift` runs in Session's end request, under the existing `request:` and `session:` advisory locks. It runs the checks of the end operation, sets the status to `ending`, increments `revision`, stores the saga ID and the step requests under the idempotency identity, and inserts its `saga_log` row. An `ending` shift accepts no case start, decision, or other change, as an `ended` shift does.
 
-Rows older than 7 days may be deleted. That is far longer than any prepare deadline, so a deleted `aborted` row cannot let a late `Prepare` through.
+Session's compensation `reopen-shift` sets an `ending` shift back to `active` and increments `revision`. It stores the response `409 PROGRESSION_REJECTED` under the idempotency identity, with the cause in `details`, so that a retry with the same key returns it. A shift that is already `ended` is never reopened. That would mean the coordinator and Session disagree, so Session rejects it with `409 SHIFT_ENDED`.
 
-The two `FAILED_PRECONDITION` results mean that the coordinator and a participant disagree. That is an operational fault, not a business result. The Broker logs it at `ERROR`, keeps the transaction unresolved, and keeps retrying, so it stays visible until an operator acts.
-
-### End-shift operations
-
-`end-shift` in Session runs the checks of the current end operation under the same `request:` and `session:` advisory locks. It then sets `status` to `ended`, sets `ended_at`, increments `revision`, and stores the `200` response under the idempotency identity. It no longer writes a `ShiftEnded` outbox entry.
-
-| Condition | Session's answer |
-| --- | --- |
-| The session is already ended, or the idempotency identity already has a stored response | `read_only` |
-| The session is missing or the actor is not its owner | `404 SESSION_NOT_FOUND` or `403 SESSION_FORBIDDEN` |
-| A case or scoring event is unfinished | `409 CASE_UNFINISHED` |
-| The session is not active | `409 INVALID_SESSION_STATE` |
-| `revision` differs from the session's revision | `409 SESSION_CHANGED` |
-
-`award-shift` in Player uses the existing progression ledger and the business receipt `shift:<session_id>` under the same advisory locks. It inserts one `progression_ledger` row of kind `shift` with `delta = max(0, score)` for each participant and recomputes each player's XP. It locks the players in ascending ID order, so two transactions never wait on each other.
+`award-shift` in Player uses the existing progression ledger under the advisory locks `progression:shift:<session_id>` and `player:<id>`, taken in ascending player ID order. It inserts one `progression_ledger` row of kind `shift` with `delta = max(0, score)` for each participant, records the `saga_id` on each row, and recomputes each player's XP.
 
 | Condition | Player's answer |
 | --- | --- |
-| A receipt for the shift exists with the same participants and score, from either this flow or an earlier `ShiftEnded` | `read_only` |
+| A receipt for the shift exists with the same participants and score | `OK`, `applied` false |
 | A receipt exists with other values | `409 AWARD_CONFLICT` |
 | A participant does not exist | `404 PLAYER_NOT_FOUND` |
 | An XP total would exceed 2^31 - 1 | `422 XP_OVERFLOW` |
 
-## End-shift response
+Player's compensation `revoke-shift-award` inserts one row of kind `shift_reversal` with the negated `delta` for each `shift` row of that saga, and recomputes XP. XP stays `max(0, sum of the ledger)`, as before.
 
-`POST /api/v1/sessions/{session_id}/end` keeps its route, its owner rule, its `Idempotency-Key` rule, and its existing errors. When the session is already ended, it returns `200` without a transaction, as before. Otherwise Session reads the session, stores the transaction ID, and calls `RunTransaction`.
+`finish-end` in Session sets an `ending` shift to `ended`, sets `ended_at`, and stores the `200` response under the idempotency identity. An `ended` shift answers `OK`, `applied` false.
 
-| Result of `RunTransaction` | Response |
+## Starting a saga and the end-shift response
+
+`POST /api/v1/sessions/{session_id}/end` keeps its route, its owner rule, its `Idempotency-Key` rule, and its existing checks.
+
+1. Session runs `hold-shift` in its own transaction and commits it. The saga is then recorded in Session, even if the Broker is down.
+2. Session calls `StartSaga` with the stored saga ID and steps, holding no database lock.
+3. The Broker inserts the saga and its steps, records `hold-shift` as done, and runs the next steps within the call's budget. It returns when the saga is final, when a step attempt failed and must wait for a retry, or 250 ms before the caller's deadline. Each step call gets at most 250 ms within the request. A call cut off this way is the Broker's own doing and counts toward no breaker, and recovery retries it.
+4. A Session relay starts every stored saga that `StartSaga` has not accepted yet. It retries after 1, 5, and 30 seconds, then every 30 seconds, with the same request.
+
+| Result | Response |
 | --- | --- |
-| `committed` | If Session's own part is still prepared, the handler runs the same idempotent `Commit` logic that the participant RPC uses. It then returns the stored `200` response. |
-| `aborted`, Session rejected | Session's own error from the table above. The shift stays as it was. |
-| `aborted`, Player rejected | `409 PROGRESSION_REJECTED`, with Player's `code` in `details`. The shift stays active. |
-| `aborted` for `busy`, `timeout`, `unavailable`, or `deadline` | `503 TRANSACTION_ABORTED` with `Retry-After: 1`. The shift stays active. |
-| `STORE_UNAVAILABLE`, `TASK_TIMEOUT`, or the Broker cannot be reached | `503 COORDINATOR_UNAVAILABLE` with `Retry-After: 1`. A retry with the same key joins the transaction. |
+| `completed` | `200 Session` in `ended`, the stored response of `finish-end` |
+| `running`, a Broker error, or no answer | `202 Session` in `ending`. The saga continues in the Broker or the relay. |
+| `compensating` or `compensated` | `409 PROGRESSION_REJECTED` with the cause in `details`. Reads show the shift `ending` until Session's compensation has run, and then `active`. |
 
-A committed transaction never returns an error to the caller, even if Player's phase two is still retrying. Player's XP becomes visible when its `Commit` succeeds.
+A retry with the same key returns the stored response once one exists. Until then, it returns `202` with the current session. An end request for an `ending` shift with another key also returns `202`. An `ended` shift returns `200`, as before.
 
-The Broker records every phase-one failure, and a `STORE_UNAVAILABLE` result, as a [nested outage](resilience.md#storage-outages) of the `RunTransaction` request ID. Session's resulting `503` therefore has the kind `dependency_unavailable` and does not count toward Session's breaker. The `409` results do not count toward any breaker.
+The synchronous end now enters `ending`. That replaces the earlier rule that it never did. `ending` is the visible pending state of the saga.
 
-The synchronous end still does not enter `ending`. A shift whose transaction is undecided stays `active` to every reader, because the prepared change is not visible.
+## Isolation
+
+A saga gives up isolation between its steps. Other readers see each step as it commits:
+
+- A participant's XP can rise while the shift is still `ending`. If the saga compensates, a reversing ledger entry takes the XP away again.
+- `ending` is a semantic lock in Session. No case start, decision, or second end changes the shift until the saga is final.
+- No service waits for another service's lock. A Player outage delays only this saga, and the shift's result stays stored in Session as `ending`.
 
 ## Recovery
 
-A Broker task resolves transactions that their requests did not finish. It runs when the Broker starts and then every second. It claims rows with `FOR UPDATE SKIP LOCKED` and leases each claimed row, and each new decision, for `T` plus 1 second, so two Broker instances never resolve the same transaction at once. After a Broker crash right after a decision, recovery's first phase-two call therefore comes about 3 seconds after the decision.
+A Broker task resumes sagas that their requests did not finish. It runs when the Broker starts and then every second. It claims rows with `FOR UPDATE SKIP LOCKED` and leases each claimed row for `T` plus 1 second, so two Broker instances never run the same saga at once. It runs the next forward step or compensation that is due, and records the result before the next call.
 
-- A `preparing` transaction whose prepare deadline passed more than 1 second ago gets the decision `aborting`. Its votes are lost if the Broker restarted, so the transaction is presumed aborted, and every participant is sent `Abort`. No participant prepares after that deadline.
-- A `committing` or `aborting` transaction gets its pending phase-two calls on the retry schedule.
+| State at restart | Recovery |
+| --- | --- |
+| `running`, next step `pending` | Runs the step on the retry schedule |
+| `running`, deadline passed | Becomes `compensating` with the cause `deadline` |
+| `compensating` | Runs the remaining compensations in reverse order |
+| `completed` or `compensated` | Nothing |
 
-A participant never decides alone. After a participant restart or a PostgreSQL failover, the prepared transaction is still in the database, and the next `Commit` or `Abort` finds it.
+## Saga listing
 
-## Blocking
+The Broker serves `BrokerService.ListSagas` to the `gateway` and `operator` control principals. Other authenticated callers receive `PERMISSION_DENIED FORBIDDEN`. At most two listings run at once. A third returns `UNAVAILABLE TASK_LIMIT_EXCEEDED`.
 
-Two-phase commit blocks by design. Between `PREPARE TRANSACTION` and the decision, a participant holds every lock of its prepared transaction: the session row, each participant's player row, and their advisory locks.
+| Request field | Rule |
+| --- | --- |
+| `page_size` | `1` to `100`. `0` means `20`. |
+| `page_token` | Empty for the first page, otherwise a `next_page_token` from an earlier page |
+| `flow`, `state` | Optional exact filters. A flow outside the catalogue, or a state other than `running`, `compensating`, `completed`, and `compensated`, returns `INVALID_ARGUMENT VALIDATION_ERROR`. |
 
-- Other writes to that session or those players wait. Each request waits only within its own deadline and then fails as it does today for a slow store. Reads are not blocked.
-- When the Broker or `broker-db` is down after a prepare, the locks stay held until the Broker resolves the transaction. Nothing else can release them safely, because only the Broker knows whether it decided to commit.
-- A participant cluster whose primary runs without a synchronous standby confirms a `PREPARE TRANSACTION` on one node only. If that primary is lost before a standby copies it, the new primary has no prepared transaction, and `Commit` returns `TRANSACTION_NOT_PREPARED` until an operator acts. With `synchronous_mode`, that happens only after a standby was already lost.
-- `broker-db` is a single PostgreSQL instance, not a replicated cluster. A lost `broker-db` loses the decisions of unfinished transactions. Recovery then needs an operator, who reads the prepared transactions with `SELECT gid FROM pg_prepared_xacts` in each participant database and ends them with `COMMIT PREPARED` or `ROLLBACK PREPARED`.
+Items are newest first. `next_page_token` is empty on the last page. A malformed token returns `INVALID_ARGUMENT VALIDATION_ERROR`. If `broker-db` does not answer within one second, the call returns `UNAVAILABLE STORE_UNAVAILABLE`. Each item holds the saga ID, flow, initiator, state, cause, times, and for each step its position, service, operation, state, attempts, compensation attempts, last status, and last error kind. It never holds a payload, a participant ID, or any credential.
 
-## Configuration
+Gateway exposes the listing to administrators:
 
-PostgreSQL refuses `PREPARE TRANSACTION` while `max_prepared_transactions` is 0, its default. The clusters set it to 100, equal to `max_connections`, as the PostgreSQL documentation advises for prepared transactions, so every connection can leave one prepared transaction pending. Each slot costs a few hundred bytes of shared memory and enlarges the shared lock table. A participant that finds every slot in use rejects with `PARTICIPANT_BUSY`, as above.
+```text
+GET /api/v1/admin/broker/sagas?limit=Int&cursor=String&flow=String&state=String
+```
 
-Patroni keeps the setting in its cluster configuration, so the standbys get the same value, which PostgreSQL requires of a standby. The setting needs a server restart. A new cluster takes it from `config/patroni/patroni.yml` at bootstrap. An existing cluster needs `patronictl edit-config --set postgresql.parameters.max_prepared_transactions=100` and then `patronictl restart --pending`, which restarts the members that need it.
+Gateway handles it exactly like `GET /api/v1/admin/broker/dead-letters`:
+
+- It verifies the administrator and accepts only these four query parameters. `limit` maps to `page_size`, and `cursor` to `page_token`.
+- It makes one call with its control credential, allows 3 seconds, and accepts a response of at most 256 KiB.
+- A Broker `INVALID_ARGUMENT` returns `400 VALIDATION_ERROR`, and any other Broker failure `503 DEPENDENCY_UNAVAILABLE`.
+- Anonymous callers receive `401`, and authenticated non-administrators `403`.
+
+```json
+{
+  "items": [
+    {
+      "saga_id": "6f1c2a8e-4b7d-4e19-9a3c-2d5e8f0b1c47",
+      "flow": "end-shift",
+      "initiator": "session",
+      "state": "completed",
+      "cause": null,
+      "created_at": "2026-11-27T10:00:00Z",
+      "deadline": "2026-11-27T10:10:00Z",
+      "updated_at": "2026-11-27T10:00:00.120Z",
+      "finished_at": "2026-11-27T10:00:00.120Z",
+      "steps": [
+        {"position": 1, "service": "session", "operation": "hold-shift", "state": "done", "attempts": 1, "compensation_attempts": 0, "last_status": null, "last_error_kind": ""},
+        {"position": 2, "service": "player", "operation": "award-shift", "state": "done", "attempts": 1, "compensation_attempts": 0, "last_status": 200, "last_error_kind": ""},
+        {"position": 3, "service": "session", "operation": "finish-end", "state": "done", "attempts": 1, "compensation_attempts": 0, "last_status": 200, "last_error_kind": ""}
+      ]
+    }
+  ],
+  "next_cursor": null
+}
+```
+
+`cause` is `null` or `{operation, kind, code}`. `finished_at` is `null` until the saga is final.
 
 ## Broker storage
 
-Migration `003_transactions.sql` adds two tables to `broker-db`.
+Migration `004_sagas.sql` adds two tables to `broker-db`. A later migration drops the two-phase commit tables.
 
 ```text
-transactions(transaction_id uuid primary key, flow text, initiator text, state text,
-  prepare_deadline timestamptz, cause jsonb, created_at timestamptz,
-  decided_at timestamptz, completed_at timestamptz, next_attempt_at timestamptz)
+sagas(saga_id uuid primary key, flow text, initiator text, state text, deadline timestamptz,
+  cause jsonb, created_at timestamptz, updated_at timestamptz, finished_at timestamptz,
+  next_attempt_at timestamptz)
 
-transaction_participants(transaction_id uuid, position int, service text, operation text,
-  payload jsonb, vote text, completed boolean, attempts int, last_error_kind text,
-  primary key (transaction_id, service))
+saga_steps(saga_id uuid, position int, service text, operation text, compensation text,
+  payload jsonb, state text, attempts int, compensation_attempts int, last_status int,
+  last_error_kind text, primary key (saga_id, position))
 ```
 
-`state` is one of `preparing`, `committing`, `aborting`, `committed`, and `aborted`. Finished transactions stay for inspection.
+Finished sagas stay for inspection.
 
 ## Logs and metrics
 
-The Broker writes `transaction_decided` at `INFO` with `transaction_id`, `flow`, `outcome`, `duration_ms`, and for an abort `cause_service`, `cause_kind`, and `cause_code`. It writes `transaction_completed` at `INFO` when phase two finishes. Each participant call writes `transaction_call` with `transaction_id`, `phase` (`prepare`, `commit`, or `abort`), `target_service`, `target_instance_id`, `attempt`, `outcome`, `duration_ms`, and `error_kind` on failure: `DEBUG` on success and `WARN` on failure. A disagreement writes `transaction_conflict` at `ERROR`. Records never contain payloads.
+The Broker writes these records. None of them contains a payload or a participant ID.
+
+- `saga_started` at `INFO` with `saga_id` and `flow`
+- `saga_step` for each call, with `saga_id`, `flow`, `phase` (`forward` or `compensate`), `operation`, `target_service`, `target_instance_id`, `attempt`, `outcome`, `duration_ms`, and `error_kind` on failure: `DEBUG` on success and `WARN` on failure
+- `saga_compensating` at `WARN` with the cause
+- `saga_completed` or `saga_compensated` at `INFO` with `duration_ms`
+- `saga_conflict` at `ERROR`
 
 | Metric | Type | Labels | Meaning |
 | --- | --- | --- | --- |
-| `student_id_broker_transactions_total` | Counter | `flow`, `outcome` | Decisions: `committed` or `aborted` |
-| `student_id_broker_transaction_duration_seconds` | Histogram | `flow`, `outcome` | Time from the insert to the decision |
-| `student_id_broker_transactions_unresolved` | Gauge | `flow`, `state` | Transactions in `preparing`, `committing`, or `aborting`, read from `broker-db` every 5 seconds |
+| `student_id_broker_sagas_total` | Counter | `flow`, `outcome` | Final sagas: `completed` or `compensated` |
+| `student_id_broker_saga_duration_seconds` | Histogram | `flow`, `outcome` | Time from the start to the final state |
+| `student_id_broker_saga_steps_total` | Counter | `flow`, `operation`, `phase`, `outcome` | Step and compensation calls: `ok`, `retry`, or `rejected` |
+| `student_id_broker_sagas_unresolved` | Gauge | `flow`, `state` | Sagas in `running` or `compensating`, read from `broker-db` every 5 seconds |
 
 ## Failure cases
 
 | Case | Result |
 | --- | --- |
-| Normal end | Both commit. The shift is ended, and every participant has the XP. |
-| Player has no ready replica, or its database is down, at prepare | Abort. The shift stays active, and the end returns `503 TRANSACTION_ABORTED`. |
-| Player rejects the award | Abort. The shift stays active, and the end returns `409 PROGRESSION_REJECTED`. |
-| A prepare is slower than the deadline | Abort. A late prepare finds the `aborted` row, or is rolled back by the retried `Abort`. |
-| The Broker restarts before the decision | Recovery aborts after the deadline. The shift stays active, and a retry with the same key starts a new transaction. |
-| The Broker restarts after the decision | Recovery sends the remaining phase-two calls. Both databases reach the decided state. |
-| A participant replica restarts after prepare | Another replica, or the same one after its restart, commits or aborts the prepared transaction. |
-| A participant's PostgreSQL primary fails over after prepare | The new primary has the prepared transaction, and the retried call ends it. |
-| `Commit` or `Abort` is repeated | `OK`, with no second change. |
-| The same end request is retried | It joins the transaction and returns the same result. |
-| Two end requests with different keys run together | The second waits for the first one's locks. It then answers `read_only` and returns `200`, or its `lock_timeout` runs out and it returns `503 TRANSACTION_ABORTED`. |
+| Normal end | The saga completes within the request. The end returns `200`, the shift is `ended`, and each participant has the XP. |
+| Player has no ready replica or its database is down | The end returns `202` with the shift `ending`. The award is retried, and the saga completes once Player answers. |
+| Player rejects the award | The saga compensates. Player's compensation records the rejection, Session reopens the shift, and a retry of the end returns `409 PROGRESSION_REJECTED`. |
+| The award times out and then commits late | A later retry finds the `applied` row and answers `OK`. If the saga compensated first, the late call finds the `compensated` row and changes nothing. |
+| The Broker restarts mid-saga | Recovery resumes at the first step that is not recorded as done. No recorded step runs twice. |
+| The Broker is down when the end request arrives | The end returns `202` with the shift `ending`. Session's relay starts the saga when the Broker returns. |
+| A step or compensation is repeated | `OK` with `applied` false, and no second change |
+| The same end request is retried | It returns the stored response, or `202` while the saga runs |
+| Retries run out, or the deadline passes | The saga compensates every step that may have committed, in reverse order. |
 
 ## What changes
 
-- Session no longer writes `ShiftEnded` when it ends a shift. The topic stays in the catalogue, and Player keeps its consumer, so events stored before the change still apply. The shared receipt `shift:<session_id>` prevents a second award.
-- The end-shift response adds `409 PROGRESSION_REJECTED`, `409 SESSION_CHANGED`, `503 TRANSACTION_ABORTED`, and `503 COORDINATOR_UNAVAILABLE`.
-- XP is visible when the end returns, unless Player's phase two is still retrying.
+- The end-shift response adds `202 Session` in `ending`. `409 PROGRESSION_REJECTED` now comes from the saga's compensation. The two-phase codes `409 SESSION_CHANGED`, `503 TRANSACTION_ABORTED`, and `503 COORDINATOR_UNAVAILABLE` are gone.
+- Session still does not publish `ShiftEnded`, and Player keeps its consumer for events stored earlier. The shared receipt `shift:<session_id>` prevents a second award.
+- The progression ledger adds the kind `shift_reversal` for compensations.
