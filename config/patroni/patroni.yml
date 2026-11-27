@@ -13,8 +13,6 @@ bootstrap:
       use_slots: true
       parameters:
         max_connections: 100
-        # Two-phase commit prepares transactions. PostgreSQL advises one slot per connection.
-        max_prepared_transactions: 100
         shared_buffers: 64MB
         max_wal_size: 256MB
         wal_keep_size: 128MB
