@@ -2,6 +2,8 @@
 
 Common API behavior comes from the [HTTP contract](http.md). Each internal row names the gRPC method that replaces it in the [gRPC contract](grpc.md#rpc-inventory). Its path stays as that method's authorization resource. Shared payloads use the [domain types](domain.md). [Integration principles](../integration.md) describe mocked and integrated deployments.
 
+Every endpoint whose service cannot reach a writable datastore, for example during a database failover, returns `503 STORAGE_UNAVAILABLE`, as [storage outages](resilience.md#storage-outages) defines. The [cache](cache.md) changes no status or body.
+
 ## Player Service endpoints
 ```text
 Player = {player_id: Id, username: string, display_name: string, xp: Int, level: Int}
@@ -66,7 +68,7 @@ SessionContext = {session: Session, player: Participant}
 | `POST /api/v1/sessions/{session_id}/start` | Session owner | Empty object | `200 Session`<br>Pins the current published rules and a university snapshot; freezes roster and roles. |
 | `POST /api/v1/sessions/{session_id}/cases` | Assigned Moderator | `{entry_service: "applicant" \| "credential" \| "university_record"}` | `202 CaseStatus`<br>Calls the selected initializer with internal scenario `random` and reserves the current-case slot. |
 | `GET /api/v1/sessions/{session_id}/cases/{case_id}/status` | Participant, including Moderation on behalf of the assigned Moderator | None | `200 CaseStatus`<br>The service queries all three case owners and records aggregate readiness before returning. Moderation and Rules use gRPC `SessionService.GetCaseStatus`. |
-| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. `202 Session` in `ending` while the end-shift [saga](transactions.md) runs. An unfinished case returns `409`. A compensated saga returns `409 PROGRESSION_REJECTED` and reopens the shift. |
+| `POST /api/v1/sessions/{session_id}/end` | Session owner | Empty object | `200 Session` in `ended`, including retries. `202 Session` in `ending` while the end-shift [saga](transactions.md) runs. A compensated saga returns `409 PROGRESSION_REJECTED` and reopens the shift. [End a shift](#end-a-shift) lists every response. |
 | `DELETE /api/v1/sessions/{session_id}` | Session owner, lobby only | None | `204`, no body |
 | `GET /internal/v1/sessions/{session_id}/context`<br>gRPC `SessionService.GetSessionContext` | Case services, Moderation, Rules, University Record, or DMs | Query `player_id: Id` | `200 SessionContext`<br>The service validates participation. Callers check the required role and status. |
 | `POST /internal/v1/events/{topic}`<br>gRPC `EventConsumerService.DeliverEvent` | Message Broker delivery of `DecisionScored` | Event | `200 {event_id: Id, applied: Bool}` |
@@ -86,6 +88,41 @@ Normal gameplay requests the internal `random` scenario. Fixed scenarios are int
 Only one case can be current. The Server Moderation Session Service allows a new case after it applies `DecisionScored` for the current case. It accepts one event for that case and rejects events for other cases. The service then increments `processed_count`, adds `score_delta`, and accumulates `penalty`.
 
 Ending a shift with a pending or undecided case returns `409`. A scoring event still in transit also returns `409`. The owner can retry after Session applies the event. Session sets the shift to `ending` and starts the end-shift [saga](transactions.md), which the Message Broker coordinates. Player awards the XP, and Session then sets the shift to `ended` and returns `200`, or `202` while the saga still runs. Session no longer publishes `ShiftEnded`. Case-start and new decision requests reject ended shifts. The end operation enters `ending` until the saga is final.
+
+### End a shift
+
+`POST /api/v1/sessions/{session_id}/end` takes `Idempotency-Key: <UUID>` and the body `{}`. Reads of the session show `ending` while the saga runs.
+
+| Status and code | When |
+| --- | --- |
+| `200 Session` in `ended` | The saga completed within the request. A retry with the same key returns the stored response. An end with another key for an ended shift also returns `200`. |
+| `202 Session` in `ending` | The saga still runs, the Broker failed, or it did not answer. A retry before Session stores a final response, and an end with another key for an `ending` shift, also return `202`. |
+| `409 PROGRESSION_REJECTED` | The saga is compensating or compensated. The shift becomes `active` again, and the owner can end it with a new key. A retry with the same key returns the stored `409`. |
+| `400 IDEMPOTENCY_KEY_REQUIRED` | The `Idempotency-Key` header is missing or is not a UUID. |
+| `401 UNAUTHORIZED` | The request has no valid access token. |
+| `403 SESSION_FORBIDDEN` | The caller is not the session owner. |
+| `404 SESSION_NOT_FOUND` | The session does not exist. |
+| `409 INVALID_SESSION_STATE` | The shift is still in the lobby. |
+| `409 CASE_UNFINISHED` | A case is current, or its scoring event has not been applied yet. |
+| `422 INVALID_INPUT` | The body is not an empty object. |
+| `503 STORAGE_UNAVAILABLE` | Session's database has no writable member. |
+| `504 TASK_TIMEOUT` | The request deadline passed while it waited for the shift. |
+
+`PROGRESSION_REJECTED` names the cause of the compensation in `details`: the step's `service` and `operation`, the `kind` (`rejected`, `attempts`, or `deadline`), and the participant's error `code` when the step was rejected:
+
+```json
+{
+  "code": "PROGRESSION_REJECTED",
+  "message": "The shift could not end, and it is active again",
+  "request_id": "4f0c8d2e-9b1a-4c3d-8e7f-6a5b4c3d2e1f",
+  "details": [
+    {"field": "service", "reason": "player"},
+    {"field": "operation", "reason": "award-shift"},
+    {"field": "kind", "reason": "rejected"},
+    {"field": "code", "reason": "AWARD_CONFLICT"}
+  ]
+}
+```
 
 ## Applicant Service endpoints
 ```text
@@ -339,3 +376,29 @@ All frames are JSON objects:
 The service sends a WebSocket ping every 30 seconds. Two missed pong responses close the connection. A reconnect requires a new chat ticket. The client then recovers history through REST with its last retained pagination cursor. Reusing `client_message_id` makes it safe to retry after a lost acknowledgement. Each channel sorts its history by `(sent_at, message_id)`. Message order across channels is not defined.
 
 When the Discord DMs Service has multiple replicas, each replica subscribes to the same Redis Pub/Sub channel. The service publishes a message only after it commits the message to PostgreSQL. Redis sends the publication to every connected replica, and each replica forwards it to authorized local connections. Redis does not replay missed publications. Clients recover missed messages from PostgreSQL history and deduplicate them by `message_id`.
+
+## Message Broker listings
+
+Gateway serves these read-only administrator views of the Message Broker. Gateway verifies the global administrator, makes one call to the Broker with its control credential, and forwards no client path or header. Anonymous callers receive `401 UNAUTHORIZED`, and authenticated non-administrators `403 FORBIDDEN`. A Broker failure, other than a rejection of the listing parameters, returns `503 DEPENDENCY_UNAVAILABLE`.
+
+```text
+SagaPage = {items: SagaSummary[], next_cursor: string | null}
+SagaSummary = {saga_id: Id, flow: string, initiator: string,
+               state: "running" | "compensating" | "completed" | "compensated",
+               cause: SagaCause | null, created_at: Time, deadline: Time, updated_at: Time,
+               finished_at: Time | null, steps: SagaStep[]}
+SagaCause = {operation: string, kind: "rejected" | "attempts" | "deadline", code: string | null}
+SagaStep = {position: Int, service: string, operation: string,
+            state: "pending" | "done" | "failed" | "compensated" | "skipped",
+            attempts: Int, compensation_attempts: Int, last_status: Int | null, last_error_kind: string}
+```
+
+| Method and path | Authorized caller | Request | Success response |
+| --- | --- | --- | --- |
+| `GET /api/v1/admin/broker/topics` | Global admin | None | `200` topics, subscribers, delivery counts, and queue depths, as the [topic listing](queues.md#topic-listing) defines |
+| `GET /api/v1/admin/broker/dead-letters` | Global admin | Optional query `limit`, `cursor`, `topic`, `subscriber` | `200` page of dead letters, as the [dead-letter listing](dead-letters.md#dead-letter-listing) defines |
+| `GET /api/v1/admin/broker/sagas` | Global admin | Optional query `limit: Int` from 1 to 100, default 20; `cursor: string`; `flow: string`; `state` | `200 SagaPage`, newest first. `next_cursor` is `null` on the last page. |
+
+The saga listing matches the [saga listing contract](transactions.md#saga-listing). `cause` is `null` until the saga compensates. Its `code` is the participant's error code for `rejected` and `null` otherwise. `finished_at` is `null` until the saga is `completed` or `compensated`. `last_status` is `null` when no response arrived, and `last_error_kind` is empty after a success. An item never holds a payload, a participant ID, or a credential.
+
+The listing accepts only its four query parameters, each at most once. An unknown parameter, a `limit` outside 1 to 100, a malformed `cursor`, a `flow` outside the catalogue, or a `state` outside the four saga states returns `400 VALIDATION_ERROR`.

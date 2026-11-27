@@ -55,6 +55,7 @@ The stack runs with plain Docker Compose commands. Each domain service starts tw
 python3 scripts/setup.py
 docker compose up -d --wait
 python3 scripts/seed_university_catalog.py
+python3 scripts/warehouse_roles.py
 docker compose up -d --no-deps --scale applicant=4 applicant
 docker compose ps applicant
 docker compose logs -f --tail 50 --timestamps message-broker discovery applicant
@@ -62,7 +63,96 @@ docker stop <container-id>
 docker compose up -d --no-deps --scale applicant=2 applicant
 ```
 
+`scripts/warehouse_roles.py` creates the read-only `warehouse_reader` role on every datastore. Until it runs, each ETL load reports every source as `failed` with `unauthorized`. Running it again is safe.
+
 A stopped replica deregisters itself before it exits. Discord DMs scales the same way, for example with `--scale discord-dms=3`. Clients open chat on the `dms-proxy` port `8009`, which balances the replicas, so no replica has a host port. The [demonstration guide](docs/demonstration.md) explains each command.
+
+### Load the warehouse
+
+The `etl` service copies analytics data from the eight domain datastores into `warehouse-db` every `ETL_INTERVAL`, five minutes by default. It has no HTTP endpoint. Run one load and read the latest run records:
+
+```sh
+docker compose run --rm etl --once
+docker compose exec warehouse-db psql -U warehouse -c "SELECT source, outcome, rows_read, rows_written, error_kind, finished_at FROM warehouse.etl_runs ORDER BY finished_at DESC LIMIT 8"
+```
+
+The load exits with status 0 when every source is `ok` or `partial`, 3 when another run holds the lock, and 1 otherwise. A second load writes no rows. The [warehouse contract](docs/contracts/warehouse.md) defines the tables, and [Load the warehouse](docs/demonstration.md#load-the-warehouse) shows a failed source.
+
+### Check database failover
+
+Player, Session, Moderation, Discord DMs, and Server Rules each run three PostgreSQL nodes under Patroni, with one shared etcd. Applicant and Credential share a MongoDB replica set of three members, and University Record has its own. List the Player nodes, then run the failover check for every database or for the ones you name:
+
+```sh
+docker compose exec player-db-1 patronictl -c /config/patroni.yml list
+python3 scripts/check_failover.py
+python3 scripts/check_failover.py player-db
+```
+
+The check kills each primary, waits until another member accepts writes, starts the killed member, and checks that it has both markers. It takes about four minutes for all seven databases. Run nothing else that stops containers at the same time. The names are `player-db`, `session-db`, `moderation-db`, `dms-db`, `rules-db`, `mongodb`, and `university-mongodb`. The [replication contract](docs/contracts/replication.md) defines the topology, and [Fail over a database](docs/demonstration.md#fail-over-a-database) kills one primary by hand.
+
+### Inspect the cache ring
+
+Services cache common reads and authentication data on three Redis nodes, `cache-1` to `cache-3`. A consistent-hash ring assigns each key to one node, so losing a node moves only that node's keys. Count the keys on each node:
+
+```sh
+for n in 1 2 3; do echo "cache-$n $(docker compose exec -T cache-$n redis-cli dbsize)"; done
+```
+
+The cache changes no endpoint. A request returns the same status and body with or without it. The [cache contract](docs/contracts/cache.md) lists the cached reads, the [sharding contract](docs/contracts/cache-sharding.md) defines the ring, and [Shard the cache](docs/demonstration.md#shard-the-cache) stops one node.
+
+### Check the end-shift saga
+
+Ending a shift runs as a saga that the Message Broker coordinates. Session holds the shift in `ending`, Player awards the XP, and Session ends the shift. When the award fails for good, compensations reverse the award and reopen the shift. Run every case of the saga check, or name one:
+
+```sh
+python3 scripts/check_sagas.py
+python3 scripts/check_sagas.py normal
+```
+
+The cases are `normal`, `player-outage`, `compensation`, `broker-restart`, and `repeated-step`. The check stops and starts Player and the Broker, so run nothing else that does at the same time.
+
+To list sagas, grant a player administrator access, then log in as that player with `POST /api/v1/auth/login` and put its `access_token` in `ADMIN_TOKEN`. Revoke the access afterwards:
+
+```sh
+docker compose exec player python -m app.admin <player-id> --grant
+curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" 'http://127.0.0.1:8080/api/v1/admin/broker/sagas?limit=20&flow=end-shift'
+docker compose exec player python -m app.admin <player-id> --revoke
+```
+
+The [distributed transactions contract](docs/contracts/transactions.md) defines the steps, retries, and compensations.
+
+## New and changed endpoints
+
+Since the v4 releases, the public API adds one endpoint and changes one. The warehouse, the replicated databases, and the cache add no endpoint. The [service APIs](docs/contracts/api.md) have the full tables, and [End a shift](docs/contracts/api.md#end-a-shift) explains each response of the end route. Errors use the shared `Error = {code, message, request_id, details: {field, reason}[]}` shape of the [HTTP conventions](docs/contracts/http.md).
+
+| Method and route | Authorization | Request | Responses | Errors |
+| --- | --- | --- | --- | --- |
+| `GET /api/v1/admin/broker/sagas` (new) | Global administrator | Optional query `limit` (1 to 100, default 20), `cursor`, `flow`, and `state` | `200 SagaPage`, newest first | `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `403 FORBIDDEN`, `503 DEPENDENCY_UNAVAILABLE` |
+| `POST /api/v1/sessions/{session_id}/end` (changed) | Session owner | `Idempotency-Key: <UUID>` and an empty object | `200 Session` in `ended`<br>`202 Session` in `ending` while the saga runs | `409 PROGRESSION_REJECTED` when the saga compensates, with the cause in `details`. The shift is `active` again. Existing errors: `400 IDEMPOTENCY_KEY_REQUIRED`, `401 UNAUTHORIZED`, `403 SESSION_FORBIDDEN`, `404 SESSION_NOT_FOUND`, `409 INVALID_SESSION_STATE`, `409 CASE_UNFINISHED`, `422 INVALID_INPUT`, `503 STORAGE_UNAVAILABLE`, and `504 TASK_TIMEOUT` |
+
+```text
+SagaPage = {items: SagaSummary[], next_cursor: string | null}
+SagaSummary = {saga_id: Id, flow: string, initiator: string,
+               state: "running" | "compensating" | "completed" | "compensated",
+               cause: SagaCause | null, created_at: Time, deadline: Time, updated_at: Time,
+               finished_at: Time | null, steps: SagaStep[]}
+SagaCause = {operation: string, kind: "rejected" | "attempts" | "deadline", code: string | null}
+SagaStep = {position: Int, service: string, operation: string,
+            state: "pending" | "done" | "failed" | "compensated" | "skipped",
+            attempts: Int, compensation_attempts: Int, last_status: Int | null, last_error_kind: string}
+Participant = {player_id: Id, role: Role}
+Session = {session_id: Id, team_id: Id, owner_id: Id,
+           status: "lobby" | "active" | "ending" | "ended",
+           participants: Participant[], rule_version: Id | null, started_at: Time | null,
+           university_snapshot_id: Id | null,
+           current_case_id: Id | null, processed_count: Int, score: Int, penalties: Int}
+```
+
+Other changes that clients see:
+
+- `GET /api/v1/sessions/{session_id}` and `GET /api/v1/sessions` show a shift as `ending` while its saga runs. An `ending` shift accepts no case start, decision, or other change.
+- A compensated saga reverses the XP award with a `shift_reversal` ledger entry, so `xp` and `level` in `Player` can go down again.
+- Every endpoint whose service cannot reach a writable datastore during a failover returns `503 STORAGE_UNAVAILABLE`. Retry a write with the same `Idempotency-Key`.
 
 ## Start work
 
