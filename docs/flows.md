@@ -38,7 +38,7 @@ A correct action adds 10 points. An incorrect action adds -5 points and records 
 
 Session applies `DecisionScored` once, updates the aggregate score, and releases the current-case slot. A new case cannot start before that result arrives.
 
-Ending a shift returns `409` while a case or scoring event remains unfinished. Once the shift is complete, Session ends it and Player awards the XP in one [two-phase commit](contracts/transactions.md) that the Message Broker coordinates, then Session returns `200`. Both databases change, or neither does, and the shift stays active. The synchronous end operation does not use `ending`.
+Ending a shift returns `409` while a case or scoring event remains unfinished. Once the shift is complete, Session sets it to `ending` and starts the end-shift [saga](contracts/transactions.md), which the Message Broker coordinates. Player awards the XP, and Session then sets the shift to `ended`. The end returns `200`, or `202` while the saga still runs. If Player rejects the award, compensation reopens the shift. The end operation enters `ending`, which replaces the earlier rule that it never did.
 
 Player applies `max(0, score)` XP to each participant once per shift. Administrator disciplinary deductions are separate events. A progression ledger makes event order irrelevant and prevents decision penalties from being deducted twice.
 

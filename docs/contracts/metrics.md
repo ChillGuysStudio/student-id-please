@@ -85,11 +85,12 @@ Every histogram uses these bucket bounds, in seconds: `0.005`, `0.01`, `0.025`, 
 | `student_id_broker_deliveries` | Gauge | `topic`, `subscriber`, `state` | Stored deliveries in state `pending` or `in_flight` |
 | `student_id_broker_delivery_oldest_pending_age_seconds` | Gauge | `topic`, `subscriber` | Age of the oldest `pending` delivery since its event was published, 0 when none |
 | `student_id_broker_dead_letters` | Gauge | `topic`, `subscriber`, `reason` | Stored dead letters by reason: `rejected`, `exhausted`, or `forbidden_pair` |
-| `student_id_broker_transactions_total` | Counter | `flow`, `outcome` | [Transaction](transactions.md) decisions: `committed` or `aborted` |
-| `student_id_broker_transaction_duration_seconds` | Histogram | `flow`, `outcome` | Time from a transaction's insert to its decision |
-| `student_id_broker_transactions_unresolved` | Gauge | `flow`, `state` | Transactions in `preparing`, `committing`, or `aborting` |
+| `student_id_broker_sagas_total` | Counter | `flow`, `outcome` | Final [sagas](transactions.md): `completed` or `compensated` |
+| `student_id_broker_saga_duration_seconds` | Histogram | `flow`, `outcome` | Time from a saga's start to its final state |
+| `student_id_broker_saga_steps_total` | Counter | `flow`, `operation`, `phase`, `outcome` | Step and compensation calls: `ok`, `retry`, or `rejected` |
+| `student_id_broker_sagas_unresolved` | Gauge | `flow`, `state` | Sagas in `running` or `compensating` |
 
-The last three delivery gauges and `student_id_broker_transactions_unresolved` come from `broker-db`. The Broker reads them every 5 seconds in the background with a 1-second deadline. A scrape returns the last successful read. When a read fails, the Broker drops those series until the next successful read, so a dashboard shows no data instead of an old value. The other values are in memory.
+The last three delivery gauges and `student_id_broker_sagas_unresolved` come from `broker-db`. The Broker reads them every 5 seconds in the background with a 1-second deadline. A scrape returns the last successful read. When a read fails, the Broker drops those series until the next successful read, so a dashboard shows no data instead of an old value. The other values are in memory.
 
 When a generation leaves the Broker's snapshot, the Broker deletes every series with its `target_instance`. Instance labels therefore stay bounded by the live replicas.
 

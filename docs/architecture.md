@@ -193,7 +193,7 @@ MongoDB case operations use local transactions and require a replica set. Postgr
 | Applicant, Credential through the Broker       | University Record                  | Read a snapshot and reserve or read an identity over gRPC                            |
 | One case initializer                  | Other case owners                        | Derive owned records from `CaseInitialized`                                        |
 | Moderation                            | Session                                  | Apply `DecisionScored` once                                                        |
-| Session through the Broker            | Player                                   | End a shift and award XP in one two-phase commit                                   |
+| Session through the Broker            | Player                                   | End a shift and award XP as one saga, with compensation                            |
 | Moderation                            | Player                                   | Apply `DisciplinaryActionApplied` once                                             |
 
 [HTTP conventions](contracts/http.md), [service APIs](contracts/api.md), and [domain events](contracts/events.md) define the request and payload details. The [logging contract](contracts/logging.md) defines log records, retention, instance exports, and the administrator log download.

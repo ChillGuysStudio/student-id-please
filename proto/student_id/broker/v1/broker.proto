@@ -23,6 +23,8 @@ service BrokerService {
   // Dead-lettered deliveries, newest first. Callers: gateway, operator, with
   // control credentials. See docs/contracts/dead-letters.md.
   rpc ListDeadLetters(ListDeadLettersRequest) returns (DeadLetterPage);
+  // Lists sagas, newest first, for the gateway and operator control principals.
+  rpc ListSagas(ListSagasRequest) returns (SagaPage);
 }
 
 message PublishEventRequest {
@@ -118,4 +120,52 @@ message DeadLetter {
   string last_instance_id = 10;
   google.protobuf.Timestamp published_at = 11;
   google.protobuf.Timestamp dead_lettered_at = 12;
+}
+
+message ListSagasRequest {
+  // 1 to 100. 0 means 20.
+  int32 page_size = 1;
+  // Empty for the first page, otherwise an earlier next_page_token.
+  string page_token = 2;
+  // Optional exact filters: a flow from the catalogue, and running,
+  // compensating, completed, or compensated.
+  string flow = 3;
+  string state = 4;
+}
+
+message SagaPage {
+  repeated SagaSummary items = 1;
+  // Empty on the last page.
+  string next_page_token = 2;
+}
+
+message SagaSummary {
+  string saga_id = 1;
+  string flow = 2;
+  string initiator = 3;
+  // running, compensating, completed, or compensated.
+  string state = 4;
+  repeated SagaStepSummary steps = 5;
+  // Set when the saga compensates.
+  optional string cause_operation = 6;
+  optional string cause_kind = 7;
+  optional string cause_code = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp deadline = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  // Unset until the saga is completed or compensated.
+  google.protobuf.Timestamp finished_at = 12;
+}
+
+message SagaStepSummary {
+  int32 position = 1;
+  string service = 2;
+  string operation = 3;
+  // pending, done, failed, compensated, or skipped.
+  string state = 4;
+  int32 attempts = 5;
+  int32 compensation_attempts = 6;
+  // Unset when no response arrived.
+  optional int32 last_status = 7;
+  string last_error_kind = 8;
 }

@@ -21,7 +21,7 @@ DisciplinaryPayload = {disciplinary_action_id: Id, player_id: Id, xp_penalty: In
 | --- | --- | --- | --- |
 | `CaseInitialized` (schema 2) | Applicant, Credential, or University Record | Applicant, Credential, University Record | `CaseInitializedPayload`, including required `initialization_attempt_id`<br>`correlation_id = case_id`, never attempt ID |
 | `DecisionScored` | Moderation | Session | `DecisionScoredPayload`<br>`correlation_id = case_id` |
-| `ShiftEnded` | Session, no longer published | Player | `ShiftEndedPayload`<br>`correlation_id = session_id`<br>The end-shift [two-phase commit](transactions.md) awards XP instead. Player still applies a stored event once. |
+| `ShiftEnded` | Session, no longer published | Player | `ShiftEndedPayload`<br>`correlation_id = session_id`<br>The end-shift [saga](transactions.md) awards XP instead. Player still applies a stored event once. |
 | `DisciplinaryActionApplied` | Moderation | Player | `DisciplinaryPayload`<br>`correlation_id = disciplinary_action_id` |
 
 Each subscriber service receives one copy, and its replicas compete for that copy. An initializer can consume its own case event as a deduplicated no-op, but it never republishes a consumed initialization event. A publication retry uses the original `event_id`. Consumers also deduplicate by the business ID in the payload. This protects against a producer that assigns two event IDs to one case, decision, shift, or disciplinary action.
