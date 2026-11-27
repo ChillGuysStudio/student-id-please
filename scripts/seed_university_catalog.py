@@ -105,7 +105,13 @@ def call(base, method, path, body=None, token=None, key=None):
 
 def load_credentials(base):
     if CREDENTIALS.exists():
-        return json.loads(CREDENTIALS.read_text())
+        creds = json.loads(CREDENTIALS.read_text())
+        status, _ = call(base, 'POST', '/api/v1/auth/login', {'email': creds['email'], 'password': creds['password']})
+        if status == 200:
+            return creds
+        if status != 401:
+            raise RuntimeError('seed player login failed with HTTP %s' % status)
+        # The stack's data was removed, for example by `docker compose down -v`. Register a new seed player.
     suffix = secrets.token_hex(4)
     creds = {'username': 'seedadmin' + suffix, 'email': 'seedadmin%s@example.test' % suffix,
              'password': secrets.token_urlsafe(24)}
