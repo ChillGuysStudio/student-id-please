@@ -1,8 +1,10 @@
 # Demonstrate the stack
 
-This guide starts the stack on a laptop, scales a domain service with Compose, and follows the logs while replicas join and leave. Every step uses plain `docker` and `docker compose` commands.
+This guide starts the stack on a laptop and shows each behavior of the released stack in the order a presenter follows on a fresh stack: the HTTP flows, scaling, Broker dispatch and delivery, monitoring, load routing, the warehouse, database failover, the sharded cache, and the end-shift saga. Every step uses plain `docker` and `docker compose` commands, `curl`, and the scripts in `scripts/`. Each section from [Load the warehouse](#load-the-warehouse) on also names the code that implements the behavior.
 
 The diagram in [architecture](architecture.md) shows the replicated topology.
+
+Run every command from the repository root. Compose names the project `student-id-please`, so the containers are `student-id-please-<service>-<n>` and the network is `student-id-please_default`. If `.env` sets `COMPOSE_PROJECT_NAME`, replace `student-id-please` with that name in the commands that name a container or the network.
 
 ## Start the stack
 
@@ -19,7 +21,7 @@ The diagram in [architecture](architecture.md) shows the replicated topology.
 	docker compose up -d --wait
 	```
 
-	The command returns when every container is running and every container with a health check reports healthy. Each domain service starts two replicas.
+	The command returns when every container is running and every container with a health check reports healthy. Each domain service starts two replicas. A stack from a release before the replicated databases needs new volumes, as [existing volumes](contracts/replication.md#existing-volumes) explains.
 
 4. Seed the University Record catalog once. Without it, starting a session returns `409 DEPENDENCY_REJECTED`:
 
@@ -38,6 +40,38 @@ The diagram in [architecture](architecture.md) shows the replicated topology.
 	The script prints one `ok` line for each of the seven databases. Running it again is safe.
 
 To stop the stack and keep its data, run `docker compose down`. Never add `--volumes` to a stack you want to keep.
+
+## Run the HTTP checks
+
+The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the administrator routes, in Postman or with Newman. It ends by finding the shift's saga `completed` in the saga listing, with player 2 as a temporary administrator. Run it first on a fresh stack, so that the later sections have a played shift, cached values, and warehouse rows:
+
+```sh
+./scripts/run_newman.sh
+./scripts/run_newman.sh --with-overload
+```
+
+The first command ends with `85 requests; 261/261 assertions passed; 0 failures`. Without `--with-overload`, it skips requests 28 and 29. [HTTP checks](../postman/HTTP-CHECKS.md) describes the read-only public folder and the private Discovery health folder.
+
+Each service has its own collection in `postman/`: `applicant`, `credential`, `discord-dms`, `moderation`, `server-rules`, and `university-record`. The runner creates what a collection needs through the public Gateway, then runs it with the same redaction and report:
+
+```sh
+./scripts/run_newman.sh --service applicant
+```
+
+The runner registers disposable players, builds a team and a Session with an assigned Moderator, starts the shift and opens a case where the collection needs one, and grants a disposable player administrator access for the run. It revokes that access when the run ends, as the [catalog seed](../scripts/seed_university_catalog.py) does. The grant runs `docker compose exec player` in the repository root. Pass `--compose-dir DIR` when the stack runs from another directory. `server-rules` needs a published rule version, and `moderation` opens a second case for its ban folder. The report goes to `.local/postman/<service>/newman-htmlextra.html`. To see which services handle a request, follow its `X-Request-ID` in the Broker log as [the guided demo](../postman/GUIDED-DEMO.md#follow-a-request-through-the-services) describes.
+
+## Get an administrator token
+
+The Broker listings need a global administrator. The catalog seed stores a disposable player in `.local/stack/seed-admin.json`. Grant it administrator access, then log in and keep its access token in `ADMIN_TOKEN`. The password goes through a pipe, so it never appears in the command line or the output:
+
+```sh
+docker compose exec player python -m app.admin "$(python3 -c 'import json; print(json.load(open(".local/stack/seed-admin.json"))["player_id"])')" --grant
+export ADMIN_TOKEN="$(python3 -c 'import json; c = json.load(open(".local/stack/seed-admin.json")); print(json.dumps({"email": c["email"], "password": c["password"]}))' \
+	| curl -fsS -H 'Content-Type: application/json' -H "Idempotency-Key: $(python3 -c 'import uuid; print(uuid.uuid4())')" -d @- http://127.0.0.1:8080/api/v1/auth/login \
+	| python3 -c 'import json, sys; print(json.load(sys.stdin)["access_token"])')"
+```
+
+The grant prints `Account authority updated. Log in again to obtain a token with the current claim.` The token is valid for 15 minutes. Log in again after that. `scripts/seed_university_catalog.py` and `scripts/check_sagas.py` grant and revoke the same player, so grant it again after you run either one. The later sections also use this token where they need any player's token. To revoke the access when you finish, run the grant command with `--revoke`.
 
 ## Scale a service
 
@@ -79,7 +113,7 @@ The domain services are `player`, `session`, `applicant`, `credential`, `univers
 
 	Compose removes the extra containers. Each one deregisters on its way out.
 
-The same commands work for every domain service listed above. Gateway, the Message Broker, `broker-db`, Discovery, and the Moderation outbox publisher run as one instance each.
+The same commands work for every domain service listed above. Gateway, the Message Broker, `broker-db`, Discovery, the Moderation outbox publisher, etcd, `redis`, `warehouse-db`, and the ETL run as one instance each. The database nodes and the cache nodes are declared services, such as `player-db-1` and `cache-1`, because each one needs its own volume or its own place on the cache ring. They do not scale with `--scale`.
 
 ## Watch Broker dispatch
 
@@ -168,7 +202,7 @@ Make one consumer fail on every attempt while it stays ready. Without permission
 docker compose exec player-db-1 sh -c 'PGPASSWORD=$APP_PASSWORD psql "host=player-db-1,player-db-2,player-db-3 user=$APP_USER dbname=$APP_DB target_session_attrs=read-write" -c "REVOKE INSERT ON progression_ledger FROM player"'
 ```
 
-Apply a disciplinary action as the global administrator with `POST /api/v1/disciplinary-actions`. After five attempts, about a minute, the `DisciplinaryActionApplied` delivery to Player appears in the listing with reason `exhausted`. Restore the permission:
+Apply a disciplinary action as the global administrator with `POST /api/v1/disciplinary-actions`. After five attempts, about a minute, the `DisciplinaryActionApplied` delivery to Player appears in the listing with reason `exhausted`. Restore the permission before you continue, because the end-shift saga also inserts into the ledger:
 
 ```sh
 docker compose exec player-db-1 sh -c 'PGPASSWORD=$APP_PASSWORD psql "host=player-db-1,player-db-2,player-db-3 user=$APP_USER dbname=$APP_DB target_session_attrs=read-write" -c "GRANT INSERT ON progression_ledger TO player"'
@@ -273,7 +307,7 @@ This request has no token, so only Gateway records it. With a valid bearer token
 
 The Broker sends each request to the replica with the lowest load and reroutes an eligible request after a failed attempt. The [load routing contract](contracts/routing.md) defines the rules. These steps use native Docker commands on a running stack.
 
-1. Make sure Player has two replicas, then send sequential requests as a player. `TOKEN` holds a player access token:
+1. Make sure Player has two replicas, then send sequential requests as a player. `TOKEN` holds a player access token, such as the token from [Get an administrator token](#get-an-administrator-token):
 
 	```sh
 	docker compose up -d --no-deps --scale player=2 player
@@ -316,17 +350,17 @@ The Broker sends each request to the replica with the lowest load and reroutes a
 
 ## Load the warehouse
 
-The ETL service copies analytics data from the eight domain services into `warehouse-db`, as the [warehouse contract](contracts/warehouse.md) defines. It runs every `ETL_INTERVAL`, five minutes by default.
+The ETL service copies analytics data from the eight domain services into `warehouse-db`, as the [warehouse contract](contracts/warehouse.md) defines. It runs every `ETL_INTERVAL`, five minutes by default, and connects to each datastore as `warehouse_reader`.
 
-1. Play a shift, for example with the guided demo in [Run the HTTP checks](#run-the-http-checks). Then run one load:
+1. After the guided demo has played a shift, run one load:
 
 	```sh
 	docker compose run --rm etl --once
 	```
 
-	Each `etl_source` record reports one service. The command exits with status 0 when all eight load, and with status 3 when the interval run holds the lock. Run it again to see `rows_written` at 0 for every source.
+	Each `etl_source` record reports one service with `outcome` `ok`, and one `etl_run` record closes the run. The command exits with status 0 when all eight load, and with status 3 when the interval run holds the lock. Run it again to see `rows_written` at 0 for every source.
 
-2. Query the facts:
+2. Query the facts. Each ended shift has one row with its duration, its processed cases, its score, and its decisions:
 
 	```sh
 	docker compose exec warehouse-db psql -U warehouse -c "
@@ -336,7 +370,7 @@ The ETL service copies analytics data from the eight domain services into `wareh
 		LEFT JOIN warehouse.fact_decision d USING (session_id) GROUP BY 1, 2, 3, 4"
 	```
 
-3. Read the history of runs:
+3. Read the history of runs. The newest eight rows are the last run, one for each source:
 
 	```sh
 	docker compose exec warehouse-db psql -U warehouse -c "
@@ -344,7 +378,7 @@ The ETL service copies analytics data from the eight domain services into `wareh
 		FROM warehouse.etl_runs ORDER BY finished_at DESC LIMIT 8"
 	```
 
-4. Stop one source and run a load. That source reports `failed` with `unavailable`, and the other seven load:
+4. Stop one source and run a load. That source reports `failed` with `unavailable`, the other seven load, and the command exits with status 1. Start the source again:
 
 	```sh
 	docker compose stop dms-db-1 dms-db-2 dms-db-3
@@ -352,137 +386,241 @@ The ETL service copies analytics data from the eight domain services into `wareh
 	docker compose start dms-db-1 dms-db-2 dms-db-3
 	```
 
-5. Show that the reader role cannot read a hidden column. The command fails with `permission denied for table players`:
+	The three nodes elect a leader within about 30 seconds. `docker compose ps dms-db-1 dms-db-2 dms-db-3` then shows them healthy.
+
+5. Show that the reader role cannot read a hidden column. The first command fails with `permission denied for table players`. The second reads a listed column and prints the player count:
 
 	```sh
 	docker compose exec player-db-1 psql -h /tmp -U postgres -d player_db -c 'SET ROLE warehouse_reader' -c 'SELECT password_hash FROM players'
+	docker compose exec player-db-1 psql -h /tmp -U postgres -d player_db -c 'SET ROLE warehouse_reader' -c 'SELECT count(*) FROM players'
 	```
+
+6. Show the same rule in MongoDB, which has no field grants. The reader can count the documents of the `warehouse_applicant_cases` view, and reading the `applicant_cases` collection fails with `MongoServerError: not authorized on applicant to execute command { find: "applicant_cases" ...`. Export the reader password from `.env` first, so it never appears in the command line:
+
+	```sh
+	export WAREHOUSE_READER_PASSWORD="$(sed -n "s/^WAREHOUSE_READER_PASSWORD='\(.*\)'$/\1/p" .env)"
+	docker compose exec -e WAREHOUSE_READER_PASSWORD mongodb-1 sh -c 'mongosh --quiet -u warehouse_reader -p "$WAREHOUSE_READER_PASSWORD" --authenticationDatabase applicant applicant --eval "print(db.warehouse_applicant_cases.countDocuments()); db.applicant_cases.findOne()"'
+	```
+
+These files implement the load:
+
+- CPR: the `warehouse-db` and `etl` services in [`compose.yaml`](../compose.yaml), and [`scripts/warehouse_roles.py`](../scripts/warehouse_roles.py), which creates the `warehouse_reader` role, its column grants, and the MongoDB views.
+- `ChillGuysStudio/etl-service`: `cmd/etl/main.go` reads the configuration and runs once or on the interval. `internal/pipeline/pipeline.go` runs each source and keeps the append cursors. `internal/pgsource/pgsource.go` and `internal/mongosource/mongosource.go` extract and transform the sources. `internal/warehouse/warehouse.go` and `internal/warehouse/tables.go` hold the schema migrations, the run lock, and the idempotent upserts.
 
 ## Fail over a database
 
-Player, Session, Moderation, Discord DMs, and Server Rules each have three PostgreSQL nodes, as the [replication contract](contracts/replication.md) defines.
+Player, Session, Moderation, Discord DMs, and Server Rules each have three PostgreSQL nodes under Patroni, with one shared etcd. Applicant and Credential share a MongoDB replica set with three members, and University Record has its own. The [replication contract](contracts/replication.md) defines the topology. Run one failure at a time, and start each stopped node before the next step.
 
-1. Show the nodes. One is the leader, one is the synchronous standby, and one is a replica:
+1. Show the nodes of every PostgreSQL database. In each list, one node is the `Leader`, one is the `Sync Standby`, and one is a `Replica`, and both standbys show `streaming` with a lag of 0:
 
 	```sh
-	docker compose exec player-db-1 patronictl -c /config/patroni.yml list
+	for db in player session moderation dms rules; do docker compose exec $db-db-1 patronictl -c /config/patroni.yml list; done
 	```
 
-2. Kill the leader that the list names, for example `player-db-2`:
+2. In a second terminal, send a Player read twice a second and count the answers:
+
+	```sh
+	for i in $(seq 70); do curl -s -w ' %{http_code}\n' -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8080/api/v1/players/me | grep -o '"code":"[A-Z_]*"\|[0-9]\{3\}$' | xargs; sleep 0.5; done | uniq -c
+	```
+
+3. While the loop runs, kill the Player leader that the list names, for example `player-db-2`, and list the nodes again:
 
 	```sh
 	docker compose kill player-db-2
 	docker compose exec player-db-1 patronictl -c /config/patroni.yml list
 	```
 
-	Requests that need Player answer `503` with `STORAGE_UNAVAILABLE` or `NO_HEALTHY_INSTANCES` for up to 25 seconds. Then another node leads, and requests succeed. Discovery removes no replica.
+	The loop first prints `code:STORAGE_UNAVAILABLE 503`, while Player still runs requests and cannot reach a writable database. It then prints `code:NO_HEALTHY_INSTANCES 503`, while both Player replicas report unready. Within 25 seconds the synchronous standby is the `Leader`, and the loop ends with a run of `200`. Discovery removes no Player replica, because the [storage outage rules](contracts/resilience.md#storage-outages) keep a datastore failure out of the breakers.
 
-3. Start the node again. It rejoins as a replica:
+4. Start the node again. Within about 20 seconds it is listed as a `Replica` that is `streaming`:
 
 	```sh
 	docker compose start player-db-2
+	docker compose exec player-db-1 patronictl -c /config/patroni.yml list
 	```
 
-4. Stop etcd. Every database keeps accepting writes:
+5. Stop etcd and register a player through Gateway with `POST /api/v1/players`. The registration returns `201`, because `failsafe_mode` keeps each leader writable while it reaches its other nodes. Then start etcd:
 
 	```sh
 	docker compose stop etcd
 	docker compose start etcd
 	```
 
-To check every database, run the failover check. It writes a marker, kills the primary, waits until another member accepts a second marker, starts the killed member, and reads both markers from it. It takes about four minutes:
+6. List the members of both MongoDB replica sets. Each set has one `PRIMARY` and two `SECONDARY` members:
+
+	```sh
+	for set in mongodb university-mongodb; do docker compose exec $set-2 sh -c 'mongosh --quiet -u "$MONGO_ADMIN_USERNAME" -p "$MONGO_ADMIN_PASSWORD" --authenticationDatabase admin --eval "rs.status().members.forEach(m => print(m.name, m.stateStr))"'; done
+	```
+
+7. Kill the member that the list shows as `PRIMARY`, for example `mongodb-1`. List the members again on one that still runs. The killed member is `(not reachable/healthy)`. Another member becomes `PRIMARY` within 15 seconds, or within about 30 seconds when the first election round fails, so list again until one is. Then start the killed member. It returns as `SECONDARY`:
+
+	```sh
+	docker compose kill mongodb-1
+	docker compose start mongodb-1
+	```
+
+To check every database, run the failover check. For each database it writes a marker, kills the primary, waits until another member accepts a second marker, starts the killed member, and reads both markers from it. It takes three to four minutes for all seven databases. Name databases to check only those: `player-db`, `session-db`, `moderation-db`, `dms-db`, `rules-db`, `mongodb`, and `university-mongodb`:
 
 ```sh
 python3 scripts/check_failover.py
-python3 scripts/check_failover.py player-db
+python3 scripts/check_failover.py player-db university-mongodb
 ```
 
-Applicant and Credential share a MongoDB replica set with three members, and University Record has its own. List the members of the first one:
+Each database prints one line, such as `ok      player-db: killed player-db-2, player-db-1 accepted writes after 19.5 s, player-db-2 rejoined with both markers`. The command exits with status 0 when every line is `ok`.
 
-```sh
-docker compose exec mongodb-2 sh -c 'mongosh --quiet -u "$MONGO_ADMIN_USERNAME" -p "$MONGO_ADMIN_PASSWORD" --authenticationDatabase admin --eval "rs.status().members.forEach(m => print(m.name, m.stateStr))"'
-```
+These files implement the failover:
 
-Kill the member that the list shows as `PRIMARY`, for example `mongodb-1`. List the members again on one that still runs. Within about 15 seconds another member is `PRIMARY`. Then start the killed member:
+- CPR: [`compose.yaml`](../compose.yaml) declares `etcd`, the `x-patroni` nodes `<database>-1` to `<database>-3`, the `x-mongo` members, and the multi-host connection strings of each service and of the ETL. [`config/patroni/patroni.yml`](../config/patroni/patroni.yml) holds the Patroni settings, [`config/patroni/start.sh`](../config/patroni/start.sh) starts a node, and [`config/patroni/post_bootstrap.sh`](../config/patroni/post_bootstrap.sh) creates the service's role and database on the first leader. [`scripts/setup.py`](../scripts/setup.py) generates the shared MongoDB keyfiles, and [`scripts/check_failover.py`](../scripts/check_failover.py) is the check.
+- `ChillGuysStudio/message-broker-service`: `internal/runtime/nested.go` and `internal/runtime/discovery.go` count `STORAGE_UNAVAILABLE` as a storage outage, not as a replica failure.
 
-```sh
-docker compose kill mongodb-1
-docker compose start mongodb-1
-```
+Each service answers `STORAGE_UNAVAILABLE` from these files:
+
+| Service | Repository | File |
+| --- | --- | --- |
+| Player | `Tirppy/student-id-player-service` | `app/storage.py` |
+| Session | `Tirppy/student-id-session-service` | `app/storage.py` |
+| Moderation | `andyp1xe1/pad-moderation-service` | `src/moderation/errors.py` |
+| Discord DMs | `andyp1xe1/pad-discord-dms-service` | `src/discord_dms/errors.py` |
+| Applicant | `mcittkmims/applicant-service` | `src/main/java/md/pad/applicant/exception/StorageFailure.java` |
+| Credential | `mcittkmims/credential-service` | `src/main/java/md/pad/credential/exception/StorageFailure.java` |
+| Server Rules | `MaxNoragami/server-rules-service` | `src/main/java/com/chillguysstudio/serverrules/common/storage/StorageFailures.java` |
+| University Record | `MaxNoragami/university-record-service` | `src/main/java/com/chillguysstudio/universityrecord/common/config/StorageFailures.java` |
 
 ## Shard the cache
 
-The services spread cached values over three Redis nodes with a consistent-hash ring, as the [cache sharding contract](contracts/cache-sharding.md) defines. Losing a node costs only the keys it owns.
+The services cache common reads and authentication data on three Redis nodes, `cache-1` to `cache-3`. The [cache contract](contracts/cache.md) lists each cached read and its time to live. A consistent-hash ring decides which node holds each key, as the [cache sharding contract](contracts/cache-sharding.md) defines, so losing a node costs only the keys it owns. The cache changes no status and no body.
 
-1. Play a shift, for example with the guided demo in [Run the HTTP checks](#run-the-http-checks). Then count the keys on each node:
+1. Read one player three times. Player caches the account under `v1:player:account:<player_id>` for 30 seconds. Set `PLAYER_ID` to the seed player:
+
+	```sh
+	export PLAYER_ID="$(python3 -c 'import json; print(json.load(open(".local/stack/seed-admin.json"))["player_id"])')"
+	for i in 1 2 3; do curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8080/api/v1/players/$PLAYER_ID; done
+	```
+
+	Each read returns `200`. After the next scrape, 5 seconds later, Prometheus shows one more `miss` and two more `hit` results for the Player account cache:
+
+	```sh
+	curl -s --get 'http://127.0.0.1:9090/api/v1/query' \
+		--data-urlencode 'query=sum by (result) (student_id_cache_requests_total{service="player",cache="account"})'
+	```
+
+2. Ask the reference ring which node owns the key, then look for the key on each node. The ring prints the key's order, owner first. Only the owner holds the key, with a time to live of at most 30 seconds:
+
+	```sh
+	python3 -c 'import sys; sys.path.insert(0, "scripts"); from cache_ring import Ring; print(Ring(["cache-1:6379", "cache-2:6379", "cache-3:6379"]).nodes_for(sys.argv[1]))' "v1:player:account:$PLAYER_ID"
+	for n in 1 2 3; do echo "cache-$n exists $(docker compose exec -T cache-$n redis-cli exists v1:player:account:$PLAYER_ID) ttl $(docker compose exec -T cache-$n redis-cli ttl v1:player:account:$PLAYER_ID)"; done
+	```
+
+	For example, the order `['cache-3:6379', 'cache-1:6379', 'cache-2:6379']` puts the key on `cache-3`, which prints `exists 1`. The other nodes print `exists 0 ttl -2`.
+
+3. Count the keys on each node. Each node holds only the keys it owns, and `redis-cli --scan` on one node lists them:
 
 	```sh
 	for n in 1 2 3; do echo "cache-$n $(docker compose exec -T cache-$n redis-cli dbsize)"; done
 	```
 
-	Each node holds a share of the keys. `redis-cli --scan` on one node lists only the keys it owns.
-
-2. Stop one node, and play again:
+4. Stop the node that owns the key, read the player again, and look for the key on the other nodes:
 
 	```sh
-	docker compose stop cache-2
+	docker compose stop cache-3
+	for i in 1 2 3 4; do curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8080/api/v1/players/$PLAYER_ID; sleep 0.6; done
+	for n in 1 2; do echo "cache-$n exists $(docker compose exec -T cache-$n redis-cli exists v1:player:account:$PLAYER_ID)"; done
 	```
 
-	Requests keep their status and body. Keys that `cache-2` owned are loaded from the datastore once and stored on the next node. The other nodes keep serving their own keys. Grafana's Prometheus data source shows the change with `sum by (node, result) (rate(student_id_cache_requests_total[1m]))`.
+	Every read returns `200`. The key is now on the second node of its order, `cache-1` in the example, and the other node still has none. Keys that the other nodes own stay where they are. Grafana's Prometheus data source shows the change by node with `sum by (node, result) (rate(student_id_cache_requests_total[1m]))`.
 
-3. Start the node again:
+5. Start the node again:
 
 	```sh
-	docker compose start cache-2
+	docker compose start cache-3
 	```
 
-	After one second, the services use it again. Its old values expire within their time to live.
+	After one second, the services use it again. It starts empty, so its keys miss once, and the copies on the next node expire within their time to live.
 
-## Run a saga across two databases
+`python3 scripts/cache_ring.py` is the reference ring. It prints `Wrote .../docs/contracts/cache-ring-v1/vectors.json`, and `git diff docs/contracts/cache-ring-v1/vectors.json` then shows no change, because every service tests its own ring against that file.
 
-Ending a shift runs as a [saga](contracts/transactions.md) that the Message Broker coordinates. Session sets the shift to `ending`, Player awards the XP, and Session sets the shift to `ended`. Each step commits in its own database. When a step fails for good, compensations undo the earlier steps in reverse order.
+These files implement the cache:
 
-1. Run the check. It stops and starts Player and the Broker, so run nothing else that does at the same time:
+- CPR: the `cache-1`, `cache-2`, and `cache-3` services and the `x-cache` settings, `CACHE_NODES` and `CACHE_PASSWORD`, in [`compose.yaml`](../compose.yaml). [`scripts/cache_ring.py`](../scripts/cache_ring.py) is the reference ring, and [`docs/contracts/cache-ring-v1/vectors.json`](contracts/cache-ring-v1/vectors.json) holds its test vectors.
+- Each service reads, fills, and invalidates its values in its cache file, and picks the node in its ring file:
+
+| Service | Repository | Cache | Ring |
+| --- | --- | --- | --- |
+| Player | `Tirppy/student-id-player-service` | `app/cache.py` | `app/ring.py` |
+| Session | `Tirppy/student-id-session-service` | `app/cache.py` | `app/ring.py` |
+| Moderation | `andyp1xe1/pad-moderation-service` | `src/moderation/cache.py` | `src/moderation/ring.py` |
+| Discord DMs | `andyp1xe1/pad-discord-dms-service` | `src/discord_dms/cache.py` | `src/discord_dms/ring.py` |
+| Applicant | `mcittkmims/applicant-service` | `src/main/java/md/pad/applicant/cache/ReadCache.java` | `src/main/java/md/pad/applicant/cache/CacheRing.java` |
+| Credential | `mcittkmims/credential-service` | `src/main/java/md/pad/credential/cache/ReadCache.java` | `src/main/java/md/pad/credential/cache/CacheRing.java` |
+| Server Rules | `MaxNoragami/server-rules-service` | `src/main/java/com/chillguysstudio/serverrules/common/cache/Cache.java` | `src/main/java/com/chillguysstudio/serverrules/common/cache/Ring.java` |
+| University Record | `MaxNoragami/university-record-service` | `src/main/java/com/chillguysstudio/universityrecord/common/cache/Cache.java` | `src/main/java/com/chillguysstudio/universityrecord/common/cache/Ring.java` |
+
+## Run the end-shift saga
+
+Ending a shift runs as a [saga](contracts/transactions.md) that the Message Broker coordinates. Session sets the shift to `ending` in its own database (`hold-shift`), Player awards the XP in its database (`award-shift`), and Session sets the shift to `ended` (`finish-end`). When the award fails for good, the compensations `revoke-shift-award` and `reopen-shift` undo the earlier steps in reverse order. `POST /api/v1/sessions/{session_id}/end` returns `200` in `ended` when the saga completes within the request, `202` in `ending` while it still runs, and `409 PROGRESSION_REJECTED` after a compensation.
+
+1. Run the check. It stops and starts Player and the Broker, so run nothing else that does at the same time. It takes about a minute:
 
 	```sh
 	python3 scripts/check_sagas.py
 	```
 
-	It prints one line per case: a normal run, a Player outage that delays the saga, a permanent failure that compensates, a Broker restart mid-saga, and a repeated step. Each case compares the saga state, the session status, and the Player ledger, and prints the saga from the listing. No credentials are printed. To run one case, name it: `normal`, `player-outage`, `compensation`, `broker-restart`, or `repeated-step`.
+	The check prints one `ok` line for each case, with the saga from the listing:
 
-2. List the sagas as an administrator, with the token from [List topics](#list-topics):
+	```text
+	ok    normal run (4.9 s)
+	      200 ended, 3 award rows, retry returned the same 200. Listing: completed: hold-shift=done/1 award-shift=done/1 finish-end=done/1
+	ok    Player outage delays the saga (14.2 s)
+	      202 ending while Player was stopped, then completed with 3 award rows. Listing: completed: hold-shift=done/1 award-shift=done/3 finish-end=done/1
+	ok    permanent failure compensates (5.3 s)
+	      end 409, saga compensated, shift active again, no award rows; the retry returned 409 PROGRESSION_REJECTED. Listing: compensated: hold-shift=compensated/1+1c award-shift=compensated/1+1c finish-end=skipped/0 cause rejected:AWARD_CONFLICT
+	ok    Broker restart mid-saga (12.9 s)
+	      202 ending, the Broker restarted mid-saga, recovery completed it. Listing: completed: hold-shift=done/1 award-shift=done/2 finish-end=done/1
+	ok    repeated step (13.8 s)
+	      the award was sent 3 times and applied once: 3 award rows. Listing: completed: hold-shift=done/1 award-shift=done/3 finish-end=done/1
+	```
+
+	Each step reads `operation=state/attempts`, and `+1c` counts compensation attempts. Each case compares the saga state in `broker-db`, the session status in `session-db`, and the Player ledger in `player-db`. No credentials are printed. To run one case, name it: `normal`, `player-outage`, `compensation`, `broker-restart`, or `repeated-step`. The command exits with status 0 when every case is `ok`.
+
+2. List the sagas as an administrator, with the token from [Get an administrator token](#get-an-administrator-token). Grant the access again first, because the check revoked it:
 
 	```sh
 	curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" 'http://127.0.0.1:8080/api/v1/admin/broker/sagas?limit=20&flow=end-shift'
 	```
 
-	Each item shows the saga's state, its cause after a compensation, and each step's state and attempts. It never shows a payload. Filter with `state=running`, `compensating`, `completed`, or `compensated`. Grafana's Prometheus data source shows `student_id_broker_sagas_total` by outcome and `student_id_broker_sagas_unresolved` by state.
+	Each item shows the saga's state, its `cause` after a compensation, and each step's state, attempts, and last error kind. It never shows a payload, a player ID, or a session ID. Filter with `state=running`, `compensating`, `completed`, or `compensated`. Grafana's Prometheus data source shows `student_id_broker_sagas_total` by outcome and `student_id_broker_sagas_unresolved` by state. The Broker log shows each saga's `saga_started` and `saga_completed` or `saga_compensated` records, and a `WARN` `saga_step` record for each failed call:
 
-3. Watch a Player outage. Stop Player and end a shift: the end returns `202` with the shift `ending`, and the listing shows the saga `running` with a growing `attempts` count on `award-shift`. Start Player again, and the saga completes:
+	```sh
+	docker compose logs --no-log-prefix message-broker | grep '"event":"saga_'
+	```
+
+3. Watch a Player outage by hand. In Postman, send the guided demo requests 01 to 27 and 30 to 38. Requests 28 and 29 need the overload helper and can be skipped. Before request 39, stop Player:
 
 	```sh
 	docker compose stop player
+	```
+
+	Send 39. The end returns `202` with the shift `ending`. List the running sagas:
+
+	```sh
+	curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" 'http://127.0.0.1:8080/api/v1/admin/broker/sagas?flow=end-shift&state=running'
+	```
+
+	The saga is `running`. `hold-shift` is `done`, `award-shift` is `pending` with `last_error_kind` `no_healthy_instances` and an `attempts` count that grows on each list, and `finish-end` is `pending`. Start Player again:
+
+	```sh
 	docker compose start player
 	```
 
-## Run the HTTP checks
+	Send 40 until it passes. Within about 20 seconds the shift is `ended`, and the listing shows the saga `completed` with every step `done`.
 
-The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the administrator routes, in Postman or with Newman. It ends by finding the shift's saga `completed` in the saga listing, with player 2 as a temporary administrator:
+These files implement the saga:
 
-```sh
-./scripts/run_newman.sh
-./scripts/run_newman.sh --with-overload
-```
-
-[HTTP checks](../postman/HTTP-CHECKS.md) describes the read-only public folder and the private Discovery health folder.
-
-Each service has its own collection in `postman/`: `applicant`, `credential`, `discord-dms`, `moderation`, `server-rules`, and `university-record`. The runner creates what a collection needs through the public Gateway, then runs it with the same redaction and report:
-
-```sh
-./scripts/run_newman.sh --service applicant
-```
-
-The runner registers disposable players, builds a team and a Session with an assigned Moderator, starts the shift and opens a case where the collection needs one, and grants a disposable player administrator access for the run. It revokes that access when the run ends, as the [catalog seed](../scripts/seed_university_catalog.py) does. The grant runs `docker compose exec player` in the repository root. Pass `--compose-dir DIR` when the stack runs from another directory. `server-rules` needs a published rule version, and `moderation` opens a second case for its ban folder. The report goes to `.local/postman/<service>/newman-htmlextra.html`. To see which services handle a request, follow its `X-Request-ID` in the Broker log as [the guided demo](../postman/GUIDED-DEMO.md#follow-a-request-through-the-services) describes.
+- CPR: the [distributed transactions contract](contracts/transactions.md), [`sagas.proto`](../proto/student_id/sagas/v1/sagas.proto) with the coordinator and participant RPCs, `ListSagas` in [`broker.proto`](../proto/student_id/broker/v1/broker.proto), and [`scripts/check_sagas.py`](../scripts/check_sagas.py).
+- `ChillGuysStudio/message-broker-service`: `internal/runtime/sagas.go` starts sagas, runs the steps, retries, compensates, and recovers unfinished sagas. `internal/store/sagas.go` and `internal/store/migrations/004_sagas.sql` keep the saga state in `broker-db`. `internal/runtime/saga_listing.go` serves `ListSagas`.
+- `Tirppy/student-id-session-service`: `app/ending.py` runs the end request with `hold-shift`, starts the saga, relays sagas that the Broker has not accepted, and serves `finish-end` and `reopen-shift`.
+- `Tirppy/student-id-player-service`: `app/progression.py` serves `award-shift` and `revoke-shift-award` on the progression ledger.
+- `ChillGuysStudio/gateway-service`: `internal/runtime/brokersagas.go` serves `GET /api/v1/admin/broker/sagas`.
 
 ## Check the repository
 
