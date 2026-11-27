@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+// Long-running sagas across service databases. The Message Broker coordinates.
+// docs/contracts/transactions.md defines the flows, steps, compensations, and outcomes.
+package student_id.sagas.v1;
+
+option go_package = "github.com/ChillGuysStudio/student-id-please/gen/go/student_id/sagas/v1;sagasv1";
+option java_multiple_files = true;
+option java_outer_classname = "SagasProto";
+option java_package = "com.chillguysstudio.studentid.sagas.v1";
+
+// SagaCoordinatorService is served by the Message Broker. Only a flow's
+// initiator calls it, with its service credential.
+service SagaCoordinatorService {
+  // Starts or joins one saga, runs it while the call's budget lasts, and
+  // returns its state.
+  rpc StartSaga(StartSagaRequest) returns (StartSagaResponse);
+}
+
+// One step of a saga.
+message StepRequest {
+  // Participant registry name, for example player.
+  string service = 1;
+  // Operation name from the flow catalogue, for example award-shift.
+  string operation = 2;
+  // UTF-8 JSON object of the operation's payload schema. The compensation
+  // receives the same payload.
+  string payload_json = 3;
+}
+
+message StartSagaRequest {
+  // UUID chosen by the initiator. A repeated call with an equal request
+  // joins the same saga.
+  string saga_id = 1;
+  // Flow name from the catalogue, for example end-shift.
+  string flow = 2;
+  // Exactly the flow's steps, in catalogue order.
+  repeated StepRequest steps = 3;
+}
+
+// The step whose failure made the saga compensate.
+message SagaCause {
+  string service = 1;
+  string operation = 2;
+  // rejected, attempts, or deadline.
+  string kind = 3;
+  // For rejected: the participant's ErrorDetail code and HTTP status.
+  string code = 4;
+  int32 http_status = 5;
+}
+
+message StartSagaResponse {
+  string saga_id = 1;
+  // running, compensating, completed, or compensated.
+  string state = 2;
+  // Set when state is compensating or compensated.
+  SagaCause cause = 3;
+}
+
+// SagaParticipantService is served by every participant: session and player.
+// The Message Broker is the only caller.
+service SagaParticipantService {
+  // Applies one step in a local transaction. Repeating it after success
+  // returns OK without a second change. A rejection is an error status with
+  // an ErrorDetail whose http_status is 4xx.
+  rpc RunStep(RunStepRequest) returns (RunStepResponse);
+  // Undoes the step, or prevents a later run of it. Repeating it returns OK.
+  rpc Compensate(CompensateRequest) returns (CompensateResponse);
+}
+
+message RunStepRequest {
+  string saga_id = 1;
+  string flow = 2;
+  string operation = 3;
+  string payload_json = 4;
+}
+
+message CompensateRequest {
+  string saga_id = 1;
+  string flow = 2;
+  // The operation that the compensation undoes, for example award-shift.
+  string operation = 3;
+  string payload_json = 4;
+  SagaCause cause = 5;
+}
+
+message RunStepResponse {
+  string saga_id = 1;
+  // False when the participant had already applied this step.
+  bool applied = 2;
+}
+
+message CompensateResponse {
+  string saga_id = 1;
+  // False when nothing was undone: the step had not run, or was already undone.
+  bool applied = 2;
+}
