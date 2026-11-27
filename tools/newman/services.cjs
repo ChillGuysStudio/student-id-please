@@ -133,4 +133,4 @@ async function prepare(service, { gateway, composeDir = ROOT, grant = setAdmin }
     return { values, freshCase, cleanup: async () => grant(accounts.admin.id, '--revoke', composeDir) };
 }
 
-module.exports = { fail, SERVICES, STAGES, collectionFile, prepare };
+module.exports = { fail, SERVICES, STAGES, collectionFile, prepare, setAdmin };

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { sanitize, render, verifyNoSecrets, parseArgs, executePhase, phases } = require('./report.cjs');
+const { sanitize, render, verifyNoSecrets, parseArgs, executePhase, phases, adminPhase } = require('./report.cjs');
 const services = require('./services.cjs');
 
 function fixture({ failure = false, skipped = false } = {}) {
@@ -152,7 +152,34 @@ test('guided phases keep overload requests 28 and 29 separate from the later fol
     assert.equal(plan.labels.before, '01-27');
     assert.ok(!names(plan.before).includes('28') && !names(plan.after).includes('29'));
     assert.equal(plan.labels.after, `30-${names(plan.after).at(-1)}`);
+    assert.equal(plan.labels.admin, `${Number(names(plan.after).at(-1)) + 1}-${names(plan.admin).at(-1)}`);
+    assert.equal(names(plan.admin).at(-1), names(source).at(-1));
     assert.throws(() => phases({ item: [{ name: 'No overload', item: [] }] }), /no overload folder/);
+    const request = token => ({ method: 'GET', url: 'x', header: token ? [{ key: 'Authorization', value: `Bearer {{${token}}}` }] : [] });
+    const folder = (name, number, token) => ({ name, item: [{ name: `${number} — ${name}`, request: request(token) }] });
+    assert.throws(() => phases({ item: [folder('Overload', '28'), folder('Admin', '30', 'admin_token'), folder('Later', '31', 'token0')] }), /must come last/);
+    assert.equal(phases({ item: [folder('Overload', '28'), folder('Later', '30', 'token0')] }).admin, null);
+});
+
+test('player 2 holds administrator access only while the administrator folders run', async () => {
+    const plan = { admin: { item: [] }, labels: { admin: '76-84' } };
+    const environment = { values: [{ key: 'player2', value: 'player-2-id' }] };
+    for (const outcome of ['pass', 'fail']) {
+        const calls = [];
+        const grant = (id, action) => calls.push(`${action} ${id}`);
+        const execute = async (collection, label) => {
+            calls.push(`run ${label}`);
+            if (outcome === 'fail') throw new Error('phase failed');
+            return true;
+        };
+        const run = adminPhase(plan, environment, execute, { grant });
+        if (outcome === 'pass') assert.equal(await run, true); else await assert.rejects(run, /phase failed/);
+        assert.deepEqual(calls, ['--grant player-2-id', 'run 76-84', '--revoke player-2-id']);
+    }
+    assert.equal(await adminPhase({ admin: null }, environment, async () => assert.fail('no run')), true);
+    await assert.rejects(adminPhase(plan, { values: [] }, async () => true, { grant: () => {} }), error => error.safe);
+    await assert.rejects(adminPhase(plan, environment, async () => true, { grant: () => { throw new Error('PRIVATE'); } }),
+        error => error.safe && /--compose-dir/.test(error.message) && !error.message.includes('PRIVATE'));
 });
 
 test('service flag selects one collection and rejects other modes', () => {
