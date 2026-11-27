@@ -135,6 +135,8 @@ def listing(sid):
     """Return the shift's latest saga from the administrator listing, as one line."""
     saga_id = sql("broker-db", "SELECT saga_id FROM saga_steps WHERE operation = 'award-shift' "
                   f"AND payload->>'session_id' = '{sid}' ORDER BY saga_id")
+    # After a Broker restart, requests reach Player again a little later than the saga completes.
+    player_ready()
     creds = seed.load_credentials(BASE)
     seed.set_admin(creds["player_id"], "--grant")
     try:
