@@ -181,22 +181,22 @@
    "service": "discovery",
    "submodule": "discovery-service",
    "repository": "ChillGuysStudio/discovery-service",
-   "version": "4.0.9",
-   "source_sha": "3c434a8dd2e9b221edb190c6fe2b49d2e94f694f",
-   "image": "maxnoragami/discovery-service@sha256:8ab069a20a2e4113b680f3ecd6906896f8b5bd7058efe2e918a2d214e1a10a0e",
+   "version": "5.0.0",
+   "source_sha": "f6e32bceadd71f9b9b23d336b64e544f9a812821",
+   "image": "maxnoragami/discovery-service@sha256:0615d31bc7004e1ac285bc795319a950d3620604f9def6dd433dfd2140269af8",
    "platforms": {
-    "amd64": "sha256:e263ca514d002f5784244f8ccb56463e765d3888b95960a3a51649392336a3bb",
-    "arm64": "sha256:29c1f65d333cb62aefb465010795932e6cce231cbeae82accf1d28152534bf59"
+    "amd64": "sha256:e50a5109b48618a105a3771873d6062315a611ec84251c09b56a60c6b81d087a",
+    "arm64": "sha256:6b881834e7389226b4dfd30cf0033ac8162e2e196fa143bb24340edbdc32efee"
    },
    "configs": {
-    "amd64": "sha256:a6f3813d73d4d8338dcdda053499ebe862583efbc0d50560006c4be9bfa68dd1",
-    "arm64": "sha256:fd88c44621ece88e3d2a732ebc4b3041560098f8625d6cb089a419d6edb160d8"
+    "amd64": "sha256:67acab16c13429b5c3a4d069b9eb2557245470b7d38cf805c48969c3267e3a36",
+    "arm64": "sha256:9816eb03a309cc202cbabec7e6779562a2fc058be4630492205ab44307ce3c0a"
    },
    "revision_labels": {
-    "amd64": "3c434a8dd2e9b221edb190c6fe2b49d2e94f694f",
-    "arm64": "3c434a8dd2e9b221edb190c6fe2b49d2e94f694f"
+    "amd64": "f6e32bceadd71f9b9b23d336b64e544f9a812821",
+    "arm64": "f6e32bceadd71f9b9b23d336b64e544f9a812821"
    },
-   "publication_run": 43424561493,
+   "publication_run": 45997499560,
    "repository_source_labels_verified": true
   },
   {
