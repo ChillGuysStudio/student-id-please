@@ -58,7 +58,10 @@ GUIDED_ROUTES = {
     ("POST", "/api/v1/sessions/{id}/participants"), ("PUT", "/api/v1/sessions/{id}/roles"),
     ("POST", "/api/v1/sessions/{id}/start"), ("POST", "/api/v1/sessions/{id}/cases"),
     ("GET", "/api/v1/sessions/{id}/cases/{id}/status"), ("POST", "/api/v1/sessions/{id}/end"),
+    ("GET", "/api/v1/admin/logs"), ("GET", "/api/v1/admin/broker/topics"), ("GET", "/api/v1/admin/broker/dead-letters"),
+    ("GET", "/api/v1/admin/broker/sagas"),
 }
+CONTRACTS = ROOT / "docs/contracts"
 
 
 class GuidedDemoCollectionTests(unittest.TestCase):
@@ -80,12 +83,82 @@ class GuidedDemoCollectionTests(unittest.TestCase):
                 tests = "\n".join("\n".join(e["script"]["exec"]) for e in item["event"] if e["listen"] == "test")
                 self.assertIn("pm.test(", tests)
 
-    def test_player_and_session_public_routes_are_covered(self):
-        covered = set()
-        for item in self.items:
-            path = item["request"]["url"].removeprefix("{{gateway_url}}")
-            covered.add((item["request"]["method"], re.sub(r"\{\{[a-z0-9_]+\}\}", "{id}", path)))
+    def test_player_session_and_admin_routes_are_covered(self):
+        covered = {route(item["request"]) for item in self.items}
         self.assertEqual(GUIDED_ROUTES - covered, set())
+
+    def script(self, item, listen="test"):
+        return "\n".join("\n".join(e["script"]["exec"]) for e in item["event"] if e["listen"] == listen)
+
+    def statuses(self, item):
+        status = re.search(r"pm\.expect\(pm\.response\.code\)\.to\.(?:equal\((\d{3})\)|be\.oneOf\(\[([\d, ]+)\]\))", self.script(item))
+        return set(re.findall(r"\d{3}", status.group(1) or status.group(2)))
+
+    def test_end_shift_accepts_a_running_saga_and_waits_for_ended(self):
+        end = next(i for i, item in enumerate(self.items) if item["name"].startswith("39 "))
+        self.assertEqual(route(self.items[end]["request"]), ("POST", "/api/v1/sessions/{id}/end"))
+        self.assertEqual(self.statuses(self.items[end]), {"200", "202"})
+        poll = self.items[end + 1]
+        self.assertEqual(route(poll["request"]), ("GET", "/api/v1/sessions/{id}"))
+        self.assertIn('data.status === "ending"', self.script(poll))
+        self.assertIn("pm.execution.setNextRequest(pm.info.requestName)", self.script(poll))
+        self.assertIn('data.status === "ended"', self.script(poll))
+
+    def test_saga_listing_checks_success_validation_and_denial(self):
+        sagas = [item for item in self.items if route(item["request"]) == ("GET", "/api/v1/admin/broker/sagas")]
+        statuses = set().union(*(self.statuses(item) for item in sagas))
+        self.assertEqual(statuses, {"200", "400", "401", "403"})
+        administrator = [item for item in sagas if "Bearer {{admin_token}}" in json.dumps(item["request"]["header"])]
+        self.assertTrue(administrator and self.items[-len(administrator):] == administrator)
+        queries = {item["request"]["url"].partition("?")[2] for item in administrator}
+        for parameter in ("limit=", "cursor=", "flow=", "state="):
+            self.assertTrue(any(parameter in query for query in queries), parameter)
+        listing = self.script(administrator[0])
+        for expected in ("hold-shift", "award-shift", "finish-end", "completed", "last_error_kind", "payload"):
+            self.assertIn(expected, listing)
+
+
+def route(request):
+    url = request["url"] if isinstance(request["url"], str) else request["url"]["raw"]
+    path = re.sub(r"^\{\{[a-z_]+\}\}", "", url).partition("?")[0]
+    return request["method"], re.sub(r"\{\{[A-Za-z0-9_]+\}\}", "{id}", path)
+
+
+def documented_routes():
+    """Routes in the API contract and every contract it links, directly or through another contract."""
+    seen, pending = set(), [CONTRACTS / "api.md"]
+    while pending:
+        path = pending.pop().resolve()
+        if path in seen or not path.is_file():
+            continue
+        seen.add(path)
+        for link in re.findall(r"\]\(([^)#\s]+\.md)", path.read_text()):
+            target = (path.parent / link).resolve()
+            if target.parent == CONTRACTS.resolve():
+                pending.append(target)
+    routes = set()
+    for path in seen:
+        for method, route_path in re.findall(r"\b(GET|POST|PUT|PATCH|DELETE) (/[^\s`?|<)]*)", path.read_text()):
+            routes.add((method, re.sub(r"\{[a-z_]+\}", "{id}", route_path)))
+    return routes
+
+
+class DocumentedRouteTests(unittest.TestCase):
+    def requests(self, items):
+        for item in items:
+            if "item" in item:
+                yield from self.requests(item["item"])
+            else:
+                yield item
+
+    def test_every_collection_request_matches_a_documented_route(self):
+        documented = documented_routes()
+        for path in sorted((ROOT / "postman").glob("*.json")):
+            if path.name.endswith("environment.json"):
+                continue
+            for item in self.requests(json.loads(path.read_text())["item"]):
+                with self.subTest(collection=path.name, request=item["name"]):
+                    self.assertIn(route(item["request"]), documented)
 
 
 SERVICE_COLLECTIONS = sorted((ROOT / "postman").glob("*-service.json"))

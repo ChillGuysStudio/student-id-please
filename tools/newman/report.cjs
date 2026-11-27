@@ -199,7 +199,7 @@ function parseArgs(args) {
 }
 
 function help() {
-    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27, then 30–72; these create disposable service data.\n  --service NAME       Run one service collection (applicant, credential, discord-dms, moderation, server-rules, university-record)\n                       after creating its players, session and case; grants and revokes an administrator\n  --compose-dir DIR    Compose project directory used to grant the administrator (default: the CPR root)\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery liveness on a private network URL\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery and 30–70\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
+    console.log(`Usage: scripts/run_newman.sh [options]\n\nDefault: run guided demo requests 01–27, then 30–84; these create disposable service data.\n                       Requests 76–84 run while player 2 holds administrator access, granted and revoked by the runner\n  --service NAME       Run one service collection (applicant, credential, discord-dms, moderation, server-rules, university-record)\n                       after creating its players, session and case; grants and revokes an administrator\n  --compose-dir DIR    Compose project directory used to grant the administrator (default: the CPR root)\n  --http         Read-only public Gateway smoke at 127.0.0.1:8080\n  --http-private      Read-only Discovery liveness on a private network URL\n  --from-json FILE     Render a saved Newman JSON without sending requests\n  --with-overload      Run the overload helper against 127.0.0.1 on the Gateway URL port, then recovery and 30–84\n  --gateway-url URL    Public Gateway (default: http://127.0.0.1:8080)\n  --environment FILE   Postman environment (keep credentials in ignored .local/)\n  --output FILE.html   Redacted HTML path (default under ignored .local/)\n  --help              Show this help\n\nRaw results and environments remain in ignored .local/. Reports omit URLs, bodies, headers, credentials and diagnostics. HTTP checks do not mutate registry state or prove scaled routing.`);
 }
 
 async function executePhase(collection, environment) {
@@ -210,7 +210,8 @@ async function executePhase(collection, environment) {
 }
 
 // Folders before the overload folder run first, the overload requests 28 and 29
-// run only on request, and the later folders run last in either mode.
+// run only on request, and the later folders run next in either mode. Folders that
+// send an administrator token run last, while player 2 holds administrator access.
 function phases(source) {
     const index = source.item.findIndex(folder => (folder.item || []).some(item => item.name.startsWith('28 ')));
     if (index < 0) throw new Error('The guided collection has no overload folder.');
@@ -218,9 +219,28 @@ function phases(source) {
         const numbers = folders.flatMap(folder => folder.item).map(item => item.name.slice(0, 2));
         return numbers.length ? `${numbers[0]}-${numbers[numbers.length - 1]}` : 'none';
     };
-    const before = source.item.slice(0, index), after = source.item.slice(index + 1);
+    const administrative = folder => (folder.item || []).some(item => (item.request.header || []).some(header => header.value === 'Bearer {{admin_token}}'));
+    const before = source.item.slice(0, index), later = source.item.slice(index + 1);
+    const after = later.filter(folder => !administrative(folder)), admin = later.filter(administrative);
+    if (admin.some(folder => later.indexOf(folder) < after.length)) throw new Error('Administrator folders must come last.');
     return { before: { ...source, item: before }, overload: source.item[index], after: { ...source, item: after },
-        labels: { before: label(before), after: label(after) } };
+        admin: admin.length ? { ...source, item: admin } : null,
+        labels: { before: label(before), after: label(after), admin: label(admin) } };
+}
+
+// Player 2 holds administrator access only while the administrator folders run.
+// Its access is revoked even when the folders fail.
+async function adminPhase(plan, environment, execute, { grant = SERVICES.setAdmin, composeDir = ROOT } = {}) {
+    if (!plan.admin) return true;
+    const player = environment.values.find(entry => entry.key === 'player2')?.value;
+    if (!player) throw SERVICES.fail('Player 2 was not registered, so the administrator folders cannot run.');
+    const change = action => {
+        try { grant(player, action, composeDir); }
+        catch { throw SERVICES.fail(`Administrator ${action.slice(2)} failed; pass --compose-dir DIR for the directory the stack runs from.`); }
+    };
+    change('--grant');
+    try { return await execute(plan.admin, plan.labels.admin); }
+    finally { change('--revoke'); }
 }
 
 async function runLive(options) {
@@ -274,8 +294,9 @@ async function runLive(options) {
     }
     if (options.http) { await execute(first, 'http-checks'); return results; }
     if (!await execute(first, plan.labels.before)) return results;
+    const grant = { composeDir: options.composeDir };
     if (!options.overload) {
-        await execute(plan.after, plan.labels.after);
+        if (await execute(plan.after, plan.labels.after)) await adminPhase(plan, environment, execute, grant);
         return results;
     }
     const step = number => ({ ...source, item: [{ ...plan.overload, item: plan.overload.item.filter(item => item.name.startsWith(`${number} `)) }] });
@@ -297,7 +318,7 @@ async function runLive(options) {
         const held = await execute(step(28), '28');
         if (await exited !== 0 || helperError) throw new Error('Overload helper failed; do not claim an overload demonstration.');
         await new Promise(resolve => setTimeout(resolve, 250));
-        if (await execute(step(29), '29') && held) await execute(plan.after, plan.labels.after);
+        if (await execute(step(29), '29') && held && await execute(plan.after, plan.labels.after)) await adminPhase(plan, environment, execute, grant);
     } catch (error) {
         helper.kill('SIGTERM');
         await exited.catch(() => {});
@@ -321,7 +342,7 @@ async function main() {
     process.exitCode = safe.reportMetadata.failed ? 1 : 0;
 }
 
-module.exports = { sanitize, render, verifyNoSecrets, parseArgs, executePhase, phases };
+module.exports = { sanitize, render, verifyNoSecrets, parseArgs, executePhase, phases, adminPhase };
 if (require.main === module) main().catch(error => {
     console.error('Newman/report generation failed. Private diagnostics are withheld; check inputs, dependencies and Gateway availability.');
     if (error.safe) console.error(error.message);

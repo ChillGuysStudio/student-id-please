@@ -2,7 +2,7 @@
   "info": {
     "name": "Guided Gateway and concurrency demo",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "A numbered real-user demonstration through the public Gateway, followed by a controlled 100-slot overload and recovery, a complete one-case shift and the account, friendship and team lifecycle. Run requests manually in order, using the separate environment template. This collection does not assert WebSocket frame delivery."
+    "description": "A numbered real-user demonstration through the public Gateway, followed by a controlled 100-slot overload and recovery, a complete one-case shift, the account, friendship and team lifecycle, and the shift's saga in the administrator saga listing. Run requests manually in order, using the separate environment template. This collection does not assert WebSocket frame delivery."
   },
   "event": [
     {
@@ -1289,7 +1289,7 @@
       ]
     },
     {
-      "name": "E. Shift start, case readiness and lobby deletion \u2014 30\u201343",
+      "name": "E. Shift start, case readiness and lobby deletion \u2014 30\u201344",
       "item": [
         {
           "name": "30 \u2014 Junior cannot start the shift",
@@ -1730,7 +1730,7 @@
               }
             ],
             "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}/end",
-            "description": "Send to the public Gateway. Run the preceding numbered requests first. The test checks the actual response and retains only resource IDs in the Postman environment.",
+            "description": "Send to the public Gateway. Ending the shift runs the end-shift saga: Session holds the shift, Player awards the XP, and Session ends the shift. A completed saga returns 200 in ended; a saga that is still running returns 202 in ending, and request 40 waits for ended.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1743,17 +1743,29 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"end_session_id\") !== pm.environment.get(\"session_id\")) {",
+                  "  pm.environment.set(\"end_session_id\", pm.environment.get(\"session_id\"));",
+                  "  pm.environment.set(\"end_started_at\", new Date().toISOString());",
+                  "}"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
                   "(() => {",
-                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.be.oneOf([200, 202]));",
                   "let data;",
                   "try { data = pm.response.json(); } catch (_) { data = null; }",
                   "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
-                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
-                  "pm.test(\"Shift ended with its scored case\", () => pm.expect(data.session_id === pm.environment.get(\"session_id\") && data.status === \"ended\" && data.processed_count === 1 && data.current_case_id === null).to.equal(true));",
+                  "if (!data || ![200, 202].includes(pm.response.code)) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Shift is ended, or ending while its saga runs\", () => pm.expect(data.session_id === pm.environment.get(\"session_id\") && data.status === (pm.response.code === 200 ? \"ended\" : \"ending\") && data.processed_count === 1 && data.current_case_id === null).to.equal(true));",
                   "})();"
                 ]
               }
@@ -1761,7 +1773,55 @@
           ]
         },
         {
-          "name": "40 \u2014 Create a disposable lobby",
+          "name": "40 \u2014 Poll Session until the shift has ended",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token0}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/sessions/{{session_id}}",
+            "description": "Send to the public Gateway. After a 200 from request 39 the shift is already ended. After a 202, a Newman or Collection Runner run repeats this request about once per second until the saga ends the shift. When sent manually, an empty Test Results tab means the saga is still running: send it again."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (Number(pm.environment.get(\"poll_attempt\") || 0) > 0) setTimeout(() => {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "const attempt = Number(pm.environment.get(\"poll_attempt\") || 0);",
+                  "if (pm.response.code === 200 && data && data.status === \"ending\" && attempt < 30) {",
+                  "  pm.environment.set(\"poll_attempt\", attempt + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "pm.environment.unset(\"poll_attempt\");",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Shift ended with its scored case\", () => pm.expect(data.session_id === pm.environment.get(\"session_id\") && data.status === \"ended\" && data.processed_count === 1 && data.current_case_id === null).to.equal(true));",
+                  "pm.environment.set(\"end_finished_at\", new Date().toISOString());",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "41 \u2014 Create a disposable lobby",
           "request": {
             "method": "POST",
             "header": [
@@ -1812,7 +1872,7 @@
           ]
         },
         {
-          "name": "41 \u2014 Junior cannot delete the lobby",
+          "name": "42 \u2014 Junior cannot delete the lobby",
           "request": {
             "method": "DELETE",
             "header": [
@@ -1848,7 +1908,7 @@
           ]
         },
         {
-          "name": "42 \u2014 Owner deletes the lobby",
+          "name": "43 \u2014 Owner deletes the lobby",
           "request": {
             "method": "DELETE",
             "header": [
@@ -1880,7 +1940,7 @@
           ]
         },
         {
-          "name": "43 \u2014 Deleted lobby no longer exists",
+          "name": "44 \u2014 Deleted lobby no longer exists",
           "request": {
             "method": "GET",
             "header": [
@@ -1914,10 +1974,10 @@
       ]
     },
     {
-      "name": "F. Tokens, profiles, friendships and teams \u2014 44\u201366",
+      "name": "F. Tokens, profiles, friendships and teams \u2014 45\u201367",
       "item": [
         {
-          "name": "44 \u2014 Public token signing keys",
+          "name": "45 \u2014 Public token signing keys",
           "request": {
             "method": "GET",
             "header": [],
@@ -1945,7 +2005,7 @@
           ]
         },
         {
-          "name": "45 \u2014 Refresh player 0 tokens",
+          "name": "46 \u2014 Refresh player 0 tokens",
           "request": {
             "method": "POST",
             "header": [
@@ -1993,7 +2053,7 @@
           ]
         },
         {
-          "name": "46 \u2014 Rename player 0 with the refreshed token",
+          "name": "47 \u2014 Rename player 0 with the refreshed token",
           "request": {
             "method": "PATCH",
             "header": [
@@ -2043,7 +2103,7 @@
           ]
         },
         {
-          "name": "47 \u2014 Profile change without bearer",
+          "name": "48 \u2014 Profile change without bearer",
           "request": {
             "method": "PATCH",
             "header": [
@@ -2088,7 +2148,7 @@
           ]
         },
         {
-          "name": "48 \u2014 Teammate reads player 0",
+          "name": "49 \u2014 Teammate reads player 0",
           "request": {
             "method": "GET",
             "header": [
@@ -2121,7 +2181,7 @@
           ]
         },
         {
-          "name": "49 \u2014 Player read without bearer",
+          "name": "50 \u2014 Player read without bearer",
           "request": {
             "method": "GET",
             "header": [],
@@ -2148,7 +2208,7 @@
           ]
         },
         {
-          "name": "50 \u2014 List player 0 friendships",
+          "name": "51 \u2014 List player 0 friendships",
           "request": {
             "method": "GET",
             "header": [
@@ -2180,7 +2240,7 @@
           ]
         },
         {
-          "name": "51 \u2014 Friendship list without bearer",
+          "name": "52 \u2014 Friendship list without bearer",
           "request": {
             "method": "GET",
             "header": [],
@@ -2207,7 +2267,7 @@
           ]
         },
         {
-          "name": "52 \u2014 Request a disposable friendship",
+          "name": "53 \u2014 Request a disposable friendship",
           "request": {
             "method": "POST",
             "header": [
@@ -2258,7 +2318,7 @@
           ]
         },
         {
-          "name": "53 \u2014 Outsider cannot remove the friendship",
+          "name": "54 \u2014 Outsider cannot remove the friendship",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2294,7 +2354,7 @@
           ]
         },
         {
-          "name": "54 \u2014 Recipient removes the friendship",
+          "name": "55 \u2014 Recipient removes the friendship",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2326,7 +2386,7 @@
           ]
         },
         {
-          "name": "55 \u2014 Removed friendship is no longer listed",
+          "name": "56 \u2014 Removed friendship is no longer listed",
           "request": {
             "method": "GET",
             "header": [
@@ -2358,7 +2418,7 @@
           ]
         },
         {
-          "name": "56 \u2014 Create a disposable team",
+          "name": "57 \u2014 Create a disposable team",
           "request": {
             "method": "POST",
             "header": [
@@ -2409,7 +2469,7 @@
           ]
         },
         {
-          "name": "57 \u2014 Add player 0 to the disposable team",
+          "name": "58 \u2014 Add player 0 to the disposable team",
           "request": {
             "method": "POST",
             "header": [
@@ -2458,7 +2518,7 @@
           ]
         },
         {
-          "name": "58 \u2014 Member reads the disposable team",
+          "name": "59 \u2014 Member reads the disposable team",
           "request": {
             "method": "GET",
             "header": [
@@ -2490,7 +2550,7 @@
           ]
         },
         {
-          "name": "59 \u2014 Non-member cannot read the team",
+          "name": "60 \u2014 Non-member cannot read the team",
           "request": {
             "method": "GET",
             "header": [
@@ -2522,7 +2582,7 @@
           ]
         },
         {
-          "name": "60 \u2014 Member cannot remove the owner",
+          "name": "61 \u2014 Member cannot remove the owner",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2558,7 +2618,7 @@
           ]
         },
         {
-          "name": "61 \u2014 Owner removes player 0",
+          "name": "62 \u2014 Owner removes player 0",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2594,7 +2654,7 @@
           ]
         },
         {
-          "name": "62 \u2014 Removed member cannot delete the team",
+          "name": "63 \u2014 Removed member cannot delete the team",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2630,7 +2690,7 @@
           ]
         },
         {
-          "name": "63 \u2014 Owner deletes the disposable team",
+          "name": "64 \u2014 Owner deletes the disposable team",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2662,7 +2722,7 @@
           ]
         },
         {
-          "name": "64 \u2014 Deleted team no longer exists",
+          "name": "65 \u2014 Deleted team no longer exists",
           "request": {
             "method": "GET",
             "header": [
@@ -2694,7 +2754,7 @@
           ]
         },
         {
-          "name": "65 \u2014 Log out player 0",
+          "name": "66 \u2014 Log out player 0",
           "request": {
             "method": "POST",
             "header": [
@@ -2735,7 +2795,7 @@
           ]
         },
         {
-          "name": "66 \u2014 Logged-out refresh token is rejected",
+          "name": "67 \u2014 Logged-out refresh token is rejected",
           "request": {
             "method": "POST",
             "header": [
@@ -2782,10 +2842,10 @@
       ]
     },
     {
-      "name": "G. Administrator log download, Broker topics, and dead letters \u2014 67\u201372",
+      "name": "G. Administrator log download, Broker topics, dead letters, and sagas \u2014 68\u201375",
       "item": [
         {
-          "name": "67 \u2014 Log download without bearer",
+          "name": "68 \u2014 Log download without bearer",
           "request": {
             "method": "GET",
             "header": [],
@@ -2812,7 +2872,7 @@
           ]
         },
         {
-          "name": "68 \u2014 Log download as a non-administrator",
+          "name": "69 \u2014 Log download as a non-administrator",
           "request": {
             "method": "GET",
             "header": [
@@ -2844,7 +2904,7 @@
           ]
         },
         {
-          "name": "69 \u2014 Broker topics without bearer",
+          "name": "70 \u2014 Broker topics without bearer",
           "request": {
             "method": "GET",
             "header": [],
@@ -2871,7 +2931,7 @@
           ]
         },
         {
-          "name": "70 \u2014 Broker topics as a non-administrator",
+          "name": "71 \u2014 Broker topics as a non-administrator",
           "request": {
             "method": "GET",
             "header": [
@@ -2903,7 +2963,7 @@
           ]
         },
         {
-          "name": "71 \u2014 Broker dead letters without bearer",
+          "name": "72 \u2014 Broker dead letters without bearer",
           "request": {
             "method": "GET",
             "header": [],
@@ -2930,7 +2990,7 @@
           ]
         },
         {
-          "name": "72 \u2014 Broker dead letters as a non-administrator",
+          "name": "73 \u2014 Broker dead letters as a non-administrator",
           "request": {
             "method": "GET",
             "header": [
@@ -2955,6 +3015,424 @@
                   "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
                   "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
                   "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "74 \u2014 Broker sagas without bearer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas",
+            "description": "Send to the public Gateway. Only administrators can list sagas; folder H lists them as an administrator, and docs/demonstration.md shows the administrator request with curl."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(401));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 401) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"UNAUTHORIZED\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "75 \u2014 Broker sagas as a non-administrator",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token1}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas",
+            "description": "Send to the public Gateway. Only administrators can list sagas; folder H lists them as an administrator, and docs/demonstration.md shows the administrator request with curl."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(403));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 403) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is denied with the documented code\", () => pm.expect(data.code === \"FORBIDDEN\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "H. Saga check as an administrator \u2014 76\u201384",
+      "item": [
+        {
+          "name": "76 \u2014 Log in player 2 as an administrator",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{request_key}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/auth/login",
+            "description": "Send to the public Gateway after granting player 2 administrator access. A token carries the administrator claim only when it is issued after the grant, so player 2 logs in again.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{email2}}\", \"password\": \"{{password2}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Bearer tokens are nonempty\", () => pm.expect(data.token_type === \"Bearer\" && typeof data.access_token === \"string\" && data.access_token.length > 20 && typeof data.refresh_token === \"string\" && data.refresh_token.length > 0 && Number.isFinite(data.expires_in) && data.expires_in > 0).to.equal(true));",
+                  "pm.environment.set(\"admin_token\", data.access_token);",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "77 \u2014 Administrator sees the shift's saga completed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?limit=20&flow=end-shift",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes. The listing holds no session or player ID, so the test finds the shift's saga by its start time, between request 39 and request 40. A Newman or Collection Runner run repeats this request about once per second until that saga is completed."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (Number(pm.environment.get(\"poll_attempt\") || 0) > 0) setTimeout(() => {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "const ITEM = [\"saga_id\", \"flow\", \"initiator\", \"state\", \"cause\", \"created_at\", \"deadline\", \"updated_at\", \"finished_at\", \"steps\"];",
+                  "const STEP = [\"position\", \"service\", \"operation\", \"state\", \"attempts\", \"compensation_attempts\", \"last_status\", \"last_error_kind\"];",
+                  "const same = (object, keys) => !!object && typeof object === \"object\" && JSON.stringify(Object.keys(object).sort()) === JSON.stringify([...keys].sort());",
+                  "const shaped = item => same(item, ITEM) && typeof item.saga_id === \"string\" && Array.isArray(item.steps) && item.steps.length > 0 && item.steps.every(step => same(step, STEP) && Number.isInteger(step.position) && Number.isInteger(step.attempts) && Number.isInteger(step.compensation_attempts));",
+                  "const page = data => !!data && Array.isArray(data.items) && (data.next_cursor === null || (typeof data.next_cursor === \"string\" && data.next_cursor.length > 0));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "const from = Date.parse(pm.environment.get(\"end_started_at\")) - 5000;",
+                  "const to = Date.parse(pm.environment.get(\"end_finished_at\")) + 5000;",
+                  "const ours = page(data) ? data.items.filter(item => item.flow === \"end-shift\" && Date.parse(item.created_at) >= from && Date.parse(item.created_at) <= to) : [];",
+                  "const done = ours.find(item => item.state === \"completed\");",
+                  "const attempt = Number(pm.environment.get(\"poll_attempt\") || 0);",
+                  "if (pm.response.code === 200 && !done && attempt < 30) {",
+                  "  pm.environment.set(\"poll_attempt\", attempt + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "pm.environment.unset(\"poll_attempt\");",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Response is a saga page\", () => pm.expect(page(data) && data.items.length <= 20).to.equal(true));",
+                  "pm.test(\"Every saga lists only its documented fields\", () => pm.expect(data.items.every(item => shaped(item) && item.flow === \"end-shift\")).to.equal(true));",
+                  "const text = pm.response.text();",
+                  "pm.test(\"No payload, player ID or session ID appears\", () => pm.expect([\"player0\", \"player1\", \"player2\", \"session_id\"].every(key => !text.includes(pm.environment.get(key))) && !/payload|participant/.test(text)).to.equal(true));",
+                  "pm.test(\"The shift's saga is listed\", () => pm.expect(ours.length).to.be.above(0));",
+                  "pm.test(\"The shift's saga completed\", () => pm.expect(!!done && done.initiator === \"session\" && done.cause === null && typeof done.finished_at === \"string\").to.equal(true));",
+                  "pm.test(\"Each step is done, in order\", () => pm.expect(!!done && JSON.stringify(done.steps.map(step => [step.position, step.service, step.operation, step.state])) === JSON.stringify([[1, \"session\", \"hold-shift\", \"done\"], [2, \"player\", \"award-shift\", \"done\"], [3, \"session\", \"finish-end\", \"done\"]])).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "78 \u2014 Filter completed sagas one per page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?flow=end-shift&state=completed&limit=1",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes. The test keeps the next cursor for the following request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "const ITEM = [\"saga_id\", \"flow\", \"initiator\", \"state\", \"cause\", \"created_at\", \"deadline\", \"updated_at\", \"finished_at\", \"steps\"];",
+                  "const STEP = [\"position\", \"service\", \"operation\", \"state\", \"attempts\", \"compensation_attempts\", \"last_status\", \"last_error_kind\"];",
+                  "const same = (object, keys) => !!object && typeof object === \"object\" && JSON.stringify(Object.keys(object).sort()) === JSON.stringify([...keys].sort());",
+                  "const shaped = item => same(item, ITEM) && typeof item.saga_id === \"string\" && Array.isArray(item.steps) && item.steps.length > 0 && item.steps.every(step => same(step, STEP) && Number.isInteger(step.position) && Number.isInteger(step.attempts) && Number.isInteger(step.compensation_attempts));",
+                  "const page = data => !!data && Array.isArray(data.items) && (data.next_cursor === null || (typeof data.next_cursor === \"string\" && data.next_cursor.length > 0));",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Response is a saga page\", () => pm.expect(page(data)).to.equal(true));",
+                  "pm.test(\"The page holds one completed end-shift saga\", () => pm.expect(data.items.length === 1 && shaped(data.items[0]) && data.items[0].flow === \"end-shift\" && data.items[0].state === \"completed\").to.equal(true));",
+                  "pm.environment.set(\"saga_cursor\", data.next_cursor || \"\");",
+                  "pm.environment.set(\"saga_first\", data.items.length ? data.items[0].saga_id : \"\");",
+                  "pm.environment.set(\"saga_first_at\", data.items.length ? data.items[0].created_at : \"\");",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "79 \u2014 Next page continues with older sagas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?flow=end-shift&state=completed&limit=1&cursor={{saga_cursor}}",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes. A run skips this request when the previous page was the last one."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"saga_cursor\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "const ITEM = [\"saga_id\", \"flow\", \"initiator\", \"state\", \"cause\", \"created_at\", \"deadline\", \"updated_at\", \"finished_at\", \"steps\"];",
+                  "const STEP = [\"position\", \"service\", \"operation\", \"state\", \"attempts\", \"compensation_attempts\", \"last_status\", \"last_error_kind\"];",
+                  "const same = (object, keys) => !!object && typeof object === \"object\" && JSON.stringify(Object.keys(object).sort()) === JSON.stringify([...keys].sort());",
+                  "const shaped = item => same(item, ITEM) && typeof item.saga_id === \"string\" && Array.isArray(item.steps) && item.steps.length > 0 && item.steps.every(step => same(step, STEP) && Number.isInteger(step.position) && Number.isInteger(step.attempts) && Number.isInteger(step.compensation_attempts));",
+                  "const page = data => !!data && Array.isArray(data.items) && (data.next_cursor === null || (typeof data.next_cursor === \"string\" && data.next_cursor.length > 0));",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "if (!data || pm.response.code !== 200) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Response is a saga page\", () => pm.expect(page(data)).to.equal(true));",
+                  "pm.test(\"The next page holds an older completed saga\", () => pm.expect(data.items.length === 1 && shaped(data.items[0]) && data.items[0].state === \"completed\" && data.items[0].saga_id !== pm.environment.get(\"saga_first\") && Date.parse(data.items[0].created_at) <= Date.parse(pm.environment.get(\"saga_first_at\"))).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "80 \u2014 Limit above 100 is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?limit=101",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(400));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 400) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is rejected with the documented code\", () => pm.expect(data.code === \"VALIDATION_ERROR\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "81 \u2014 Malformed cursor is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?cursor=not-a-cursor",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(400));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 400) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is rejected with the documented code\", () => pm.expect(data.code === \"VALIDATION_ERROR\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "82 \u2014 Unknown flow is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?flow=start-shift",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(400));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 400) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is rejected with the documented code\", () => pm.expect(data.code === \"VALIDATION_ERROR\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "83 \u2014 Unknown state is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?state=failed",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(400));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 400) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is rejected with the documented code\", () => pm.expect(data.code === \"VALIDATION_ERROR\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "84 \u2014 Unsupported query parameter is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{gateway_url}}/api/v1/admin/broker/sagas?topic=DecisionScored",
+            "description": "Send to the public Gateway as an administrator. Grant player 2 administrator access first, as GUIDED-DEMO.md describes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "pm.test(\"HTTP status is expected\", () => pm.expect(pm.response.code).to.equal(400));",
+                  "let data;",
+                  "try { data = pm.response.json(); } catch (_) { data = null; }",
+                  "pm.test(\"Response is a JSON object\", () => pm.expect(!!data && typeof data === \"object\" && !Array.isArray(data)).to.equal(true));",
+                  "if (!data || pm.response.code !== 400) { throw new Error(\"Unexpected response; sensitive body withheld\"); }",
+                  "pm.test(\"Request is rejected with the documented code\", () => pm.expect(data.code === \"VALIDATION_ERROR\" && typeof data.request_id === \"string\" && Array.isArray(data.details)).to.equal(true));",
                   "})();"
                 ]
               }

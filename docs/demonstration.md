@@ -467,7 +467,7 @@ Ending a shift runs as a [saga](contracts/transactions.md) that the Message Brok
 
 ## Run the HTTP checks
 
-The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the log download, in Postman or with Newman:
+The Postman collections run through the public Gateway. The [guided demo](../postman/GUIDED-DEMO.md) walks through registration, a shift, overload, and the administrator routes, in Postman or with Newman. It ends by finding the shift's saga `completed` in the saga listing, with player 2 as a temporary administrator:
 
 ```sh
 ./scripts/run_newman.sh
