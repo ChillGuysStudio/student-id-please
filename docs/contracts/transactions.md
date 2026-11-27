@@ -8,11 +8,13 @@ Two-phase commit ran this flow up to release v5.0.5. The saga replaces it. Its c
 
 The Broker knows each flow by name, like a topic. A flow names its initiator and its steps in a fixed order. Each step names the service that runs it and the compensation that undoes it.
 
-| Flow | Initiator | Steps, in order | Compensation |
-| --- | --- | --- | --- |
-| `end-shift` | `session` | 1. `session` `hold-shift`: the shift becomes `ending` | `session` reopens the shift |
-|  |  | 2. `player` `award-shift`: XP for each participant | `player` reverses the award |
-|  |  | 3. `session` `finish-end`: the shift becomes `ended` | None. It is the last step. |
+| Flow | Initiator | Steps, in order | Kind | Compensation |
+| --- | --- | --- | --- | --- |
+| `end-shift` | `session` | 1. `session` `hold-shift`: the shift becomes `ending` | Compensable | `reopen-shift`: the shift becomes `active` again |
+|  |  | 2. `player` `award-shift`: XP for each participant | Pivot | `revoke-shift-award`: a reversing ledger entry |
+|  |  | 3. `session` `finish-end`: the shift becomes `ended` | Retriable | None |
+
+A compensable step can be undone. The pivot is the last step that can still be undone. A retriable step runs only after the pivot is done, and it is retried until it succeeds. Once the pivot is done, the saga only moves forward.
 
 Session applies `hold-shift` itself, in the same local transaction as its end request, before it starts the saga. The Broker records that step as done when the saga starts. Every other step and every compensation runs through the Broker.
 
@@ -51,7 +53,9 @@ FinishEndPayload = {session_id: Id, idempotency_identity: string, request_sha256
 
 Two requests are equal when their flow and every step's service, operation, and payload are equal, with payloads compared as `jsonb` values.
 
-The Broker calls a participant as it [pushes an event](grpc.md#push-delivery). The metadata is the receiver's hop credential, a Broker workload assertion with `azp` set to the initiator, and `idempotency-key` set to `<saga_id>:<operation>`. `x-request-id` is the `StartSaga` request ID for calls within that request, and the `saga_id` for calls that recovery makes. The participant accepts the call when the hop and assertion verify, `azp` is the flow's initiator, and it serves the flow and operation. Each call goes to one ready replica that the [load rule](routing.md#load) selects, counts toward that replica's breaker like a dispatch, and is never rerouted.
+The Broker calls a participant as it [pushes an event](grpc.md#push-delivery). The metadata is the receiver's hop credential, a Broker workload assertion with `azp` set to the initiator, and `idempotency-key` set to `<saga_id>:<operation>`. `x-request-id` is the `StartSaga` request ID for calls within that request, and the `saga_id` for calls that recovery makes. The participant accepts the call when the hop and assertion verify, `azp` is the flow's initiator, and it serves the flow and operation. Each call goes to one ready replica that the [load rule](routing.md#load) selects, and it is never rerouted. A connection error, a timeout, and a `5xx` count toward that replica's breaker, as [bounded calls](resilience.md#bounded-calls-and-failure-accounting) define. `STORAGE_UNAVAILABLE`, `PARTICIPANT_BUSY`, every other `4xx` including `SAGA_COMPENSATED`, and a call that the Broker cuts off itself do not count.
+
+`CompensateRequest.operation` names the step that the compensation undoes, for example `award-shift`, not the compensation. A step and its compensation therefore share the `idempotency-key` and the participant's lock, on purpose: both act on the same step of the same saga.
 
 ## State machine
 
@@ -75,13 +79,13 @@ A step result is one of three kinds:
 - A rejection, an error with an `ErrorDetail` whose `http_status` is `4xx`, except `409 PARTICIPANT_BUSY` and `429`: the step failed for good, and the saga compensates.
 - Anything else, including `5xx`, `STORAGE_UNAVAILABLE`, `PARTICIPANT_BUSY`, a timeout, a connection error, or no eligible replica: the step stays `pending` and is retried after 1, 5, and 30 seconds, then every 30 seconds.
 
-A Player outage therefore delays the saga. Session keeps the shift `ending`, and the saga completes once Player answers. The retries stop at whichever comes first: 25 attempts of one step, or the saga's deadline 10 minutes after it started. The saga then compensates with the cause `attempts` or `deadline`.
+A Player outage therefore delays the saga. Session keeps the shift `ending`, and the saga completes once Player answers. Up to and including the pivot, the retries stop at whichever comes first: 25 attempts of one step, or the saga's deadline 10 minutes after it started. The saga then compensates with the cause `attempts` or `deadline`. A retriable step after the pivot has no attempt limit or deadline. It is retried until it succeeds, because the steps before it can no longer be undone.
 
 ### Compensation
 
-Compensation runs in reverse order, for every step that is `done`, and for the step that failed when its outcome is unknown. A step that timed out may have committed, so its compensation runs too. A step that was rejected committed nothing, and its compensation runs only to block a late duplicate, as the participant rules below require. Steps that never ran become `skipped`.
+Compensation is possible only while the pivot is not done. It runs in reverse order, for every step that is `done`, and for the step that failed when its outcome is unknown. A step that timed out may have committed, so its compensation runs too. A step that was rejected committed nothing, and its compensation runs only to block a late duplicate, as the participant rules below require. Steps that never ran become `skipped`.
 
-A compensation is retried on the same schedule until it answers `OK`, with no attempt limit and no deadline. It must not fail for good. A compensation that is rejected means that the coordinator and the participant disagree. The Broker logs it at `ERROR` as `saga_conflict` and keeps retrying, so the saga stays `compensating` and visible until an operator acts.
+A compensation is retried on the same schedule until it answers `OK`, with no attempt limit and no deadline. It must not fail for good. A compensation that is rejected, and a retriable step that is rejected, both mean that the coordinator and the participant disagree. The Broker logs it at `ERROR` as `saga_conflict` and keeps retrying. The saga stays `compensating` or `running`, and its shift stays `ending`, which blocks that shift's cases. The rules below make this impossible in normal operation, so no automatic repair exists. An operator finds the saga in the [listing](#saga-listing), compares it with the participant's `saga_log`, and corrects the participant's data, after which the next retry succeeds.
 
 ### Participant rules
 
@@ -104,20 +108,21 @@ A step that arrives after its compensation therefore finds the `compensated` row
 
 `hold-shift` runs in Session's end request, under the existing `request:` and `session:` advisory locks. It runs the checks of the end operation, sets the status to `ending`, increments `revision`, stores the saga ID and the step requests under the idempotency identity, and inserts its `saga_log` row. An `ending` shift accepts no case start, decision, or other change, as an `ended` shift does.
 
-Session's compensation `reopen-shift` sets an `ending` shift back to `active` and increments `revision`. It stores the response `409 PROGRESSION_REJECTED` under the idempotency identity, with the cause in `details`, so that a retry with the same key returns it. A shift that is already `ended` is never reopened. That would mean the coordinator and Session disagree, so Session rejects it with `409 SHIFT_ENDED`.
+Session's compensation `reopen-shift` sets the shift back to `active` and increments `revision`, only while it is `ending` under this saga ID. It sets the `hold-shift` row to `compensated` in the same transaction. It stores the response `409 PROGRESSION_REJECTED` under the idempotency identity, with the cause in `details`, so that a retry with the same key returns it. A shift that is already `ended` is never reopened. That would mean the coordinator and Session disagree, so Session rejects it with `409 SHIFT_ENDED`.
 
-`award-shift` in Player uses the existing progression ledger under the advisory locks `progression:shift:<session_id>` and `player:<id>`, taken in ascending player ID order. It inserts one `progression_ledger` row of kind `shift` with `delta = max(0, score)` for each participant, records the `saga_id` on each row, and recomputes each player's XP.
+`award-shift` in Player uses the progression ledger under the advisory locks `progression:shift:<session_id>` and `player:<id>`, taken in ascending player ID order. It inserts one `progression_ledger` row of kind `shift` with `delta = max(0, score)` for each participant, records the `saga_id` and the session ID on each row, and recomputes each player's XP. An award belongs to its saga. A shift has at most one award that no `shift_reversal` offsets, which is its active award. A shift that was reopened and then ended by a new saga gets a new award, because its earlier award was reversed.
 
 | Condition | Player's answer |
 | --- | --- |
-| A receipt for the shift exists with the same participants and score | `OK`, `applied` false |
-| A receipt exists with other values | `409 AWARD_CONFLICT` |
+| This saga's award exists | `OK`, `applied` false |
+| The shift has an active award from earlier, from an earlier saga, a two-phase commit, or a `ShiftEnded` event, with the same participants and score | `OK`, `applied` false. Nothing is recorded for this saga, so its compensation reverses nothing. |
+| The shift has an active award with other values | `409 AWARD_CONFLICT` |
 | A participant does not exist | `404 PLAYER_NOT_FOUND` |
 | An XP total would exceed 2^31 - 1 | `422 XP_OVERFLOW` |
 
 Player's compensation `revoke-shift-award` inserts one row of kind `shift_reversal` with the negated `delta` for each `shift` row of that saga, and recomputes XP. XP stays `max(0, sum of the ledger)`, as before.
 
-`finish-end` in Session sets an `ending` shift to `ended`, sets `ended_at`, and stores the `200` response under the idempotency identity. An `ended` shift answers `OK`, `applied` false.
+`finish-end` in Session takes the same `session:` lock as `reopen-shift`. It sets the shift to `ended` only when the shift is `ending` under this saga ID, as `hold-shift` stored it. It sets `ended_at` and stores the `200` response under the idempotency identity. A shift that this saga already ended answers `OK`, `applied` false. A shift that belongs to another saga, or whose `hold-shift` row is `compensated`, is rejected with `409 SAGA_COMPENSATED`. With the pivot rule, neither case occurs in normal operation.
 
 ## Starting a saga and the end-shift response
 
@@ -134,7 +139,7 @@ Player's compensation `revoke-shift-award` inserts one row of kind `shift_revers
 | `running`, a Broker error, or no answer | `202 Session` in `ending`. The saga continues in the Broker or the relay. |
 | `compensating` or `compensated` | `409 PROGRESSION_REJECTED` with the cause in `details`. Reads show the shift `ending` until Session's compensation has run, and then `active`. |
 
-A retry with the same key returns the stored response once one exists. Until then, it returns `202` with the current session. An end request for an `ending` shift with another key also returns `202`. An `ended` shift returns `200`, as before.
+A retry with the same key returns the stored response once one exists. Until then, it returns `202` with the current session. A request that saw `compensating` returns `409` at once, while a retry can still return `202` until Session's compensation has stored the `409`. That is intended: the stored response follows Session's own state, not the Broker's. An end request for an `ending` shift with another key also returns `202`. An `ended` shift returns `200`, as before.
 
 The synchronous end now enters `ending`. That replaces the earlier rule that it never did. `ending` is the visible pending state of the saga.
 
@@ -148,12 +153,13 @@ A saga gives up isolation between its steps. Other readers see each step as it c
 
 ## Recovery
 
-A Broker task resumes sagas that their requests did not finish. It runs when the Broker starts and then every second. It claims rows with `FOR UPDATE SKIP LOCKED` and leases each claimed row for `T` plus 1 second, so two Broker instances never run the same saga at once. It runs the next forward step or compensation that is due, and records the result before the next call.
+A Broker task resumes sagas that their requests did not finish. It runs when the Broker starts and then every second. It claims rows with `FOR UPDATE SKIP LOCKED` and leases each claimed row for `T` plus 1 second, so two Broker instances never run the same saga at once. `T` is the outbound task timeout of the [resilience contract](resilience.md#configuration), 2 seconds by default. It runs the next forward step or compensation that is due, and records the result before the next call. A call that was in flight when the Broker stopped has no recorded result, so recovery sends it again. That repeat is safe because the [participant rules](#participant-rules) make every call repeatable.
 
 | State at restart | Recovery |
 | --- | --- |
 | `running`, next step `pending` | Runs the step on the retry schedule |
-| `running`, deadline passed | Becomes `compensating` with the cause `deadline` |
+| `running`, deadline passed, pivot not done | Becomes `compensating` with the cause `deadline` |
+| `running`, pivot done | Runs the retriable step until it succeeds |
 | `compensating` | Runs the remaining compensations in reverse order |
 | `completed` or `compensated` | Nothing |
 
@@ -253,10 +259,12 @@ The Broker writes these records. None of them contains a payload or a participan
 | The Broker is down when the end request arrives | The end returns `202` with the shift `ending`. Session's relay starts the saga when the Broker returns. |
 | A step or compensation is repeated | `OK` with `applied` false, and no second change |
 | The same end request is retried | It returns the stored response, or `202` while the saga runs |
-| Retries run out, or the deadline passes | The saga compensates every step that may have committed, in reverse order. |
+| Retries run out, or the deadline passes, before the pivot is done | The saga compensates every step that may have committed, in reverse order. |
+| Session is unavailable after the award | The award stays. `finish-end` is retried until Session answers, and the shift then becomes `ended`. |
+| A shift is reopened by a compensation and ended again | The new saga gives a new award. The reversed award does not count. |
 
 ## What changes
 
 - The end-shift response adds `202 Session` in `ending`. `409 PROGRESSION_REJECTED` now comes from the saga's compensation. The two-phase codes `409 SESSION_CHANGED`, `503 TRANSACTION_ABORTED`, and `503 COORDINATOR_UNAVAILABLE` are gone.
-- Session still does not publish `ShiftEnded`, and Player keeps its consumer for events stored earlier. The shared receipt `shift:<session_id>` prevents a second award.
+- Session still does not publish `ShiftEnded`, and Player keeps its consumer for events stored earlier. A shift's active award, from any source, prevents a second award.
 - The progression ledger adds the kind `shift_reversal` for compensations.
