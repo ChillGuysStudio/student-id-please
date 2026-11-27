@@ -52,6 +52,16 @@ Add `X.Y.Z-amd64` and `X.Y.Z-arm64` only when a consumer requires separate archi
 
 Verify anonymous access to the index and both runtime images. Publication failures must fail the workflow. Retries preserve the original source and version digests, and older runs must not replace a newer `latest` image.
 
+## Check the published images
+
+Check every pinned image on Docker Hub, without credentials:
+
+```sh
+python3 scripts/check_images.py
+```
+
+For each row of `docs/releases/services.json`, it checks that the version tag and `latest` point to the pinned release index, that the index has native `linux/amd64` and `linux/arm64` images, and that their revision and source labels name the pinned source commit. It lists every tag outside the naming policy and deletes nothing. A tag outside the policy does not fail the check. [Clean Docker Hub tags](#clean-docker-hub-tags) removes those tags when deletion is authorized.
+
 ## Clean Docker Hub tags
 
 The service cleanup workflows use the shared [cleanup action](../.github/actions/dockerhub-cleanup/action.yml). They retain `latest`, canonical `X.Y.Z` versions without leading zeros, and optional `X.Y.Z-amd64` and `X.Y.Z-arm64` tags. Every other tag is a deletion candidate. Cleanup does not expire old conventional versions or delete Git tags or GitHub releases.
